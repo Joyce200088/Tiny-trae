@@ -36,6 +36,7 @@ const mockStickers: StickerData[] = [
     id: '1',
     name: 'Red Apple',
     chinese: '红苹果',
+    phonetic: '/red ˈæpəl/',
     category: 'Food',
     tags: ['fruit', 'red', 'healthy'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -46,6 +47,7 @@ const mockStickers: StickerData[] = [
     id: '2',
     name: 'Blue Car',
     chinese: '蓝色汽车',
+    phonetic: '/bluː kɑːr/',
     category: 'Vehicle',
     tags: ['transport', 'blue', 'car'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -56,6 +58,7 @@ const mockStickers: StickerData[] = [
     id: '3',
     name: 'Cute Cat',
     chinese: '可爱的猫',
+    phonetic: '/kjuːt kæt/',
     category: 'Animal',
     tags: ['pet', 'cute', 'cat'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -84,6 +87,7 @@ const mockStickers: StickerData[] = [
     id: '6',
     name: 'Green Tree',
     chinese: '绿树',
+    phonetic: '/ɡriːn triː/',
     category: 'Nature',
     tags: ['plant', 'green', 'tree'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -567,13 +571,13 @@ export default function MyStickers() {
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="p-6 mb-6">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">MY STICKERS</h1>
           <p className="text-gray-600">Manage your collected stickers and organize them by categories</p>
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="p-6 mb-6">
           {/* Tab Switcher */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -691,15 +695,16 @@ export default function MyStickers() {
         {/* Stickers Content */}
         <div className="space-y-8">
           {Object.entries(groupedStickers).map(([category, stickers]) => (
-            <div key={category} className="bg-white rounded-lg shadow-sm p-6">
+            <div key={category} className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">{category}</h2>
               
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {stickers.map((sticker) => (
                     <div
                       key={sticker.id}
-                      className="group relative bg-gray-50 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                      className="group relative rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border border-black"
+                      style={{backgroundColor: '#FFFBF5'}}
                       onClick={() => handleSelectSticker(sticker.id)}
                     >
                       {/* Selection Checkbox */}
@@ -717,80 +722,66 @@ export default function MyStickers() {
 
                       {/* Thumbnail */}
                       <div 
-                        className="aspect-square bg-white rounded-lg mb-3 flex items-center justify-center overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                        className="aspect-square flex items-center justify-center overflow-hidden cursor-pointer border-b border-black"
+                        style={{backgroundColor: '#FFFBF5'}}
                         onClick={() => openStickerModal(sticker)}
                       >
                         {sticker.imageUrl || sticker.thumbnailUrl ? (
                           <img
                             src={sticker.imageUrl || sticker.thumbnailUrl}
                             alt={sticker.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                           />
                         ) : (
                           <img
                             src={sticker.thumbnailUrl}
                             alt={sticker.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                           />
                         )}
                       </div>
 
                       {/* Info */}
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-medium text-gray-900 truncate">{sticker.name}</h3>
+                      <div className="p-2 space-y-1">
+                        <h3 className="text-lg font-bold text-gray-900">{sticker.name}</h3>
                         {sticker.chinese && (
-                          <p className="text-xs text-gray-600 truncate">{sticker.chinese}</p>
-                        )}
-                        {sticker.phonetic && (
-                          <p className="text-xs text-blue-500 truncate">{sticker.phonetic}</p>
+                          <p className="text-sm text-gray-700">
+                            {sticker.phonetic && <span className="text-gray-900 mr-2">{sticker.phonetic}</span>}
+                            {sticker.chinese}
+                          </p>
                         )}
                         {sticker.example && (
-                          <p className="text-xs text-gray-500 truncate" title={sticker.example}>
+                          <p className="text-xs text-gray-600 leading-relaxed" title={sticker.example}>
                             {sticker.example}
                           </p>
                         )}
-                        <span className="text-xs text-gray-500" style={{display: 'none'}}>{sticker.createdAt}</span>
+                      </div>
 
-                        {/* 语音播放按钮 */}
-                        {sticker.name && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playAudio(sticker.name);
-                            }}
-                            className="absolute top-2 right-8 p-1 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600"
-                            title="Play pronunciation"
-                          >
-                            <Volume2 className="w-3 h-3" />
-                          </button>
-                        )}
-
-                        {/* 删除按钮 */}
+                      {/* 语音播放按钮 */}
+                      {sticker.name && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteSticker(sticker.id);
+                            playAudio(sticker.name);
                           }}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          title="Delete sticker"
+                          className="absolute top-2 right-8 p-1 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600"
+                          title="Play pronunciation"
                         >
-                          <X className="w-3 h-3" />
+                          <Volume2 className="w-3 h-3" />
                         </button>
-                      </div>
-
-                      {/* Tags */}
-                      {sticker.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {sticker.tags.slice(0, 2).map((tag, index) => (
-                            <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                              {tag}
-                            </span>
-                          ))}
-                          {sticker.tags.length > 2 && (
-                            <span className="text-xs text-gray-400">+{sticker.tags.length - 2}</span>
-                          )}
-                        </div>
                       )}
+
+                      {/* 删除按钮 */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSticker(sticker.id);
+                        }}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        title="Delete sticker"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -823,15 +814,6 @@ export default function MyStickers() {
                         <h3 className="font-medium text-gray-900">{sticker.name}</h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span className="text-sm text-gray-600">{sticker.createdAt}</span>
-                          {sticker.tags.length > 0 && (
-                            <div className="flex space-x-1">
-                              {sticker.tags.slice(0, 3).map((tag, index) => (
-                                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>

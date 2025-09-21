@@ -71,7 +71,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {mockWorlds.map((world) => (
-              <div key={world.id} className="rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-black" style={{backgroundColor: '#FFFBF5'}}>
+              <div key={world.id} className="rounded-lg overflow-hidden hover:shadow-lg transition-shadow border border-black" style={{backgroundColor: '#FFFBF5'}}>
                 {/* World Cover */}
                 <div className="aspect-video flex items-center justify-center border-b border-black" style={{backgroundColor: '#FFFBF5'}}>
                   <div className="text-gray-500 text-sm">World Preview</div>
