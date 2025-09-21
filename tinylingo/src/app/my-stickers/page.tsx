@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Download, Tag, Check, Grid, List } from 'lucide-react';
+import { Search, Download, Tag, Check, Grid, List, Plus, X } from 'lucide-react';
+import StickerGenerator from '../../components/StickerGenerator';
 
 // 模拟数据
 const mockStickers = [
@@ -66,6 +67,7 @@ export default function MyStickers() {
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
 
   const filteredStickers = mockStickers.filter(sticker => {
     const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
@@ -175,6 +177,14 @@ export default function MyStickers() {
 
             {/* Batch Actions */}
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowBackgroundRemover(true)}
+                className="flex items-center space-x-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Remove Background</span>
+              </button>
+              
               <button
                 onClick={handleSelectAll}
                 className="flex items-center space-x-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -312,6 +322,32 @@ export default function MyStickers() {
           <div className="text-center py-12">
             <div className="text-gray-400 text-lg mb-2">No stickers found</div>
             <p className="text-gray-600">Try adjusting your search or create some new stickers!</p>
+          </div>
+        )}
+
+        {/* Background Remover Modal */}
+        {showBackgroundRemover && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h2 className="text-xl font-semibold text-gray-900">Remove Background</h2>
+                <button
+                  onClick={() => setShowBackgroundRemover(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <StickerGenerator 
+                  onStickerGenerated={(stickers) => {
+                    // Handle generated stickers - could add to mockStickers or refresh data
+                    console.log('Generated stickers:', stickers);
+                    setShowBackgroundRemover(false);
+                  }}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

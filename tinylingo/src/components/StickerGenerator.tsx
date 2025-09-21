@@ -15,6 +15,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
   const [availableModels, setAvailableModels] = useState<Record<string, string>>({});
   const [enhanceQuality, setEnhanceQuality] = useState(true);
   const [refineEdges, setRefineEdges] = useState(true);
+  const [upscaleFactor, setUpscaleFactor] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 获取可用模型列表
@@ -73,7 +74,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
     setError(null);
 
     try {
-      console.log('开始去背景处理...', '使用模型:', selectedModel, '增强质量:', enhanceQuality, '边缘细化:', refineEdges);
+      console.log('开始去背景处理...', '使用模型:', selectedModel, '增强质量:', enhanceQuality, '边缘细化:', refineEdges, '放大倍数:', upscaleFactor);
       
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -81,10 +82,11 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
       const queryParams = new URLSearchParams({
         model: selectedModel,
         enhance: enhanceQuality.toString(),
-        refine_edges: refineEdges.toString()
+        refine_edges: refineEdges.toString(),
+        upscale: upscaleFactor.toString()
       });
 
-      const response = await fetch(`http://localhost:8000/bg/remove?${queryParams}`, {
+      const response = await fetch(`http://localhost:8000/remove-background?${queryParams}`, {
         method: 'POST',
         body: formData,
       });
@@ -215,6 +217,25 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
               <p className="text-xs text-gray-500">柔化边缘，减少锯齿和伪影</p>
             </div>
           </label>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              高清化选项
+            </label>
+            <select
+              value={upscaleFactor}
+              onChange={(e) => setUpscaleFactor(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value={1}>原始尺寸 (1x)</option>
+              <option value={2}>高清放大 (2x)</option>
+              <option value={3}>超高清放大 (3x)</option>
+              <option value={4}>极高清放大 (4x)</option>
+            </select>
+            <p className="text-xs text-gray-500">
+              使用AI算法提升图像分辨率，获得更清晰的贴纸效果
+            </p>
+          </div>
         </div>
       </div>
 
