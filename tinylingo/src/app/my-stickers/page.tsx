@@ -1,23 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2 } from 'lucide-react';
+import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
+import { identifyImageAndGenerateContent, type EnglishLearningContent } from '../../lib/geminiService';
 
 // 扩展贴纸接口，包含学习内容
 interface StickerData {
   id: string;
   name: string;
   chinese?: string;
+  phonetic?: string;
   example?: string;
   exampleChinese?: string;
+  audioUrl?: string;
   category: string | null;
   tags: string[];
   thumbnailUrl?: string;
   imageUrl?: string;
   createdAt: string;
   sorted: boolean;
+}
+
+interface UploadedFile {
+  file: File;
+  preview: string;
 }
 
 // 模拟数据
@@ -91,6 +99,9 @@ export default function MyStickers() {
   const [generatedStickers, setGeneratedStickers] = useState<any[]>([]);
   const [showLearningDashboard, setShowLearningDashboard] = useState(false);
   const [allStickers, setAllStickers] = useState<StickerData[]>(mockStickers);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // 从localStorage加载保存的贴纸
   useEffect(() => {
@@ -180,6 +191,136 @@ export default function MyStickers() {
       
       // 从选中列表中移除
       setSelectedStickers(prev => prev.filter(id => id !== stickerId));
+    }
+  };
+
+  // 处理文件上传
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    const filesWithPreview = imageFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    
+    setUploadedFiles(prev => [...prev, ...filesWithPreview]);
+  };
+
+  // 移除上传的文件
+  const removeUploadedFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 将文件转换为Canvas以供AI识别
+  const fileToCanvas = (file: File): Promise<HTMLCanvasElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('无法创建Canvas上下文'));
+          return;
+        }
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        resolve(canvas);
+      };
+      
+      img.onerror = () => {
+        reject(new Error('图片加载失败'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // AI识别并处理上传的贴纸
+  const processUploadedStickers = async () => {
+    if (uploadedFiles.length === 0) return;
+    
+    setIsProcessing(true);
+    try {
+      const processedStickers: StickerData[] = [];
+      
+      for (const fileData of uploadedFiles) {
+        try {
+          // 将文件转换为Canvas
+          const canvas = await fileToCanvas(fileData.file);
+          
+          // 使用真实的AI识别功能
+          const aiResult = await identifyImageAndGenerateContent(canvas);
+          
+          const newSticker: StickerData = {
+             id: `uploaded_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+             name: aiResult.english,
+             chinese: aiResult.chinese,
+             phonetic: aiResult.pronunciation || '', // 使用AI返回的pronunciation字段
+             example: aiResult.example,
+             exampleChinese: aiResult.exampleChinese,
+             audioUrl: '', // 暂时不生成音频
+             imageUrl: fileData.preview,
+             thumbnailUrl: fileData.preview,
+             category: null, // 直接放入unsorted
+             tags: ['uploaded', 'ai-recognized'],
+             createdAt: new Date().toISOString().split('T')[0],
+             sorted: false
+           };
+          
+          processedStickers.push(newSticker);
+        } catch (error) {
+          console.error('处理文件失败:', error);
+          
+          // 如果AI识别失败，使用默认内容
+          const newSticker: StickerData = {
+            id: `uploaded_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: 'Unknown Object',
+            chinese: '未知物品',
+            phonetic: '',
+            example: 'I can see an unknown object.',
+            exampleChinese: '我能看到一个未知的物品。',
+            audioUrl: '',
+            imageUrl: fileData.preview,
+            thumbnailUrl: fileData.preview,
+            category: null,
+            tags: ['uploaded', 'recognition-failed'],
+            createdAt: new Date().toISOString().split('T')[0],
+            sorted: false
+          };
+          
+          processedStickers.push(newSticker);
+        }
+      }
+      
+      // 保存到localStorage
+      const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
+      const updatedStickers = [...existingStickers, ...processedStickers];
+      localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+      
+      // 更新本地状态
+      setAllStickers(prev => [...prev, ...processedStickers]);
+      
+      // 触发更新事件
+      window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+      
+      // 重置上传状态
+      setUploadedFiles([]);
+      setShowUploadModal(false);
+      
+      // 切换到unsorted标签页显示新上传的贴纸
+      setActiveTab('unsorted');
+      
+      alert(`成功上传并识别了 ${processedStickers.length} 个贴纸！`);
+    } catch (error) {
+      console.error('处理上传贴纸失败:', error);
+      alert('处理上传贴纸时出现错误，请重试。');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -278,6 +419,14 @@ export default function MyStickers() {
             {/* Batch Actions */}
             <div className="flex items-center space-x-2">
               <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center space-x-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Upload Stickers</span>
+              </button>
+              
+              <button
                 onClick={() => setShowBackgroundRemover(true)}
                 className="flex items-center space-x-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
@@ -366,6 +515,9 @@ export default function MyStickers() {
                         <h3 className="text-sm font-medium text-gray-900 truncate">{sticker.name}</h3>
                         {sticker.chinese && (
                           <p className="text-xs text-gray-600 truncate">{sticker.chinese}</p>
+                        )}
+                        {sticker.phonetic && (
+                          <p className="text-xs text-blue-500 truncate">{sticker.phonetic}</p>
                         )}
                         {sticker.example && (
                           <p className="text-xs text-blue-600 truncate mt-1" title={sticker.example}>
@@ -499,6 +651,105 @@ export default function MyStickers() {
                     setShowLearningDashboard(true);
                   }}
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Modal */}
+        {showUploadModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800">Upload Stickers</h2>
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setUploadedFiles([]);
+                    }}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* File Upload Area */}
+                <div className="mb-6">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-lg text-gray-600 mb-2">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Support multiple image files (PNG, JPG, JPEG)
+                      </p>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Uploaded Files Preview */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Uploaded Files ({uploadedFiles.length})
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={file.preview}
+                            alt={file.file.name}
+                            className="w-full h-32 object-cover rounded-lg border"
+                          />
+                          <button
+                            onClick={() => removeUploadedFile(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          <p className="text-xs text-gray-600 mt-1 truncate">
+                            {file.file.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Process Button */}
+                {uploadedFiles.length > 0 && (
+                  <div className="flex justify-end space-x-4">
+                    <button
+                      onClick={() => {
+                        setShowUploadModal(false);
+                        setUploadedFiles([]);
+                      }}
+                      className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={processUploadedStickers}
+                      disabled={isProcessing}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      {isProcessing && (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                      <span>{isProcessing ? 'Processing...' : 'Process & Import'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
