@@ -287,7 +287,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">生成贴纸</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Generate stickers</h2>
       
       {/* 文件上传区域 */}
       <div className="mb-6">
@@ -301,7 +301,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
               <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <p className="text-lg text-gray-600 mb-2">拖拽图片到此处或点击选择文件</p>
+          <p className="text-lg text-gray-600 mb-2">请上传独立的物品集图片，帮您拆分物品为贴纸~</p>
           <p className="text-sm text-gray-500">支持 JPG、PNG、WebP 格式</p>
           
           <input
@@ -403,7 +403,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
           disabled={!selectedFile || isProcessing}
           className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {isProcessing ? '🔄 智能分析中...' : '生成贴纸'}
+          {isProcessing ? '🔄 智能分析中...' : 'Generate stickers'}
         </button>
         
         <button
@@ -425,7 +425,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
       {showSegmentation && segmentedRegions.length > 0 && (
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            🎯 选择要学习的物品 ({segmentedRegions.length} 个物品)
+            🎯 拆分物品 ({segmentedRegions.length} 个物品)
           </h3>
           <p className="text-sm text-gray-600 mb-4">
             点击选择你想要学习英语单词的物品，系统会自动为你生成学习贴纸
