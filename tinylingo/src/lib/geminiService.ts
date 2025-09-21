@@ -18,6 +18,29 @@ export interface GeminiResponse {
   }>;
 }
 
+// AI生成图片的配置选项
+export interface ImageGenerationOptions {
+  word: string;           // 要生成的单词
+  description?: string;   // 详细描述（可选）
+  style?: 'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch'; // 风格
+  viewpoint?: 'front' | 'top' | 'isometric' | 'side'; // 视角
+}
+
+// AI生成图片的响应接口
+export interface ImageGenerationResponse {
+  candidates: Array<{
+    content: {
+      parts: Array<{
+        text?: string;
+        inlineData?: {
+          mimeType: string;
+          data: string; // base64编码的图片数据
+        };
+      }>;
+    };
+  }>;
+}
+
 const GEMINI_API_KEY = 'AIzaSyCjzpGqvGow52_QWVW8uw_2yVDAGf6H_Uw';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -219,4 +242,108 @@ export async function identifyMultipleImages(canvases: HTMLCanvasElement[]): Pro
   }
   
   return results;
+}
+
+/**
+ * 使用Gemini AI生成图片
+ */
+export async function generateImageWithGemini(options: ImageGenerationOptions): Promise<string> {
+  try {
+    const { word, description, style = 'cartoon', viewpoint = 'front' } = options;
+    
+    if (!word.trim()) {
+      throw new Error('Word is required for image generation');
+    }
+    
+    // 构建提示词 - 强调白色背景和单个物品
+    let prompt = `Create a single ${word}`;
+    
+    if (description && description.trim()) {
+      prompt += ` (${description.trim()})`;
+    }
+    
+    // 添加白色背景和单个物品的要求
+    prompt += ' on a pure white background. The image should contain ONLY the single object with no text, no other objects, no shadows, and no distractions. Clean, isolated object on white background';
+    
+    // 添加风格描述
+    const styleDescriptions = {
+      cartoon: 'in a cartoon style, colorful and playful',
+      realistic: 'in a realistic photographic style, high detail',
+      pixel: 'in pixel art style, 8-bit retro gaming aesthetic',
+      watercolor: 'in watercolor painting style, soft and artistic',
+      sketch: 'in pencil sketch style, black and white line art'
+    };
+    
+    if (style && styleDescriptions[style]) {
+      prompt += `, ${styleDescriptions[style]}`;
+    }
+    
+    // 添加视角描述
+    const viewpointDescriptions = {
+      front: 'viewed from the front',
+      top: 'viewed from above, top-down perspective',
+      isometric: 'in isometric view, 3D perspective',
+      side: 'viewed from the side, profile view'
+    };
+    
+    if (viewpoint && viewpointDescriptions[viewpoint]) {
+      prompt += `, ${viewpointDescriptions[viewpoint]}`;
+    }
+    
+    // 添加通用质量描述，再次强调白色背景
+    prompt += '. High quality, clear, well-composed image with pure white background, suitable for educational stickers. No text, no labels, no other objects, just the single item on white background.';
+    
+    console.log('图片生成提示词:', prompt);
+    
+    // 使用Gemini 2.5 Flash Image Preview模型
+    const imageGenerationUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const requestBody = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"]
+      }
+    };
+    
+    const response = await fetch(imageGenerationUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini图片生成API错误:', response.status, errorText);
+      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const data: ImageGenerationResponse = await response.json();
+    console.log('Gemini图片生成响应:', data);
+    
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('API响应中没有候选结果');
+    }
+    
+    // 查找图片数据
+    for (const candidate of data.candidates) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          // 返回base64格式的图片数据URL
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    
+    throw new Error('API响应中没有找到图片数据');
+    
+  } catch (error) {
+    console.error('Gemini图片生成失败:', error);
+    throw error;
+  }
 }

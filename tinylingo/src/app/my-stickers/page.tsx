@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload } from 'lucide-react';
+import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload, Sparkles } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
-import { identifyImageAndGenerateContent, type EnglishLearningContent } from '../../lib/geminiService';
+import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 
 // 扩展贴纸接口，包含学习内容
 interface StickerData {
@@ -102,6 +102,17 @@ export default function MyStickers() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // AI生成图片相关状态
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [aiGenerationOptions, setAiGenerationOptions] = useState<ImageGenerationOptions>({
+    word: '',
+    description: '',
+    style: 'cartoon',
+    viewpoint: 'front'
+  });
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
   // 从localStorage加载保存的贴纸
   useEffect(() => {
@@ -324,6 +335,124 @@ export default function MyStickers() {
     }
   };
 
+  // AI生成图片功能
+  const handleGenerateAIImage = async () => {
+    if (!aiGenerationOptions.word.trim()) {
+      alert('请输入要生成的单词');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      console.log('开始生成AI图片:', aiGenerationOptions);
+      const imageDataUrl = await generateImageWithGemini(aiGenerationOptions);
+      setGeneratedImage(imageDataUrl);
+      console.log('AI图片生成成功');
+    } catch (error) {
+      console.error('AI图片生成失败:', error);
+      alert('AI图片生成失败，请重试');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  // 保存AI生成的图片为贴纸
+  const saveAIGeneratedSticker = async () => {
+    if (!generatedImage || !aiGenerationOptions.word.trim()) {
+      return;
+    }
+
+    try {
+      // 使用Gemini识别生成的图片内容
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = async () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        
+        try {
+          // 调用识别API获取学习内容
+          const learningContent = await identifyImageAndGenerateContent(canvas);
+          
+          // 创建新贴纸
+          const newSticker: StickerData = {
+            id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: learningContent.english || aiGenerationOptions.word,
+            chinese: learningContent.chinese,
+            phonetic: learningContent.pronunciation,
+            example: learningContent.example,
+            exampleChinese: learningContent.exampleChinese,
+            imageUrl: generatedImage,
+            thumbnailUrl: generatedImage,
+            category: null,
+            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon', aiGenerationOptions.viewpoint || 'front'],
+            createdAt: new Date().toISOString().split('T')[0],
+            sorted: false
+          };
+
+          // 保存到localStorage
+          const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
+          const updatedStickers = [...existingStickers, newSticker];
+          localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+
+          // 更新本地状态
+          setAllStickers(prev => [...prev, newSticker]);
+
+          // 触发更新事件
+          window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+
+          // 重置状态
+          setGeneratedImage(null);
+          setAiGenerationOptions({
+            word: '',
+            description: '',
+            style: 'cartoon',
+            viewpoint: 'front'
+          });
+          setShowAIGenerator(false);
+
+          // 切换到unsorted标签页显示新生成的贴纸
+          setActiveTab('unsorted');
+
+          alert('AI生成的贴纸已保存成功！');
+        } catch (error) {
+          console.error('识别AI生成图片失败:', error);
+          // 即使识别失败，也保存基本信息
+          const newSticker: StickerData = {
+            id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: aiGenerationOptions.word,
+            chinese: '',
+            imageUrl: generatedImage,
+            thumbnailUrl: generatedImage,
+            category: null,
+            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon'],
+            createdAt: new Date().toISOString().split('T')[0],
+            sorted: false
+          };
+
+          const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
+          const updatedStickers = [...existingStickers, newSticker];
+          localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+          setAllStickers(prev => [...prev, newSticker]);
+          window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+
+          setGeneratedImage(null);
+          setShowAIGenerator(false);
+          setActiveTab('unsorted');
+          alert('AI生成的贴纸已保存（识别信息可能不完整）');
+        }
+      };
+      
+      img.src = generatedImage;
+    } catch (error) {
+      console.error('保存AI生成贴纸失败:', error);
+      alert('保存贴纸失败，请重试');
+    }
+  };
+
   // 语音播放功能
   const playAudio = (text: string, lang: string = 'en-US') => {
     if ('speechSynthesis' in window) {
@@ -432,6 +561,14 @@ export default function MyStickers() {
               >
                 <Plus className="w-4 h-4" />
                 <span>Generate stickers</span>
+              </button>
+              
+              <button
+                onClick={() => setShowAIGenerator(true)}
+                className="flex items-center space-x-2 px-3 py-2 text-sm bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-lg hover:from-pink-600 hover:to-violet-600"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>AI Generate</span>
               </button>
               
               <button
@@ -763,6 +900,190 @@ export default function MyStickers() {
                 stickers={generatedStickers}
                 onClose={() => setShowLearningDashboard(false)}
               />
+            </div>
+          </div>
+        )}
+
+        {/* AI生成图片模态框 */}
+        {showAIGenerator && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                {/* 头部 */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-violet-500 rounded-lg flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">AI Generate Sticker</h2>
+                      <p className="text-sm text-gray-600">Create custom stickers with AI</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAIGenerator(false);
+                      setGeneratedImage(null);
+                      setAiGenerationOptions({
+                        word: '',
+                        description: '',
+                        style: 'cartoon',
+                        viewpoint: 'front'
+                      });
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+
+                {/* 输入表单 */}
+                <div className="space-y-6">
+                  {/* 单词输入 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Word / 单词 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={aiGenerationOptions.word}
+                      onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, word: e.target.value }))}
+                      placeholder="Enter the word you want to generate (e.g., apple, car, cat)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* 描述输入 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description / 详细描述 <span className="text-gray-400">(Optional)</span>
+                    </label>
+                    <textarea
+                      value={aiGenerationOptions.description}
+                      onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Add more details about the object (e.g., red apple with green leaf, blue sports car)"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+
+                  {/* 风格选择 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Style / 风格
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: 'cartoon', label: 'Cartoon / 卡通', emoji: '🎨' },
+                        { value: 'realistic', label: 'Realistic / 写实', emoji: '📸' },
+                        { value: 'pixel', label: 'Pixel Art / 像素', emoji: '🎮' },
+                        { value: 'watercolor', label: 'Watercolor / 水彩', emoji: '🖌️' },
+                        { value: 'sketch', label: 'Sketch / 素描', emoji: '✏️' }
+                      ].map((style) => (
+                        <button
+                          key={style.value}
+                          onClick={() => setAiGenerationOptions(prev => ({ ...prev, style: style.value as any }))}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            aiGenerationOptions.style === style.value
+                              ? 'border-pink-500 bg-pink-50 text-pink-700'
+                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          }`}
+                        >
+                          <div className="text-lg mb-1">{style.emoji}</div>
+                          <div className="text-xs font-medium">{style.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 视角选择 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Viewpoint / 视角
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'front', label: 'Front View / 正面', emoji: '👁️' },
+                        { value: 'top', label: 'Top View / 俯视', emoji: '⬇️' },
+                        { value: 'isometric', label: 'Isometric / 等轴', emoji: '📐' },
+                        { value: 'side', label: 'Side View / 侧面', emoji: '👀' }
+                      ].map((viewpoint) => (
+                        <button
+                          key={viewpoint.value}
+                          onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as any }))}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            aiGenerationOptions.viewpoint === viewpoint.value
+                              ? 'border-violet-500 bg-violet-50 text-violet-700'
+                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          }`}
+                        >
+                          <div className="text-lg mb-1">{viewpoint.emoji}</div>
+                          <div className="text-xs font-medium">{viewpoint.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 生成按钮 */}
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleGenerateAIImage}
+                      disabled={!aiGenerationOptions.word.trim() || isGeneratingAI}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-lg hover:from-pink-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-medium"
+                    >
+                      {isGeneratingAI && (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                      <Sparkles className="w-4 h-4" />
+                      <span>{isGeneratingAI ? 'Generating...' : 'Generate Image'}</span>
+                    </button>
+                  </div>
+
+                  {/* 生成结果 */}
+                  {generatedImage && (
+                    <div className="border-t pt-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Generated Result</h3>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-start space-x-4">
+                          <img
+                            src={generatedImage}
+                            alt="Generated sticker"
+                            className="w-32 h-32 object-contain bg-white rounded-lg border"
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 mb-2">{aiGenerationOptions.word}</h4>
+                            {aiGenerationOptions.description && (
+                              <p className="text-sm text-gray-600 mb-3">{aiGenerationOptions.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full">
+                                {aiGenerationOptions.style}
+                              </span>
+                              <span className="px-2 py-1 bg-violet-100 text-violet-700 text-xs rounded-full">
+                                {aiGenerationOptions.viewpoint}
+                              </span>
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={saveAIGeneratedSticker}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                              >
+                                Save as Sticker
+                              </button>
+                              <button
+                                onClick={() => setGeneratedImage(null)}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
+                              >
+                                Generate New
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
