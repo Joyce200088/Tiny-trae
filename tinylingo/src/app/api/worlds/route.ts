@@ -13,7 +13,7 @@ const mockWorlds = [
     stickerCount: 5,
     viewCount: 12,
     likeCount: 3,
-    tags: ['beginner', 'simple'],
+    tags: ['Cartoon'],
     author: 'user123',
     scenes: [
       {
@@ -38,7 +38,7 @@ const mockWorlds = [
     stickerCount: 8,
     viewCount: 45,
     likeCount: 12,
-    tags: ['animals', 'nature', 'educational'],
+    tags: ['Realistic'],
     author: 'user123',
     scenes: [
       {

@@ -1,0 +1,31 @@
+<svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="unknownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ced4da;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#868e96;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="questionGradient" cx="0.3" cy="0.3" r="0.8">
+      <stop offset="0%" style="stop-color:#fff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e9ecef;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background box -->
+  <rect x="25" y="25" width="100" height="100" rx="15" fill="url(#unknownGradient)" stroke="#6c757d" stroke-width="3" stroke-dasharray="10,5"/>
+  
+  <!-- Question mark background circle -->
+  <circle cx="75" cy="75" r="35" fill="url(#questionGradient)" stroke="#495057" stroke-width="2"/>
+  
+  <!-- Question mark -->
+  <path d="M 65 55 Q 65 45 75 45 Q 85 45 85 55 Q 85 65 75 65 L 75 75" 
+        fill="none" stroke="#495057" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Question mark dot -->
+  <circle cx="75" cy="85" r="4" fill="#495057"/>
+  
+  <!-- Corner decorations -->
+  <circle cx="35" cy="35" r="3" fill="#adb5bd"/>
+  <circle cx="115" cy="35" r="3" fill="#adb5bd"/>
+  <circle cx="35" cy="115" r="3" fill="#adb5bd"/>
+  <circle cx="115" cy="115" r="3" fill="#adb5bd"/>
+</svg>

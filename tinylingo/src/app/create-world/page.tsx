@@ -7,16 +7,16 @@ import useImage from 'use-image';
 
 // 模拟数据
 const mockStickers = [
-  { id: '1', name: 'Red Apple', url: '/api/placeholder/100/100', category: 'Food' },
-  { id: '2', name: 'Blue Car', url: '/api/placeholder/100/100', category: 'Vehicle' },
-  { id: '3', name: 'Cute Cat', url: '/api/placeholder/100/100', category: 'Animal' },
-  { id: '4', name: 'Green Tree', url: '/api/placeholder/100/100', category: 'Nature' }
+  { id: '1', name: 'Diving Mask', url: '/api/placeholder/100/100', category: 'Ai-generated' },
+  { id: '2', name: 'Ceramic Mug', url: '/api/placeholder/100/100', category: 'Ai-generated' },
+  { id: '3', name: 'Industrial Shelving', url: '/api/placeholder/100/100', category: 'Ai-generated' },
+  { id: '4', name: 'Calendar', url: '/api/placeholder/100/100', category: 'Ai-generated' }
 ];
 
 const mockBackgrounds = [
-  { id: '1', name: 'Kitchen', url: '/api/placeholder/800/600', category: 'Indoor' },
-  { id: '2', name: 'Garden', url: '/api/placeholder/800/600', category: 'Outdoor' },
-  { id: '3', name: 'Bedroom', url: '/api/placeholder/800/600', category: 'Indoor' }
+  { id: '1', name: 'Kitchen', url: '/api/placeholder/800/600', category: 'Ai-generated' },
+  { id: '2', name: 'Garden', url: '/api/placeholder/800/600', category: 'Ai-generated' },
+  { id: '3', name: 'Bedroom', url: '/api/placeholder/800/600', category: 'Ai-generated' }
 ];
 
 export default function CreateWorld() {

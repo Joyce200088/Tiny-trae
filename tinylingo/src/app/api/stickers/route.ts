@@ -3,55 +3,57 @@ import { NextRequest, NextResponse } from 'next/server';
 // Mock sticker data - in production, this would come from a database
 const mockStickers = [
   {
-    id: '1',
-    name: 'Happy Cat',
-    category: 'animals',
-    tags: ['cat', 'happy', 'cute'],
-    imageUrl: '/api/placeholder/100/100',
-    createdAt: '2024-01-15T10:30:00Z',
-    isCollected: true,
-    rarity: 'common'
-  },
-  {
-    id: '2',
-    name: 'Red Apple',
-    category: 'food',
-    tags: ['apple', 'fruit', 'red'],
-    imageUrl: '/api/placeholder/100/100',
-    createdAt: '2024-01-16T14:20:00Z',
-    isCollected: true,
-    rarity: 'common'
-  },
-  {
-    id: '3',
-    name: 'Blue Car',
-    category: 'vehicles',
-    tags: ['car', 'blue', 'transport'],
-    imageUrl: '/api/placeholder/100/100',
-    createdAt: '2024-01-17T09:15:00Z',
-    isCollected: false,
-    rarity: 'rare'
-  },
-  {
-    id: '4',
-    name: 'Sunflower',
-    category: 'nature',
-    tags: ['flower', 'yellow', 'nature'],
-    imageUrl: '/api/placeholder/100/100',
-    createdAt: '2024-01-18T16:45:00Z',
-    isCollected: true,
-    rarity: 'uncommon'
-  },
-  {
-    id: '5',
-    name: 'Magic Wand',
-    category: 'objects',
-    tags: ['magic', 'wand', 'fantasy'],
-    imageUrl: '/api/placeholder/100/100',
-    createdAt: '2024-01-19T11:30:00Z',
-    isCollected: false,
-    rarity: 'legendary'
-  }
+      id: '1',
+      name: 'Soccer Ball',
+      chinese: '足球',
+      phonetic: '/ˈsɑːkər bɔːl/',
+      category: 'Sports Equipment',
+      tags: ['Cartoon'],
+      thumbnailUrl: '/Soccer Ball.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'A spherical ball used in the sport of soccer (football), typically made of leather or synthetic materials with a distinctive black and white pattern.',
+      mnemonic: 'Soccer来自Association Football的缩写，Ball指球形物体'
+    },
+    {
+      id: '2',
+      name: 'Basketball',
+      chinese: '篮球',
+      phonetic: '/ˈbæskɪtbɔːl/',
+      category: 'Sports Equipment',
+      tags: ['Realistic'],
+      thumbnailUrl: '/Basketball.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'An orange ball with distinctive lines used in basketball, designed to bounce consistently and provide good grip for players.',
+      mnemonic: 'Basket（篮子） + Ball（球） = 投入篮子的球类运动'
+    },
+    {
+      id: '3',
+      name: 'Tennis Racket',
+      chinese: '网球拍',
+      phonetic: '/ˈtenɪs ˈrækɪt/',
+      category: 'Sports Equipment',
+      tags: ['Pixel'],
+      thumbnailUrl: '/Tennis Racket.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'A racket used to hit a tennis ball, consisting of a handle and a circular frame with strings stretched across it.',
+      mnemonic: 'Tennis（网球） + Racket（球拍） = 网球运动使用的击球工具'
+    },
+    {
+      id: '4',
+      name: 'Baseball Glove',
+      chinese: '棒球手套',
+      phonetic: '/ˈbeɪsbɔːl ɡlʌv/',
+      category: 'Sports Equipment',
+      tags: ['Ai-generated'],
+      thumbnailUrl: '/Baseball Glove.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'A large leather glove worn by baseball players to catch and field balls, with a deep pocket and webbing between fingers.',
+      mnemonic: 'Baseball（棒球） + Glove（手套） = 棒球运动中接球用的专用手套'
+    }
 ];
 
 // GET - Fetch stickers with optional filtering

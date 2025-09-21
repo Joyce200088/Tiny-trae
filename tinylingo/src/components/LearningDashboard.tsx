@@ -75,15 +75,32 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
         exampleChinese: sticker.learningContent.exampleChinese,
         imageUrl: sticker.dataUrl,
         category: null, // 不设置分类，直接放入unsorted
-        tags: ['ai-generated', 'unsorted'],
+        tags: ['Ai-generated'],
         createdAt: new Date().toISOString().split('T')[0], // 格式化日期
         sorted: false // 标记为未分类
       }));
 
       // 保存到localStorage (实际项目中应该调用API)
-      const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
-      const updatedStickers = [...existingStickers, ...stickerData];
-      localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+      const savedData = localStorage.getItem('myStickers');
+      let existingData = { userStickers: [], deletedMockIds: [] };
+      
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        if (Array.isArray(parsedData)) {
+          // 兼容旧格式
+          existingData.userStickers = parsedData;
+        } else {
+          // 新格式
+          existingData = parsedData;
+        }
+      }
+      
+      const updatedStickers = [...existingData.userStickers, ...stickerData];
+      const updatedData = {
+        userStickers: updatedStickers,
+        deletedMockIds: existingData.deletedMockIds
+      };
+      localStorage.setItem('myStickers', JSON.stringify(updatedData));
 
       // 触发自定义事件通知MY STICKERS页面更新
       window.dispatchEvent(new CustomEvent('myStickersUpdated'));

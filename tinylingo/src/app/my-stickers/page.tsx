@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload, Sparkles } from 'lucide-react';
+import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload, Sparkles, Edit, Trash2 } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
 import StickerDetailModal from '../../components/StickerDetailModal';
@@ -34,78 +34,64 @@ interface UploadedFile {
 // 模拟数据
 const mockStickers: StickerData[] = [
   {
-    id: '1',
-    name: 'Red Apple',
-    chinese: '红苹果',
-    phonetic: '/red ˈæpəl/',
-    category: 'Food',
-    tags: ['fruit', 'red', 'healthy'],
-    thumbnailUrl: '/api/placeholder/150/150',
-    createdAt: '2024-01-15',
-    sorted: true,
-    notes: '苹果富含维生素C，是健康的水果选择。',
-    mnemonic: 'Apple的发音像"爱泡"，想象爱泡在苹果汁里。'
-  },
-  {
-    id: '2',
-    name: 'Blue Car',
-    chinese: '蓝色汽车',
-    phonetic: '/bluː kɑːr/',
-    category: 'Vehicle',
-    tags: ['transport', 'blue', 'car'],
-    thumbnailUrl: '/api/placeholder/150/150',
-    createdAt: '2024-01-14',
-    sorted: true,
-    mnemonic: 'Car发音像"卡"，想象汽车卡在路上。'
-  },
-  {
-    id: '3',
-    name: 'Cute Cat',
-    chinese: '可爱的猫',
-    phonetic: '/kjuːt kæt/',
-    category: 'Animal',
-    tags: ['pet', 'cute', 'cat'],
-    thumbnailUrl: '/api/placeholder/150/150',
-    createdAt: '2024-01-13',
-    sorted: true,
-    notes: '猫是很受欢迎的宠物，性格独立。',
-    mnemonic: 'Cat发音像"凯特"，想象凯特养了一只猫。'
-  },
-  {
-    id: '4',
-    name: 'Unknown Item 1',
-    category: null,
-    tags: [],
-    thumbnailUrl: '/api/placeholder/150/150',
-    createdAt: '2024-01-12',
-    sorted: false
-  },
-  {
-    id: '5',
-    name: 'Unknown Item 2',
-    category: null,
-    tags: [],
-    thumbnailUrl: '/api/placeholder/150/150',
-    createdAt: '2024-01-11',
-    sorted: false
-  },
-  {
-    id: '6',
-    name: 'Green Tree',
-    chinese: '绿树',
-    phonetic: '/ɡriːn triː/',
-    category: 'Nature',
-    tags: ['plant', 'green', 'tree'],
-    thumbnailUrl: '/api/placeholder/150/150',
-    createdAt: '2024-01-10',
-    sorted: true
-  }
+      id: '1',
+      name: 'Diving Mask',
+      chinese: '潜水镜',
+      phonetic: '/ˈdaɪvɪŋ mæsk/',
+      category: 'Diving Equipment',
+      tags: ['Pixel', 'Ai-generated'],
+      thumbnailUrl: '/Diving Mask.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
+      mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+    },
+    {
+      id: '2',
+      name: 'Calendar',
+      chinese: '日历',
+      phonetic: '/ˈkælɪndər/',
+      category: 'Daily Items',
+      tags: ['Cartoon', 'Ai-generated'],
+      thumbnailUrl: '/Calendar.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
+      mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+    },
+    {
+      id: '3', 
+      name: 'Industrial Shelving',
+      chinese: '工业货架',
+      phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
+      category: 'Furniture',
+      tags: ['Cartoon', 'Ai-generated'],
+      thumbnailUrl: '/Industrial Shelving.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
+      mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+    },
+    {
+      id: '4',
+      name: 'Ceramic Mug',
+      chinese: '陶瓷杯',
+      phonetic: '/səˈræmɪk mʌɡ/',
+      category: 'Kitchenware',
+      tags: ['Realistic', 'Ai-generated'],
+      thumbnailUrl: '/Ceramic Mug.png',
+      createdAt: '2024-01-15',
+      sorted: true,
+      notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.',
+      mnemonic: 'Ceramic（陶瓷）来自希腊语keramos（陶土），Mug（马克杯）指有柄的饮用杯'
+    }
 ];
 
 export default function MyStickers() {
   const [activeTab, setActiveTab] = useState<'sorted' | 'unsorted'>('sorted');
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
   const [generatedStickers, setGeneratedStickers] = useState<any[]>([]);
@@ -115,12 +101,21 @@ export default function MyStickers() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // 标签管理相关状态
+  const [showAddTagModal, setShowAddTagModal] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [contextMenu, setContextMenu] = useState<{tag: string, x: number, y: number} | null>(null);
+  const [editingTag, setEditingTag] = useState<{oldName: string, newName: string} | null>(null);
+  
+  // 批量删除相关状态
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
+  
   // AI生成图片相关状态
   const [showAIGenerator, setShowAIGenerator] = useState(false);
   const [aiGenerationOptions, setAiGenerationOptions] = useState<ImageGenerationOptions>({
     word: '',
     description: '',
-    style: 'cartoon',
+    style: 'Cartoon',
     viewpoint: 'front'
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -134,19 +129,50 @@ export default function MyStickers() {
   const [selectedSticker, setSelectedSticker] = useState<StickerData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // 添加点击外部关闭右键菜单的事件监听
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenu) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu]);
+
   // 从localStorage加载保存的贴纸
   useEffect(() => {
     const loadSavedStickers = () => {
       try {
-        const savedStickers = localStorage.getItem('myStickers');
-        if (savedStickers) {
-          const parsedStickers: StickerData[] = JSON.parse(savedStickers);
-          // 合并模拟数据和保存的贴纸，避免重复
-          const existingIds = new Set(mockStickers.map(s => s.id));
-          const newStickers = parsedStickers.filter(s => !existingIds.has(s.id));
-          setAllStickers([...mockStickers, ...newStickers]);
+        const savedData = localStorage.getItem('myStickers');
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          
+          // 兼容旧格式（直接是数组）和新格式（包含deletedMockIds）
+          let userStickers: StickerData[] = [];
+          let deletedMockIds: string[] = [];
+          
+          if (Array.isArray(parsedData)) {
+            // 旧格式
+            userStickers = parsedData;
+          } else {
+            // 新格式
+            userStickers = parsedData.userStickers || [];
+            deletedMockIds = parsedData.deletedMockIds || [];
+          }
+          
+          // 过滤掉被删除的模拟数据
+          const availableMockStickers = mockStickers.filter(s => !deletedMockIds.includes(s.id));
+          
+          // 合并可用的模拟数据和用户贴纸，避免重复
+          const existingIds = new Set(availableMockStickers.map(s => s.id));
+          const newStickers = userStickers.filter(s => !existingIds.has(s.id));
+          setAllStickers([...availableMockStickers, ...newStickers]);
         } else {
-          // 如果没有保存的贴纸，只显示模拟数据
+          // 如果没有保存的数据，显示所有模拟数据
           setAllStickers(mockStickers);
         }
       } catch (error) {
@@ -182,8 +208,92 @@ export default function MyStickers() {
     const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
     const matchesSearch = sticker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          sticker.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesTab && matchesSearch;
+    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => sticker.tags.includes(tag));
+    return matchesTab && matchesSearch && matchesTags;
   });
+
+  // 获取所有可用的标签
+  const getAllTags = () => {
+    const tagSet = new Set<string>();
+    
+    // 只包含允许的标签
+    const allowedTags = ['Cartoon', 'Ai-generated', 'Pixel', 'Realistic'];
+    
+    allStickers.forEach(sticker => {
+      sticker.tags.forEach(tag => {
+        if (allowedTags.includes(tag)) {
+          tagSet.add(tag);
+        }
+      });
+    });
+    return Array.from(tagSet).sort();
+  };
+
+  const availableTags = getAllTags();
+
+  // 处理标签选择
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  // 标签管理函数
+  const handleAddTag = () => {
+    if (newTagName.trim() && !availableTags.includes(newTagName.trim())) {
+      // 创建一个新的贴纸来包含这个标签，或者可以添加到现有贴纸
+      // 这里我们先简单地添加到第一个贴纸，实际应用中可能需要更复杂的逻辑
+      const updatedStickers = allStickers.map((sticker, index) => {
+        if (index === 0) {
+          return { ...sticker, tags: [...sticker.tags, newTagName.trim()] };
+        }
+        return sticker;
+      });
+      setAllStickers(updatedStickers);
+      setNewTagName('');
+      setShowAddTagModal(false);
+    }
+  };
+
+  const handleDeleteTag = (tagToDelete: string) => {
+    const updatedStickers = allStickers.map(sticker => ({
+      ...sticker,
+      tags: sticker.tags.filter(tag => tag !== tagToDelete)
+    }));
+    setAllStickers(updatedStickers);
+    setSelectedTags(prev => prev.filter(tag => tag !== tagToDelete));
+    setContextMenu(null);
+  };
+
+  const handleEditTag = (oldName: string, newName: string) => {
+    if (newName.trim() && newName !== oldName) {
+      const updatedStickers = allStickers.map(sticker => ({
+        ...sticker,
+        tags: sticker.tags.map(tag => tag === oldName ? newName.trim() : tag)
+      }));
+      setAllStickers(updatedStickers);
+      setSelectedTags(prev => prev.map(tag => tag === oldName ? newName.trim() : tag));
+    }
+    setEditingTag(null);
+    setContextMenu(null);
+  };
+
+  const handleTagRightClick = (e: React.MouseEvent, tag: string) => {
+    e.preventDefault();
+    setContextMenu({
+      tag,
+      x: e.clientX,
+      y: e.clientY
+    });
+  };
+
+  // 点击其他地方关闭右键菜单
+  const handleClickOutside = () => {
+    setContextMenu(null);
+    setEditingTag(null);
+  };
 
   const handleSelectSticker = (stickerId: string) => {
     setSelectedStickers(prev => 
@@ -201,6 +311,35 @@ export default function MyStickers() {
     }
   };
 
+  // 批量删除功能
+  const handleBatchDelete = () => {
+    if (selectedStickers.length === 0) return;
+    
+    const updatedStickers = allStickers.filter(s => !selectedStickers.includes(s.id));
+    setAllStickers(updatedStickers);
+    
+    // 分别处理模拟数据和用户保存的贴纸
+    const deletedMockIds = selectedStickers.filter(id => mockStickers.find(mock => mock.id === id));
+    const remainingUserStickers = updatedStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
+    
+    // 更新localStorage - 保存用户贴纸和被删除的模拟数据ID
+    const storageData = {
+      userStickers: remainingUserStickers,
+      deletedMockIds: deletedMockIds
+    };
+    localStorage.setItem('myStickers', JSON.stringify(storageData));
+    
+    // 触发更新事件
+    window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+    
+    // 清空选中状态
+    setSelectedStickers([]);
+    setShowBatchDeleteModal(false);
+    
+    // 显示成功提示（可选）
+    console.log(`Successfully deleted ${selectedStickers.length} stickers`);
+  };
+
   const groupedStickers = activeTab === 'sorted' 
     ? filteredStickers.reduce((acc, sticker) => {
         const category = sticker.category || 'Unsorted';
@@ -216,9 +355,36 @@ export default function MyStickers() {
       const updatedStickers = allStickers.filter(s => s.id !== stickerId);
       setAllStickers(updatedStickers);
       
-      // 更新localStorage中保存的贴纸 - 使用正确的键名
-      const savedStickers = updatedStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
-      localStorage.setItem('myStickers', JSON.stringify(savedStickers));
+      // 获取当前localStorage数据
+      const savedData = localStorage.getItem('myStickers');
+      let deletedMockIds: string[] = [];
+      let userStickers: StickerData[] = [];
+      
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        if (Array.isArray(parsedData)) {
+          userStickers = parsedData;
+        } else {
+          userStickers = parsedData.userStickers || [];
+          deletedMockIds = parsedData.deletedMockIds || [];
+        }
+      }
+      
+      // 检查删除的是否是模拟数据
+      const isMockSticker = mockStickers.find(mock => mock.id === stickerId);
+      if (isMockSticker) {
+        deletedMockIds.push(stickerId);
+      }
+      
+      // 更新用户贴纸列表
+      const remainingUserStickers = updatedStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
+      
+      // 保存更新后的数据
+      const storageData = {
+        userStickers: remainingUserStickers,
+        deletedMockIds: deletedMockIds
+      };
+      localStorage.setItem('myStickers', JSON.stringify(storageData));
       
       // 从选中列表中移除
       setSelectedStickers(prev => prev.filter(id => id !== stickerId));
@@ -329,9 +495,26 @@ export default function MyStickers() {
       }
       
       // 保存到localStorage
-      const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
-      const updatedStickers = [...existingStickers, ...processedStickers];
-      localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+      const savedData = localStorage.getItem('myStickers');
+      let existingData = { userStickers: [], deletedMockIds: [] };
+      
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        if (Array.isArray(parsedData)) {
+          // 兼容旧格式
+          existingData.userStickers = parsedData;
+        } else {
+          // 新格式
+          existingData = parsedData;
+        }
+      }
+      
+      const updatedStickers = [...existingData.userStickers, ...processedStickers];
+      const updatedData = {
+        userStickers: updatedStickers,
+        deletedMockIds: existingData.deletedMockIds
+      };
+      localStorage.setItem('myStickers', JSON.stringify(updatedData));
       
       // 更新本地状态
       setAllStickers(prev => [...prev, ...processedStickers]);
@@ -473,15 +656,32 @@ export default function MyStickers() {
             imageUrl: imageToSave,
             thumbnailUrl: imageToSave,
             category: null,
-            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon', aiGenerationOptions.viewpoint || 'front', ...(useTransparent ? ['transparent'] : [])],
+            tags: ['Ai-generated', aiGenerationOptions.style || 'Cartoon', aiGenerationOptions.viewpoint || 'front', ...(useTransparent ? ['transparent'] : [])],
             createdAt: new Date().toISOString().split('T')[0],
             sorted: false
           };
 
           // 保存到localStorage
-          const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
-          const updatedStickers = [...existingStickers, newSticker];
-          localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+          const savedData = localStorage.getItem('myStickers');
+          let existingData = { userStickers: [], deletedMockIds: [] };
+          
+          if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            if (Array.isArray(parsedData)) {
+              // 兼容旧格式
+              existingData.userStickers = parsedData;
+            } else {
+              // 新格式
+              existingData = parsedData;
+            }
+          }
+          
+          const updatedStickers = [...existingData.userStickers, newSticker];
+          const updatedData = {
+            userStickers: updatedStickers,
+            deletedMockIds: existingData.deletedMockIds
+          };
+          localStorage.setItem('myStickers', JSON.stringify(updatedData));
 
           // 更新本地状态
           setAllStickers(prev => [...prev, newSticker]);
@@ -494,7 +694,7 @@ export default function MyStickers() {
           setAiGenerationOptions({
             word: '',
             description: '',
-            style: 'cartoon',
+            style: 'Cartoon',
             viewpoint: 'front'
           });
           setShowAIGenerator(false);
@@ -513,14 +713,31 @@ export default function MyStickers() {
             imageUrl: imageToSave,
             thumbnailUrl: imageToSave,
             category: null,
-            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon', ...(useTransparent ? ['transparent'] : [])],
+            tags: ['Ai-generated', aiGenerationOptions.style || 'cartoon', ...(useTransparent ? ['transparent'] : [])],
             createdAt: new Date().toISOString().split('T')[0],
             sorted: false
           };
 
-          const existingStickers = JSON.parse(localStorage.getItem('myStickers') || '[]');
-          const updatedStickers = [...existingStickers, newSticker];
-          localStorage.setItem('myStickers', JSON.stringify(updatedStickers));
+          const savedData = localStorage.getItem('myStickers');
+          let existingData = { userStickers: [], deletedMockIds: [] };
+          
+          if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            if (Array.isArray(parsedData)) {
+              // 兼容旧格式
+              existingData.userStickers = parsedData;
+            } else {
+              // 新格式
+              existingData = parsedData;
+            }
+          }
+          
+          const updatedStickers = [...existingData.userStickers, newSticker];
+          const updatedData = {
+            userStickers: updatedStickers,
+            deletedMockIds: existingData.deletedMockIds
+          };
+          localStorage.setItem('myStickers', JSON.stringify(updatedData));
           setAllStickers(prev => [...prev, newSticker]);
           window.dispatchEvent(new CustomEvent('myStickersUpdated'));
 
@@ -710,6 +927,14 @@ export default function MyStickers() {
                       {selectedStickers.length === filteredStickers.length ? 'Deselect All' : 'Select All'}
                     </span>
                   </button>
+                  <button 
+                    onClick={() => setShowBatchDeleteModal(true)}
+                    disabled={selectedStickers.length === 0}
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete ({selectedStickers.length})</span>
+                  </button>
                   <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                     <Tag className="w-4 h-4" />
                     <span>Tag ({selectedStickers.length})</span>
@@ -722,17 +947,64 @@ export default function MyStickers() {
               )}
             </div>
           </div>
+
+          {/* Tag Filter */}
+          <div className="mt-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <Tag className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Filter by tags:</span>
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={() => setSelectedTags([])}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2" onClick={handleClickOutside}>
+              {/* 添加标签按钮 */}
+              <button
+                onClick={() => setShowAddTagModal(true)}
+                className="flex items-center space-x-1 px-3 py-1 rounded-full text-sm border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Tag</span>
+              </button>
+              
+              {availableTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => handleTagToggle(tag)}
+                  onContextMenu={(e) => handleTagRightClick(e, tag)}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    selectedTags.includes(tag)
+                      ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                      : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Stickers Content */}
         <div className="space-y-8">
-          {Object.entries(groupedStickers).map(([category, stickers]) => (
-            <div key={category} className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">{category}</h2>
-              
-              {viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {stickers.map((sticker) => (
+          <div className="p-6">
+            {filteredStickers.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <Search className="w-12 h-12 mx-auto" />
+                </div>
+                <p className="text-gray-500">No stickers found matching your criteria</p>
+              </div>
+            ) : (
+              <>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {filteredStickers.map((sticker) => (
                     <div
                       key={sticker.id}
                       className="group relative rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border border-black"
@@ -819,7 +1091,7 @@ export default function MyStickers() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {stickers.map((sticker) => (
+                  {filteredStickers.map((sticker) => (
                     <div
                       key={sticker.id}
                       className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
@@ -852,15 +1124,9 @@ export default function MyStickers() {
                   ))}
                 </div>
               )}
-            </div>
-          ))}
-
-          {filteredStickers.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-lg mb-2">No stickers found</div>
-              <p className="text-gray-600">Try adjusting your search or create some new stickers!</p>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Background Remover Modal */}
@@ -1063,7 +1329,7 @@ export default function MyStickers() {
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { value: 'cartoon', label: 'Cartoon / 卡通', emoji: '🎨' },
+                      { value: 'Cartoon', label: 'Cartoon / 卡通', emoji: '🎨' },
                       { value: 'realistic', label: 'Realistic / 写实', emoji: '📸' },
                       { value: 'pixel', label: 'Pixel Art / 像素', emoji: '🎮' },
                       { value: 'watercolor', label: 'Watercolor / 水彩', emoji: '🖌️' },
@@ -1240,6 +1506,207 @@ export default function MyStickers() {
           </div>
         )}
       </div>
+
+      {/* 添加标签弹窗 */}
+      {showAddTagModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Add New Tag</h2>
+              <button
+                onClick={() => {
+                  setShowAddTagModal(false);
+                  setNewTagName('');
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tag Name
+              </label>
+              <input
+                type="text"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="Enter tag name..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddTag();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowAddTagModal(false);
+                  setNewTagName('');
+                }}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddTag}
+                disabled={!newTagName.trim() || availableTags.includes(newTagName.trim())}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Add Tag
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 右键菜单 */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+        >
+          <button
+            onClick={() => {
+              setEditingTag({ oldName: contextMenu.tag, newName: contextMenu.tag });
+              setContextMenu(null);
+            }}
+            className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            <Edit className="w-4 h-4" />
+            <span>Edit Tag</span>
+          </button>
+          <button
+            onClick={() => handleDeleteTag(contextMenu.tag)}
+            className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Tag</span>
+          </button>
+        </div>
+      )}
+
+      {/* 编辑标签弹窗 */}
+      {editingTag && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Edit Tag</h2>
+              <button
+                onClick={() => setEditingTag(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tag Name
+              </label>
+              <input
+                type="text"
+                value={editingTag.newName}
+                onChange={(e) => setEditingTag(prev => prev ? { ...prev, newName: e.target.value } : null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleEditTag(editingTag.oldName, editingTag.newName);
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setEditingTag(null)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleEditTag(editingTag.oldName, editingTag.newName)}
+                disabled={!editingTag.newName.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量删除确认弹窗 */}
+      {showBatchDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Confirm Batch Delete</h2>
+              <button
+                onClick={() => setShowBatchDeleteModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-gray-900 font-medium">Delete {selectedStickers.length} stickers?</p>
+                  <p className="text-gray-500 text-sm">This action cannot be undone.</p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600 mb-2">Selected stickers:</p>
+                <div className="max-h-32 overflow-y-auto">
+                  {selectedStickers.slice(0, 5).map(stickerId => {
+                    const sticker = allStickers.find(s => s.id === stickerId);
+                    return sticker ? (
+                      <div key={stickerId} className="text-sm text-gray-700 py-1">
+                        • {sticker.name}
+                      </div>
+                    ) : null;
+                  })}
+                  {selectedStickers.length > 5 && (
+                    <div className="text-sm text-gray-500 py-1">
+                      ... and {selectedStickers.length - 5} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowBatchDeleteModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete {selectedStickers.length} Stickers
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 贴纸详情弹窗 */}
       <StickerDetailModal

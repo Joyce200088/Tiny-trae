@@ -183,7 +183,7 @@ async function saveToLibrary(request: LibrarySaveRequest): Promise<{
   // 创建README文件
   const readme = `# ${collectionName}
 
-${request.description || 'AI-generated sticker collection from TinyLingo'}
+${request.description || 'Ai-generated sticker collection from TinyLingo'}
 
 ## Contents
 

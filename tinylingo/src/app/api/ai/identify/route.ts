@@ -32,46 +32,32 @@ async function identifyObjects(components: IdentifyRequest['components']): Promi
     // 基于组件特征生成模拟识别结果
     const mockObjects = [
       {
-        englishName: 'apple',
-        phonetic: '/ˈæpəl/',
-        definition: 'A round fruit with red or green skin',
-        category: 'fruit',
-        tags: ['food', 'healthy', 'sweet']
+        englishName: 'Diving Mask',
+        phonetic: '/ˈdaɪvɪŋ mæsk/',
+        definition: 'A piece of diving equipment that covers the eyes and nose to allow clear underwater vision while protecting them from water',
+        category: 'Sports Equipment',
+        tags: ['Ai-generated']
       },
       {
-        englishName: 'book',
-        phonetic: '/bʊk/',
-        definition: 'A set of printed pages bound together',
-        category: 'object',
-        tags: ['education', 'reading', 'knowledge']
+        englishName: 'Calendar',
+        phonetic: '/ˈkælɪndər/',
+        definition: 'A system for organizing days, weeks, months, and years; also refers to a chart or series of pages showing the days, weeks, and months of a particular year',
+        category: 'Office Supplies',
+        tags: ['Ai-generated']
       },
       {
-        englishName: 'cup',
-        phonetic: '/kʌp/',
-        definition: 'A small container for drinking',
-        category: 'utensil',
-        tags: ['drink', 'container', 'kitchen']
+        englishName: 'Industrial Shelving',
+        phonetic: '/ɪnˈdʌstriəl ˈʃelvɪŋ/',
+        definition: 'Heavy-duty storage systems designed for warehouses, factories, and commercial spaces to hold large quantities of goods or materials',
+        category: 'Storage Equipment',
+        tags: ['Ai-generated']
       },
       {
-        englishName: 'flower',
-        phonetic: '/ˈflaʊər/',
-        definition: 'The colorful part of a plant',
-        category: 'plant',
-        tags: ['nature', 'beautiful', 'garden']
-      },
-      {
-        englishName: 'pen',
-        phonetic: '/pen/',
-        definition: 'A tool for writing with ink',
-        category: 'tool',
-        tags: ['writing', 'office', 'stationery']
-      },
-      {
-        englishName: 'ball',
-        phonetic: '/bɔːl/',
-        definition: 'A round object used in games',
-        category: 'toy',
-        tags: ['sport', 'play', 'round']
+        englishName: 'Ceramic Mug',
+        phonetic: '/səˈræmɪk mʌg/',
+        definition: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea',
+        category: 'Kitchenware',
+        tags: ['Ai-generated']
       }
     ]
     
