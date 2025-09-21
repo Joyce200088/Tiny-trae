@@ -23,6 +23,7 @@ interface StickerData {
   createdAt: string;
   sorted: boolean;
   notes?: string; // 新增备注字段
+  mnemonic?: string; // 新增巧记字段
 }
 
 interface UploadedFile {
@@ -41,7 +42,9 @@ const mockStickers: StickerData[] = [
     tags: ['fruit', 'red', 'healthy'],
     thumbnailUrl: '/api/placeholder/150/150',
     createdAt: '2024-01-15',
-    sorted: true
+    sorted: true,
+    notes: '苹果富含维生素C，是健康的水果选择。',
+    mnemonic: 'Apple的发音像"爱泡"，想象爱泡在苹果汁里。'
   },
   {
     id: '2',
@@ -52,7 +55,8 @@ const mockStickers: StickerData[] = [
     tags: ['transport', 'blue', 'car'],
     thumbnailUrl: '/api/placeholder/150/150',
     createdAt: '2024-01-14',
-    sorted: true
+    sorted: true,
+    mnemonic: 'Car发音像"卡"，想象汽车卡在路上。'
   },
   {
     id: '3',
@@ -63,7 +67,9 @@ const mockStickers: StickerData[] = [
     tags: ['pet', 'cute', 'cat'],
     thumbnailUrl: '/api/placeholder/150/150',
     createdAt: '2024-01-13',
-    sorted: true
+    sorted: true,
+    notes: '猫是很受欢迎的宠物，性格独立。',
+    mnemonic: 'Cat发音像"凯特"，想象凯特养了一只猫。'
   },
   {
     id: '4',
@@ -554,17 +560,28 @@ export default function MyStickers() {
 
   // 保存贴纸修改
   const handleSaveSticker = (updatedSticker: StickerData) => {
-    // 更新贴纸数据
-    const updatedStickers = stickers.map(sticker => 
+    // 更新本地状态中的贴纸数据
+    const updatedAllStickers = allStickers.map(sticker => 
       sticker.id === updatedSticker.id ? updatedSticker : sticker
     );
-    setStickers(updatedStickers);
+    setAllStickers(updatedAllStickers);
     
     // 更新选中的贴纸
     setSelectedSticker(updatedSticker);
     
-    // 这里可以添加API调用来保存到后端
-    console.log('保存贴纸:', updatedSticker);
+    // 保存到localStorage
+    try {
+      // 获取当前保存的贴纸（排除模拟数据）
+      const savedStickers = updatedAllStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
+      localStorage.setItem('myStickers', JSON.stringify(savedStickers));
+      
+      // 触发更新事件
+      window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+      
+      console.log('保存贴纸成功:', updatedSticker);
+    } catch (error) {
+      console.error('保存贴纸到localStorage失败:', error);
+    }
   };
 
   return (
