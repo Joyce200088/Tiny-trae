@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { segmentByBFS, regionToDataURL, getSegmentationStats, type Region, type SegmentationOptions } from '../lib/useSegmentation';
 
 interface StickerGeneratorProps {
   onStickerGenerated?: (stickers: any[]) => void;
@@ -16,6 +17,21 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
   const [enhanceQuality, setEnhanceQuality] = useState(true);
   const [refineEdges, setRefineEdges] = useState(true);
   const [upscaleFactor, setUpscaleFactor] = useState(1);
+  
+  // 分割功能相关状态
+  const [segmentedRegions, setSegmentedRegions] = useState<Region[]>([]);
+  const [selectedRegions, setSelectedRegions] = useState<Set<number>>(new Set());
+  const [showSegmentation, setShowSegmentation] = useState(false);
+  
+  // 固定的最优分割参数，专注于英语学习体验
+  const segmentationOptions: SegmentationOptions = {
+    alphaThreshold: 20,      // 较低阈值，保留更多细节
+    minArea: 200,            // 适中的最小面积，过滤小噪点
+    mergeSmallRegions: true, // 自动合并小区域
+    use8Connectivity: true,  // 使用8邻域连接
+    blurThreshold: 75        // 模糊阈值，过滤模糊物品
+  };
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 获取可用模型列表
@@ -107,6 +123,9 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
       console.log('去背景成功，生成透明PNG');
       setProcessedImage(imageUrl);
       
+      // 自动进行分割处理
+      await performSegmentation(imageUrl);
+      
     } catch (err) {
       console.error('去背景错误:', err);
       if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
@@ -119,10 +138,74 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
     }
   };
 
+  // 执行图像分割
+  const performSegmentation = async (imageUrl: string) => {
+    try {
+      console.log('开始图像分割...');
+      
+      // 创建图像元素
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      // 执行BFS分割
+      const regions = segmentByBFS(img, segmentationOptions);
+      console.log(`分割完成，找到 ${regions.length} 个区域`);
+      
+      // 获取统计信息
+      const stats = getSegmentationStats(regions);
+      console.log('分割统计:', stats);
+      
+      setSegmentedRegions(regions);
+      setShowSegmentation(true);
+      
+      // 默认选择面积最大的几个区域
+      const topRegions = regions.slice(0, Math.min(5, regions.length));
+      setSelectedRegions(new Set(topRegions.map(r => r.id)));
+      
+    } catch (err) {
+      console.error('分割错误:', err);
+      setError('图像分割失败: ' + (err instanceof Error ? err.message : '未知错误'));
+    }
+  };
+
+  // 生成选中区域的贴纸
+  const generateStickers = () => {
+    if (!processedImage || segmentedRegions.length === 0) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const stickers = segmentedRegions
+        .filter(region => selectedRegions.has(region.id))
+        .map(region => ({
+          id: region.id,
+          dataUrl: regionToDataURL(region, img),
+          area: region.area,
+          bbox: region.bbox
+        }));
+
+      console.log(`生成了 ${stickers.length} 个贴纸`);
+      
+      if (onStickerGenerated) {
+        onStickerGenerated(stickers);
+      }
+    };
+    img.src = processedImage;
+  };
+
   const resetAll = () => {
     setSelectedFile(null);
     setProcessedImage(null);
     setError(null);
+    setSegmentedRegions([]);
+    setSelectedRegions(new Set());
+    setShowSegmentation(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -244,16 +327,16 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
         <button
           onClick={removeBackground}
           disabled={!selectedFile || isProcessing}
-          className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {isProcessing ? '处理中...' : '去背景'}
+          {isProcessing ? '🔄 智能分析中...' : '🎯 智能识别物品'}
         </button>
         
         <button
           onClick={resetAll}
           className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
         >
-          重置
+          🔄 重新开始
         </button>
       </div>
 
@@ -261,6 +344,120 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* 分割结果预览 */}
+      {showSegmentation && segmentedRegions.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            🎯 选择要学习的物品 ({segmentedRegions.length} 个物品)
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            点击选择你想要学习英语单词的物品，系统会自动为你生成学习贴纸
+          </p>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+            {segmentedRegions.map((region) => {
+              const isSelected = selectedRegions.has(region.id);
+              return (
+                <div
+                  key={region.id}
+                  className={`border-2 rounded-lg p-2 cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => {
+                    const newSelected = new Set(selectedRegions);
+                    if (isSelected) {
+                      newSelected.delete(region.id);
+                    } else {
+                      newSelected.add(region.id);
+                    }
+                    setSelectedRegions(newSelected);
+                  }}
+                >
+                  <div className="aspect-square bg-gray-100 rounded mb-2 flex items-center justify-center">
+                    <canvas
+                      ref={(canvas) => {
+                        if (canvas && processedImage) {
+                          const img = new Image();
+                          img.crossOrigin = 'anonymous';
+                          img.onload = () => {
+                            const regionCanvas = regionToDataURL(region, img, true);
+                            const ctx = canvas.getContext('2d');
+                            if (ctx && regionCanvas) {
+                              canvas.width = 100;
+                              canvas.height = 100;
+                              ctx.clearRect(0, 0, 100, 100);
+                              
+                              // 计算缩放比例
+                              const scale = Math.min(100 / regionCanvas.width, 100 / regionCanvas.height);
+                              const scaledWidth = regionCanvas.width * scale;
+                              const scaledHeight = regionCanvas.height * scale;
+                              const x = (100 - scaledWidth) / 2;
+                              const y = (100 - scaledHeight) / 2;
+                              
+                              ctx.drawImage(regionCanvas, x, y, scaledWidth, scaledHeight);
+                            }
+                          };
+                          img.src = processedImage;
+                        }
+                      }}
+                      width={100}
+                      height={100}
+                      className="max-w-full max-h-full"
+                    />
+                  </div>
+                  
+                  <div className="text-xs text-gray-600">
+                    <p>物品 #{region.id}</p>
+                    <p>大小: {region.bbox.w}×{region.bbox.h}</p>
+                    {region.blurScore !== undefined && (
+                      <p className={`${region.blurScore >= 15 ? 'text-green-600' : 'text-orange-600'}`}>
+                        清晰度: {region.blurScore.toFixed(1)}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {isSelected && (
+                    <div className="mt-1 text-xs text-green-600 font-medium">
+                      ✓ 已选择学习
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="flex gap-4 items-center">
+            <button
+              onClick={() => setSelectedRegions(new Set(segmentedRegions.map(r => r.id)))}
+              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              📚 全部学习
+            </button>
+            
+            <button
+              onClick={() => setSelectedRegions(new Set())}
+              className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+            >
+              清空选择
+            </button>
+            
+            <button
+              onClick={generateStickers}
+              disabled={selectedRegions.size === 0}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              🎯 开始学习英语 ({selectedRegions.size})
+            </button>
+            
+            <span className="text-sm text-gray-600">
+              已选择 {selectedRegions.size} / {segmentedRegions.length} 个物品
+            </span>
+          </div>
         </div>
       )}
 
