@@ -13,6 +13,8 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('isnet-general-use');
   const [availableModels, setAvailableModels] = useState<Record<string, string>>({});
+  const [enhanceQuality, setEnhanceQuality] = useState(true);
+  const [refineEdges, setRefineEdges] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 获取可用模型列表
@@ -71,12 +73,18 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
     setError(null);
 
     try {
-      console.log('开始去背景处理...', '使用模型:', selectedModel);
+      console.log('开始去背景处理...', '使用模型:', selectedModel, '增强质量:', enhanceQuality, '边缘细化:', refineEdges);
       
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(`http://localhost:8000/bg/remove?model=${encodeURIComponent(selectedModel)}`, {
+      const queryParams = new URLSearchParams({
+        model: selectedModel,
+        enhance: enhanceQuality.toString(),
+        refine_edges: refineEdges.toString()
+      });
+
+      const response = await fetch(`http://localhost:8000/bg/remove?${queryParams}`, {
         method: 'POST',
         body: formData,
       });
@@ -175,6 +183,38 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
           <p className="text-sm text-blue-700">
             使用 <strong>ISNet</strong> 高精度模型，专门优化用于保留复杂物体和小细节
           </p>
+        </div>
+      </div>
+
+      {/* 质量选项 */}
+      <div className="mb-6">
+        <h3 className="text-lg font-medium text-gray-700 mb-3">处理选项</h3>
+        <div className="space-y-3">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={enhanceQuality}
+              onChange={(e) => setEnhanceQuality(e.target.checked)}
+              className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <div>
+              <span className="text-sm font-medium text-gray-700">增强颜色和细节</span>
+              <p className="text-xs text-gray-500">提升饱和度和对比度，保护物体原有颜色</p>
+            </div>
+          </label>
+          
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={refineEdges}
+              onChange={(e) => setRefineEdges(e.target.checked)}
+              className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <div>
+              <span className="text-sm font-medium text-gray-700">边缘细化</span>
+              <p className="text-xs text-gray-500">柔化边缘，减少锯齿和伪影</p>
+            </div>
+          </label>
         </div>
       </div>
 

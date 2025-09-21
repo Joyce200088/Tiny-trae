@@ -3,10 +3,86 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 import uvicorn
 from rembg import remove, new_session
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import io
 import logging
+import numpy as np
 from typing import Optional
+
+def enhance_image_quality(image: Image.Image, original_image: Image.Image) -> Image.Image:
+    """
+    Enhance the processed image to preserve colors and details
+    
+    Args:
+        image: Processed image with transparent background
+        original_image: Original image for color reference
+        
+    Returns:
+        Enhanced image with better color preservation
+    """
+    try:
+        # Ensure both images are in RGBA mode
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        if original_image.mode != 'RGBA':
+            original_image = original_image.convert('RGBA')
+        
+        # Get alpha channel (transparency mask)
+        alpha = image.split()[-1]
+        
+        # Create a mask for non-transparent areas
+        mask = alpha.point(lambda x: 255 if x > 128 else 0)
+        
+        # Enhance color saturation for non-transparent areas
+        enhancer = ImageEnhance.Color(image)
+        enhanced_image = enhancer.enhance(1.2)  # Increase saturation by 20%
+        
+        # Enhance contrast slightly
+        contrast_enhancer = ImageEnhance.Contrast(enhanced_image)
+        enhanced_image = contrast_enhancer.enhance(1.1)  # Increase contrast by 10%
+        
+        # Apply slight sharpening to preserve details
+        enhanced_image = enhanced_image.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+        
+        # Preserve the original alpha channel
+        r, g, b, _ = enhanced_image.split()
+        enhanced_image = Image.merge('RGBA', (r, g, b, alpha))
+        
+        return enhanced_image
+        
+    except Exception as e:
+        logger.warning(f"Image enhancement failed, returning original: {e}")
+        return image
+
+def refine_image_edges(image: Image.Image) -> Image.Image:
+    """
+    Refine edges to reduce artifacts and improve quality
+    
+    Args:
+        image: Image with transparent background
+        
+    Returns:
+        Image with refined edges
+    """
+    try:
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        # Get alpha channel
+        alpha = image.split()[-1]
+        
+        # Apply slight blur to alpha channel to soften edges
+        blurred_alpha = alpha.filter(ImageFilter.GaussianBlur(radius=0.5))
+        
+        # Combine with original image
+        r, g, b, _ = image.split()
+        refined_image = Image.merge('RGBA', (r, g, b, blurred_alpha))
+        
+        return refined_image
+        
+    except Exception as e:
+        logger.warning(f"Edge refinement failed, returning original: {e}")
+        return image
 
 # Available rembg models - 只保留最佳模型
 AVAILABLE_MODELS = {
@@ -51,13 +127,20 @@ async def get_available_models():
     return {"models": AVAILABLE_MODELS}
 
 @app.post("/remove-background")
-async def remove_background(file: UploadFile = File(...), model: Optional[str] = Query("isnet-general-use", description="Model to use for background removal")):
+async def remove_background(
+    file: UploadFile = File(...), 
+    model: Optional[str] = Query("isnet-general-use", description="Model to use for background removal"),
+    enhance: Optional[bool] = Query(True, description="Apply post-processing enhancement"),
+    refine_edges: Optional[bool] = Query(True, description="Apply edge refinement")
+):
     """
     Remove background from uploaded image
     
     Args:
         file: Uploaded image file (JPG, PNG, WebP)
         model: Model to use for background removal (default: isnet-general-use)
+        enhance: Apply post-processing enhancement to preserve colors (default: True)
+        refine_edges: Apply edge refinement to reduce artifacts (default: True)
         
     Returns:
         PNG image with transparent background
@@ -81,7 +164,10 @@ async def remove_background(file: UploadFile = File(...), model: Optional[str] =
         if len(contents) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="File size must be less than 10MB")
         
-        logger.info(f"Processing image: {file.filename}, size: {len(contents)} bytes, model: {model}")
+        logger.info(f"Processing image: {file.filename}, size: {len(contents)} bytes, model: {model}, enhance: {enhance}, refine_edges: {refine_edges}")
+        
+        # Store original image for enhancement reference
+        original_image = Image.open(io.BytesIO(contents))
         
         # Create session with specified model
         session = new_session(model)
@@ -92,15 +178,24 @@ async def remove_background(file: UploadFile = File(...), model: Optional[str] =
         # Optional: Process with PIL for additional optimization
         try:
             # Convert to PIL Image for potential processing
-            input_image = Image.open(io.BytesIO(output_data))
+            processed_image = Image.open(io.BytesIO(output_data))
             
             # Ensure RGBA mode for transparency
-            if input_image.mode != 'RGBA':
-                input_image = input_image.convert('RGBA')
+            if processed_image.mode != 'RGBA':
+                processed_image = processed_image.convert('RGBA')
+            
+            # Apply post-processing enhancements if requested
+            if enhance:
+                logger.info("Applying color and detail enhancement")
+                processed_image = enhance_image_quality(processed_image, original_image)
+            
+            if refine_edges:
+                logger.info("Applying edge refinement")
+                processed_image = refine_image_edges(processed_image)
             
             # Save optimized PNG
             output_buffer = io.BytesIO()
-            input_image.save(output_buffer, format='PNG', optimize=True)
+            processed_image.save(output_buffer, format='PNG', optimize=True)
             output_data = output_buffer.getvalue()
             
         except Exception as pil_error:
@@ -137,18 +232,25 @@ async def remove_background(file: UploadFile = File(...), model: Optional[str] =
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
 
 @app.post("/bg/remove")
-async def bg_remove(file: UploadFile = File(...), model: Optional[str] = Query("isnet-general-use", description="Model to use for background removal")):
+async def bg_remove(
+    file: UploadFile = File(...), 
+    model: Optional[str] = Query("isnet-general-use", description="Model to use for background removal"),
+    enhance: Optional[bool] = Query(True, description="Apply post-processing enhancement"),
+    refine_edges: Optional[bool] = Query(True, description="Apply edge refinement")
+):
     """
     Remove background from uploaded image (alternative endpoint)
     
     Args:
-        file: Uploaded image file (JPG, PNG, WebP)
+        file: Uploaded image file
         model: Model to use for background removal (default: isnet-general-use)
+        enhance: Apply post-processing enhancement to preserve colors (default: True)
+        refine_edges: Apply edge refinement to reduce artifacts (default: True)
         
     Returns:
         PNG image with transparent background
     """
-    return await remove_background(file, model)
+    return await remove_background(file, model, enhance, refine_edges)
 
 @app.post("/batch-remove-background")
 async def batch_remove_background(files: list[UploadFile] = File(...)):
