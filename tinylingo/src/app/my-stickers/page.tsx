@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload, Sparkles } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
+import StickerDetailModal from '../../components/StickerDetailModal';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 
 // 扩展贴纸接口，包含学习内容
@@ -21,6 +22,7 @@ interface StickerData {
   imageUrl?: string;
   createdAt: string;
   sorted: boolean;
+  notes?: string; // 新增备注字段
 }
 
 interface UploadedFile {
@@ -115,6 +117,10 @@ export default function MyStickers() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [transparentImage, setTransparentImage] = useState<string | null>(null);
+
+  // 弹窗相关状态
+  const [selectedSticker, setSelectedSticker] = useState<StickerData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 从localStorage加载保存的贴纸
   useEffect(() => {
@@ -525,6 +531,38 @@ export default function MyStickers() {
     }
   };
 
+  // 打开贴纸详情弹窗
+  const openStickerModal = (sticker: StickerData) => {
+    setSelectedSticker(sticker);
+    setIsModalOpen(true);
+  };
+
+  // 关闭贴纸详情弹窗
+  const closeStickerModal = () => {
+    setIsModalOpen(false);
+    setSelectedSticker(null);
+  };
+
+  // 导航到其他贴纸
+  const navigateToSticker = (sticker: StickerData) => {
+    setSelectedSticker(sticker);
+  };
+
+  // 保存贴纸修改
+  const handleSaveSticker = (updatedSticker: StickerData) => {
+    // 更新贴纸数据
+    const updatedStickers = stickers.map(sticker => 
+      sticker.id === updatedSticker.id ? updatedSticker : sticker
+    );
+    setStickers(updatedStickers);
+    
+    // 更新选中的贴纸
+    setSelectedSticker(updatedSticker);
+    
+    // 这里可以添加API调用来保存到后端
+    console.log('保存贴纸:', updatedSticker);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -678,7 +716,10 @@ export default function MyStickers() {
                       </div>
 
                       {/* Thumbnail */}
-                      <div className="aspect-square bg-white rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                      <div 
+                        className="aspect-square bg-white rounded-lg mb-3 flex items-center justify-center overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                        onClick={() => openStickerModal(sticker)}
+                      >
                         {sticker.imageUrl || sticker.thumbnailUrl ? (
                           <img
                             src={sticker.imageUrl || sticker.thumbnailUrl}
@@ -692,7 +733,6 @@ export default function MyStickers() {
                             className="w-full h-full object-cover"
                           />
                         )}
-                        <div className="text-gray-500 text-xs">Sticker</div>
                       </div>
 
                       {/* Info */}
@@ -1166,6 +1206,16 @@ export default function MyStickers() {
           </div>
         )}
       </div>
+
+      {/* 贴纸详情弹窗 */}
+      <StickerDetailModal
+        sticker={selectedSticker}
+        stickers={filteredStickers}
+        isOpen={isModalOpen}
+        onClose={closeStickerModal}
+        onNavigate={navigateToSticker}
+        onSave={handleSaveSticker}
+      />
     </div>
   );
 }
