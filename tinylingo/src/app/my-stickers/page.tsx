@@ -113,6 +113,8 @@ export default function MyStickers() {
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+  const [transparentImage, setTransparentImage] = useState<string | null>(null);
 
   // 从localStorage加载保存的贴纸
   useEffect(() => {
@@ -208,7 +210,7 @@ export default function MyStickers() {
   // 处理文件上传
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imageFiles = files.filter(file => file.type.startsWith('image'));
     
     const filesWithPreview = imageFiles.map(file => ({
       file,
@@ -343,11 +345,15 @@ export default function MyStickers() {
     }
 
     setIsGeneratingAI(true);
+    setTransparentImage(null); // 重置透明图片
     try {
       console.log('开始生成AI图片:', aiGenerationOptions);
       const imageDataUrl = await generateImageWithGemini(aiGenerationOptions);
       setGeneratedImage(imageDataUrl);
       console.log('AI图片生成成功');
+      
+      // 自动进行背景去除
+      await handleRemoveBackground(imageDataUrl);
     } catch (error) {
       console.error('AI图片生成失败:', error);
       alert('AI图片生成失败，请重试');
@@ -356,9 +362,53 @@ export default function MyStickers() {
     }
   };
 
+  // 背景去除功能
+  const handleRemoveBackground = async (imageUrl?: string) => {
+    const targetImageUrl = imageUrl || generatedImage;
+    if (!targetImageUrl) {
+      alert('没有可处理的图片');
+      return;
+    }
+
+    setIsRemovingBackground(true);
+    try {
+      console.log('开始去除背景...');
+      
+      // 将base64图片转换为File对象
+      const response = await fetch(targetImageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], 'generated-image.png', { type: 'image/png' });
+
+      // 调用背景去除API
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const bgRemoveResponse = await fetch('/api/bg/remove', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!bgRemoveResponse.ok) {
+        throw new Error('背景去除失败');
+      }
+
+      const transparentBlob = await bgRemoveResponse.blob();
+      const transparentImageUrl = URL.createObjectURL(transparentBlob);
+      setTransparentImage(transparentImageUrl);
+      
+      console.log('背景去除成功');
+    } catch (error) {
+      console.error('背景去除失败:', error);
+      alert('背景去除失败，请重试');
+    } finally {
+      setIsRemovingBackground(false);
+    }
+  };
+
   // 保存AI生成的图片为贴纸
-  const saveAIGeneratedSticker = async () => {
-    if (!generatedImage || !aiGenerationOptions.word.trim()) {
+  const saveAIGeneratedSticker = async (useTransparent: boolean = false) => {
+    const imageToSave = useTransparent ? transparentImage : generatedImage;
+    if (!imageToSave || !aiGenerationOptions.word.trim()) {
       return;
     }
 
@@ -389,10 +439,10 @@ export default function MyStickers() {
             phonetic: learningContent.pronunciation,
             example: learningContent.example,
             exampleChinese: learningContent.exampleChinese,
-            imageUrl: generatedImage,
-            thumbnailUrl: generatedImage,
+            imageUrl: imageToSave,
+            thumbnailUrl: imageToSave,
             category: null,
-            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon', aiGenerationOptions.viewpoint || 'front'],
+            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon', aiGenerationOptions.viewpoint || 'front', ...(useTransparent ? ['transparent'] : [])],
             createdAt: new Date().toISOString().split('T')[0],
             sorted: false
           };
@@ -429,10 +479,10 @@ export default function MyStickers() {
             id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             name: aiGenerationOptions.word,
             chinese: '',
-            imageUrl: generatedImage,
-            thumbnailUrl: generatedImage,
+            imageUrl: imageToSave,
+            thumbnailUrl: imageToSave,
             category: null,
-            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon'],
+            tags: ['ai-generated', aiGenerationOptions.style || 'cartoon', ...(useTransparent ? ['transparent'] : [])],
             createdAt: new Date().toISOString().split('T')[0],
             sorted: false
           };
@@ -450,7 +500,7 @@ export default function MyStickers() {
         }
       };
       
-      img.src = generatedImage;
+      img.src = imageToSave;
     } catch (error) {
       console.error('保存AI生成贴纸失败:', error);
       alert('保存贴纸失败，请重试');
@@ -537,8 +587,8 @@ export default function MyStickers() {
           </div>
 
           {/* Search and Actions */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
+          <div className="flex items-center justify-between">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
@@ -550,48 +600,47 @@ export default function MyStickers() {
             </div>
 
             {/* Batch Actions */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="flex items-center space-x-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload Stickers</span>
-              </button>
-              
-              <button
-                onClick={() => setShowBackgroundRemover(true)}
-                className="flex items-center space-x-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Generate stickers</span>
-              </button>
-              
-              <button
-                onClick={() => setShowAIGenerator(true)}
-                className="flex items-center space-x-2 px-3 py-2 text-sm bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-lg hover:from-pink-600 hover:to-violet-600"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>AI Generate</span>
-              </button>
-              
-              <button
-                onClick={handleSelectAll}
-                className="flex items-center space-x-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                <Check className="w-4 h-4" />
-                <span>
-                  {selectedStickers.length === filteredStickers.length ? 'Deselect All' : 'Select All'}
-                </span>
-              </button>
-
-              {selectedStickers.length > 0 && (
+            <div className="flex items-center space-x-2 ml-4">
+              {selectedStickers.length === 0 ? (
                 <>
-                  <button className="flex items-center space-x-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Stickers</span>
+                  </button>
+                  <button
+                    onClick={() => setShowBackgroundRemover(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Generate stickers</span>
+                  </button>
+                  <button
+                    onClick={() => setShowAIGenerator(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>AI Generate</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>
+                      {selectedStickers.length === filteredStickers.length ? 'Deselect All' : 'Select All'}
+                    </span>
+                  </button>
+                  <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                     <Tag className="w-4 h-4" />
                     <span>Tag ({selectedStickers.length})</span>
                   </button>
-                  <button className="flex items-center space-x-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
+                  <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                     <Download className="w-4 h-4" />
                     <span>Download ZIP</span>
                   </button>
@@ -604,27 +653,23 @@ export default function MyStickers() {
         {/* Stickers Content */}
         <div className="space-y-8">
           {Object.entries(groupedStickers).map(([category, stickers]) => (
-            <div key={category}>
+            <div key={category} className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">{category}</h2>
               
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {stickers.map((sticker) => (
                     <div
                       key={sticker.id}
-                      className={`group relative bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all ${
-                        selectedStickers.includes(sticker.id)
-                          ? 'ring-2 ring-blue-500 shadow-md'
-                          : 'hover:shadow-md'
-                      }`}
+                      className="group relative bg-gray-50 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => handleSelectSticker(sticker.id)}
                     >
                       {/* Selection Checkbox */}
                       <div className="absolute top-2 left-2 z-10">
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                           selectedStickers.includes(sticker.id)
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'bg-white border-gray-300'
+                            ? 'bg-blue-600 border-blue-600'
+                            : 'border-gray-300 bg-white group-hover:border-blue-400'
                         }`}>
                           {selectedStickers.includes(sticker.id) && (
                             <Check className="w-3 h-3 text-white" />
@@ -633,26 +678,25 @@ export default function MyStickers() {
                       </div>
 
                       {/* Thumbnail */}
-                      <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        {sticker.imageUrl ? (
-                          <img 
-                            src={sticker.imageUrl} 
+                      <div className="aspect-square bg-white rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                        {sticker.imageUrl || sticker.thumbnailUrl ? (
+                          <img
+                            src={sticker.imageUrl || sticker.thumbnailUrl}
                             alt={sticker.name}
-                            className="w-full h-full object-contain"
-                          />
-                        ) : sticker.thumbnailUrl ? (
-                          <img 
-                            src={sticker.thumbnailUrl} 
-                            alt={sticker.name}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="text-gray-500 text-xs">Sticker</div>
+                          <img
+                            src={sticker.thumbnailUrl}
+                            alt={sticker.name}
+                            className="w-full h-full object-cover"
+                          />
                         )}
+                        <div className="text-gray-500 text-xs">Sticker</div>
                       </div>
 
                       {/* Info */}
-                      <div className="p-2">
+                      <div className="space-y-1">
                         <h3 className="text-sm font-medium text-gray-900 truncate">{sticker.name}</h3>
                         {sticker.chinese && (
                           <p className="text-xs text-gray-600 truncate">{sticker.chinese}</p>
@@ -661,42 +705,44 @@ export default function MyStickers() {
                           <p className="text-xs text-blue-500 truncate">{sticker.phonetic}</p>
                         )}
                         {sticker.example && (
-                          <p className="text-xs text-blue-600 truncate mt-1" title={sticker.example}>
-                            例句: {sticker.example}
+                          <p className="text-xs text-gray-500 truncate" title={sticker.example}>
+                            {sticker.example}
                           </p>
                         )}
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-xs text-gray-500" style={{display: 'none'}}>{sticker.createdAt}</span>
-                          <div className="flex items-center space-x-1 ml-auto">
-                            {/* 语音播放按钮 */}
-                            {sticker.name && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  playAudio(sticker.name, 'en-US');
-                                }}
-                                className="text-blue-500 hover:text-blue-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="播放英文发音"
-                              >
-                                <Volume2 className="w-3 h-3" />
-                              </button>
-                            )}
-                            {/* 删除按钮 */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteSticker(sticker.id);
-                              }}
-                              className="text-red-500 hover:text-red-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="删除贴纸"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {sticker.tags.slice(0, 2).map((tag) => (
-                            <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-1 py-0.5 rounded">
+                        <span className="text-xs text-gray-500" style={{display: 'none'}}>{sticker.createdAt}</span>
+
+                        {/* 语音播放按钮 */}
+                        {sticker.name && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playAudio(sticker.name);
+                            }}
+                            className="absolute top-2 right-8 p-1 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600"
+                            title="Play pronunciation"
+                          >
+                            <Volume2 className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        {/* 删除按钮 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSticker(sticker.id);
+                          }}
+                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          title="Delete sticker"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Tags */}
+                      {sticker.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {sticker.tags.slice(0, 2).map((tag, index) => (
+                            <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
                               {tag}
                             </span>
                           ))}
@@ -704,54 +750,48 @@ export default function MyStickers() {
                             <span className="text-xs text-gray-400">+{sticker.tags.length - 2}</span>
                           )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                  {stickers.map((sticker, index) => (
+                <div className="space-y-2">
+                  {stickers.map((sticker) => (
                     <div
                       key={sticker.id}
-                      className={`flex items-center p-4 cursor-pointer transition-colors ${
-                        index !== stickers.length - 1 ? 'border-b border-gray-200' : ''
-                      } ${
-                        selectedStickers.includes(sticker.id)
-                          ? 'bg-blue-50'
-                          : 'hover:bg-gray-50'
-                      }`}
+                      className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                       onClick={() => handleSelectSticker(sticker.id)}
                     >
                       {/* Selection Checkbox */}
-                      <div className="mr-4">
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          selectedStickers.includes(sticker.id)
-                            ? 'bg-blue-500 border-blue-500'
-                            : 'bg-white border-gray-300'
-                        }`}>
-                          {selectedStickers.includes(sticker.id) && (
-                            <Check className="w-3 h-3 text-white" />
-                          )}
-                        </div>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        selectedStickers.includes(sticker.id)
+                          ? 'bg-blue-600 border-blue-600'
+                          : 'border-gray-300 bg-white'
+                      }`}>
+                        {selectedStickers.includes(sticker.id) && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
                       </div>
 
                       {/* Thumbnail */}
-                      <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded flex items-center justify-center mr-4">
+                      <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
                         <div className="text-gray-500 text-xs">S</div>
                       </div>
 
                       {/* Info */}
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-900">{sticker.name}</h3>
-                        <div className="flex items-center space-x-2 mt-1">
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span className="text-sm text-gray-600">{sticker.createdAt}</span>
-                          <div className="flex flex-wrap gap-1">
-                            {sticker.tags.map((tag) => (
-                              <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
+                          {sticker.tags.length > 0 && (
+                            <div className="flex space-x-1">
+                              {sticker.tags.slice(0, 3).map((tag, index) => (
+                                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -760,137 +800,130 @@ export default function MyStickers() {
               )}
             </div>
           ))}
-        </div>
 
-        {filteredStickers.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-lg mb-2">No stickers found</div>
-            <p className="text-gray-600">Try adjusting your search or create some new stickers!</p>
-          </div>
-        )}
+          {filteredStickers.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-lg mb-2">No stickers found</div>
+              <p className="text-gray-600">Try adjusting your search or create some new stickers!</p>
+            </div>
+          )}
+        </div>
 
         {/* Background Remover Modal */}
         {showBackgroundRemover && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Generate stickers </h2>
                 <button
                   onClick={() => setShowBackgroundRemover(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                  className="text-gray-500 hover:text-gray-700"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-6">
-                <StickerGenerator 
-                  onStickerGenerated={(stickers) => {
-                    // 保存生成的贴纸并显示学习仪表板
-                    console.log('Generated stickers:', stickers);
-                    setGeneratedStickers(stickers);
-                    setShowBackgroundRemover(false);
-                    setShowLearningDashboard(true);
-                  }}
-                />
-              </div>
+              
+              <StickerGenerator
+                onStickerGenerated={(stickers) => {
+                  setGeneratedStickers(stickers);
+                  // 保存生成的贴纸并显示学习仪表板
+                  setShowLearningDashboard(true);
+                  setShowBackgroundRemover(false);
+                }}
+              />
             </div>
           </div>
         )}
 
         {/* Upload Modal */}
         {showUploadModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800">Upload Stickers</h2>
-                  <button
-                    onClick={() => {
-                      setShowUploadModal(false);
-                      setUploadedFiles([]);
-                    }}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Upload Stickers</h2>
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadedFiles([]);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
-                {/* File Upload Area */}
+              {/* File Upload Area */}
+              <div className="mb-6">
+                <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      PNG, JPG, GIF up to 10MB each
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Uploaded Files Preview */}
+              {uploadedFiles.length > 0 && (
                 <div className="mb-6">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-lg text-gray-600 mb-2">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Support multiple image files (PNG, JPG, JPEG)
-                      </p>
-                    </label>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">
+                    Uploaded Files ({uploadedFiles.length})
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {uploadedFiles.map((fileData, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={fileData.preview}
+                          alt={`Upload ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={() => removeUploadedFile(index)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                        <p className="text-xs text-gray-600 mt-1 truncate">
+                          {fileData.file.name}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {/* Uploaded Files Preview */}
-                {uploadedFiles.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-4">
-                      Uploaded Files ({uploadedFiles.length})
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {uploadedFiles.map((file, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={file.preview}
-                            alt={file.file.name}
-                            className="w-full h-32 object-cover rounded-lg border"
-                          />
-                          <button
-                            onClick={() => removeUploadedFile(index)}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                          <p className="text-xs text-gray-600 mt-1 truncate">
-                            {file.file.name}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Process Button */}
-                {uploadedFiles.length > 0 && (
-                  <div className="flex justify-end space-x-4">
-                    <button
-                      onClick={() => {
-                        setShowUploadModal(false);
-                        setUploadedFiles([]);
-                      }}
-                      className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={processUploadedStickers}
-                      disabled={isProcessing}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                    >
-                      {isProcessing && (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      )}
-                      <span>{isProcessing ? 'Processing...' : 'Process & Import'}</span>
-                    </button>
-                  </div>
-                )}
+              {/* Process Button */}
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadedFiles([]);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={processUploadedStickers}
+                  disabled={uploadedFiles.length === 0 || isProcessing}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  <span>{isProcessing ? 'Processing...' : 'Process & Import'}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -898,195 +931,236 @@ export default function MyStickers() {
 
         {/* 学习仪表板 */}
         {showLearningDashboard && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-7xl w-full max-h-[90vh] overflow-y-auto">
-              <LearningDashboard
-                stickers={generatedStickers}
-                onClose={() => setShowLearningDashboard(false)}
-              />
-            </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <LearningDashboard
+              stickers={generatedStickers}
+              onClose={() => setShowLearningDashboard(false)}
+            />
           </div>
         )}
 
         {/* AI生成图片模态框 */}
         {showAIGenerator && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                {/* 头部 */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-violet-500 rounded-lg flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900">AI Generate Sticker</h2>
-                      <p className="text-sm text-gray-600">Create custom stickers with AI</p>
-                    </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              {/* 头部 */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-white" />
                   </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">AI Generate Sticker</h2>
+                    <p className="text-sm text-gray-600">Create custom stickers with AI</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAIGenerator(false);
+                    setGeneratedImage(null);
+                    setTransparentImage(null);
+                    setAiGenerationOptions({
+                      word: '',
+                      description: '',
+                      style: 'cartoon',
+                      viewpoint: 'front'
+                    });
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* 输入表单 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 单词输入 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Word / 单词 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={aiGenerationOptions.word}
+                    onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, word: e.target.value }))}
+                    placeholder="Enter a word to generate..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* 描述输入 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description / 详细描述 <span className="text-gray-400">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={aiGenerationOptions.description}
+                    onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Additional details..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* 风格选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Style / 风格
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'cartoon', label: 'Cartoon / 卡通', emoji: '🎨' },
+                      { value: 'realistic', label: 'Realistic / 写实', emoji: '📸' },
+                      { value: 'pixel', label: 'Pixel Art / 像素', emoji: '🎮' },
+                      { value: 'watercolor', label: 'Watercolor / 水彩', emoji: '🖌️' },
+                      { value: 'sketch', label: 'Sketch / 素描', emoji: '✏️' }
+                    ].map((style) => (
+                      <button
+                        key={style.value}
+                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, style: style.value as any }))}
+                        className={`p-3 rounded-lg border-2 text-center transition-colors ${
+                          aiGenerationOptions.style === style.value
+                            ? 'border-purple-500 bg-purple-50'
+                            : 'border-gray-200 hover:border-purple-300'
+                        }`}
+                      >
+                        <div className="text-lg mb-1">{style.emoji}</div>
+                        <div className="text-xs font-medium">{style.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 视角选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Viewpoint / 视角
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'front', label: 'Front View / 正面', emoji: '👁️' },
+                      { value: 'top', label: 'Top View / 俯视', emoji: '⬇️' },
+                      { value: 'isometric', label: 'Isometric / 等轴', emoji: '📐' },
+                      { value: 'side', label: 'Side View / 侧面', emoji: '👀' }
+                    ].map((viewpoint) => (
+                      <button
+                        key={viewpoint.value}
+                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as any }))}
+                        className={`p-3 rounded-lg border-2 text-center transition-colors ${
+                          aiGenerationOptions.viewpoint === viewpoint.value
+                            ? 'border-purple-500 bg-purple-50'
+                            : 'border-gray-200 hover:border-purple-300'
+                        }`}
+                      >
+                        <div className="text-lg mb-1">{viewpoint.emoji}</div>
+                        <div className="text-xs font-medium">{viewpoint.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 生成按钮 */}
+                <div className="lg:col-span-2">
                   <button
-                    onClick={() => {
-                      setShowAIGenerator(false);
-                      setGeneratedImage(null);
-                      setAiGenerationOptions({
-                        word: '',
-                        description: '',
-                        style: 'cartoon',
-                        viewpoint: 'front'
-                      });
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={handleGenerateAIImage}
+                    disabled={!aiGenerationOptions.word.trim() || isGeneratingAI}
+                    className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <X className="w-5 h-5 text-gray-500" />
+                    {isGeneratingAI ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    <span>{isGeneratingAI ? 'Generating...' : 'Generate Image'}</span>
                   </button>
                 </div>
 
-                {/* 输入表单 */}
-                <div className="space-y-6">
-                  {/* 单词输入 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Word / 单词 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={aiGenerationOptions.word}
-                      onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, word: e.target.value }))}
-                      placeholder="Enter the word you want to generate (e.g., apple, car, cat)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* 描述输入 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description / 详细描述 <span className="text-gray-400">(Optional)</span>
-                    </label>
-                    <textarea
-                      value={aiGenerationOptions.description}
-                      onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Add more details about the object (e.g., red apple with green leaf, blue sports car)"
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none"
-                    />
-                  </div>
-
-                  {/* 风格选择 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Style / 风格
-                    </label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { value: 'cartoon', label: 'Cartoon / 卡通', emoji: '🎨' },
-                        { value: 'realistic', label: 'Realistic / 写实', emoji: '📸' },
-                        { value: 'pixel', label: 'Pixel Art / 像素', emoji: '🎮' },
-                        { value: 'watercolor', label: 'Watercolor / 水彩', emoji: '🖌️' },
-                        { value: 'sketch', label: 'Sketch / 素描', emoji: '✏️' }
-                      ].map((style) => (
-                        <button
-                          key={style.value}
-                          onClick={() => setAiGenerationOptions(prev => ({ ...prev, style: style.value as any }))}
-                          className={`p-3 rounded-lg border-2 transition-all text-left ${
-                            aiGenerationOptions.style === style.value
-                              ? 'border-pink-500 bg-pink-50 text-pink-700'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                          }`}
-                        >
-                          <div className="text-lg mb-1">{style.emoji}</div>
-                          <div className="text-xs font-medium">{style.label}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 视角选择 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Viewpoint / 视角
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { value: 'front', label: 'Front View / 正面', emoji: '👁️' },
-                        { value: 'top', label: 'Top View / 俯视', emoji: '⬇️' },
-                        { value: 'isometric', label: 'Isometric / 等轴', emoji: '📐' },
-                        { value: 'side', label: 'Side View / 侧面', emoji: '👀' }
-                      ].map((viewpoint) => (
-                        <button
-                          key={viewpoint.value}
-                          onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as any }))}
-                          className={`p-3 rounded-lg border-2 transition-all text-left ${
-                            aiGenerationOptions.viewpoint === viewpoint.value
-                              ? 'border-violet-500 bg-violet-50 text-violet-700'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                          }`}
-                        >
-                          <div className="text-lg mb-1">{viewpoint.emoji}</div>
-                          <div className="text-xs font-medium">{viewpoint.label}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 生成按钮 */}
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleGenerateAIImage}
-                      disabled={!aiGenerationOptions.word.trim() || isGeneratingAI}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-pink-500 to-violet-500 text-white rounded-lg hover:from-pink-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-medium"
-                    >
-                      {isGeneratingAI && (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                {/* 生成结果 */}
+                {(generatedImage || transparentImage) && (
+                  <div className="lg:col-span-2">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Generated Result</h3>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* 背景去除状态提示 */}
+                      {isRemovingBackground && (
+                        <div className="lg:col-span-2 flex items-center justify-center space-x-2 text-yellow-600 bg-yellow-50 p-3 rounded-lg">
+                          <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span>Removing background...</span>
+                        </div>
                       )}
-                      <Sparkles className="w-4 h-4" />
-                      <span>{isGeneratingAI ? 'Generating...' : 'Generate Image'}</span>
-                    </button>
-                  </div>
 
-                  {/* 生成结果 */}
-                  {generatedImage && (
-                    <div className="border-t pt-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Generated Result</h3>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <div className="flex items-start space-x-4">
-                          <img
-                            src={generatedImage}
-                            alt="Generated sticker"
-                            className="w-32 h-32 object-contain bg-white rounded-lg border"
-                          />
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-2">{aiGenerationOptions.word}</h4>
-                            {aiGenerationOptions.description && (
-                              <p className="text-sm text-gray-600 mb-3">{aiGenerationOptions.description}</p>
-                            )}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full">
-                                {aiGenerationOptions.style}
-                              </span>
-                              <span className="px-2 py-1 bg-violet-100 text-violet-700 text-xs rounded-full">
-                                {aiGenerationOptions.viewpoint}
-                              </span>
-                            </div>
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={saveAIGeneratedSticker}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-                              >
-                                Save as Sticker
-                              </button>
-                              <button
-                                onClick={() => setGeneratedImage(null)}
-                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
-                              >
-                                Generate New
-                              </button>
-                            </div>
+                      <div className="space-y-4">
+                        {/* 只显示透明图 */}
+                        {transparentImage ? (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <img
+                              src={transparentImage}
+                              alt="Generated sticker with transparent background"
+                              className="w-full h-64 object-contain rounded-lg"
+                              style={{
+                                background: 'linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)',
+                                backgroundSize: '20px 20px',
+                                backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+                              }}
+                            />
+                            <p className="text-sm text-gray-600 mt-2">Generated Sticker (Background Removed)</p>
                           </div>
+                        ) : generatedImage && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <img
+                              src={generatedImage}
+                              alt="Generated image processing"
+                              className="w-full h-64 object-contain rounded-lg"
+                            />
+                            <p className="text-sm text-gray-600 mt-2">Processing background removal...</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900 mb-2">{aiGenerationOptions.word}</h4>
+                        {aiGenerationOptions.description && (
+                          <p className="text-sm text-gray-600 mb-3">{aiGenerationOptions.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                            {aiGenerationOptions.style}
+                          </span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                            {aiGenerationOptions.viewpoint}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-col space-y-2">
+                          {transparentImage ? (
+                            <button
+                              onClick={() => saveAIGeneratedSticker(true)}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                            >
+                              Save Sticker
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed text-sm font-medium"
+                            >
+                              Processing...
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setGeneratedImage(null);
+                              setTransparentImage(null);
+                            }}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
+                          >
+                            Generate New
+                          </button>
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

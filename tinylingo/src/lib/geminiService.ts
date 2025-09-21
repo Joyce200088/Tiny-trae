@@ -309,8 +309,8 @@ export async function generateImageWithGemini(options: ImageGenerationOptions): 
       prompt += ` (${description.trim()})`;
     }
     
-    // 添加白色背景和单个物品的要求
-    prompt += ' on a pure white background. The image should contain ONLY the single object with no text, no other objects, no shadows, and no distractions. Clean, isolated object on white background';
+    // 添加渐变背景和单个物品的要求 - 避免透明物体受绿幕影响
+    prompt += ' on a subtle gradient background from light gray (#F5F5F5) to white (#FFFFFF). The image should contain ONLY the single object with no text, no other objects, minimal shadows, and no distractions. Clean, isolated object on neutral gradient background that preserves transparent parts of objects naturally';
     
     // 添加风格描述
     const styleDescriptions = {
@@ -337,8 +337,8 @@ export async function generateImageWithGemini(options: ImageGenerationOptions): 
       prompt += `, ${viewpointDescriptions[viewpoint]}`;
     }
     
-    // 添加通用质量描述，再次强调白色背景
-    prompt += '. High quality, clear, well-composed image with pure white background, suitable for educational stickers. No text, no labels, no other objects, just the single item on white background.';
+    // 添加通用质量描述，强调渐变背景和透明物体保护
+    prompt += '. High quality, clear, well-composed image with subtle gradient background from light gray to white, suitable for educational stickers. No text, no labels, no other objects, just the single item on neutral gradient background that naturally preserves any transparent or translucent parts of the object.';
     
     console.log('图片生成提示词:', prompt);
     
