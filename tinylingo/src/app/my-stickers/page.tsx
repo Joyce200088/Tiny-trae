@@ -374,8 +374,12 @@ export default function MyStickers() {
         ctx?.drawImage(img, 0, 0);
         
         try {
-          // 调用识别API获取学习内容
-          const learningContent = await identifyImageAndGenerateContent(canvas);
+          // 调用识别API获取学习内容，传递用户输入的单词和描述
+          const learningContent = await identifyImageAndGenerateContent(
+            canvas, 
+            aiGenerationOptions.word, 
+            aiGenerationOptions.description
+          );
           
           // 创建新贴纸
           const newSticker: StickerData = {

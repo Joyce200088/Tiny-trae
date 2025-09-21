@@ -63,7 +63,11 @@ function canvasToBase64(canvas: HTMLCanvasElement): string {
 /**
  * 调用Gemini API识别图片并生成英语学习内容
  */
-export async function identifyImageAndGenerateContent(canvas: HTMLCanvasElement): Promise<EnglishLearningContent> {
+export async function identifyImageAndGenerateContent(
+  canvas: HTMLCanvasElement, 
+  userWord?: string, 
+  userDescription?: string
+): Promise<EnglishLearningContent> {
   try {
     // 验证canvas是否有效
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
@@ -73,7 +77,49 @@ export async function identifyImageAndGenerateContent(canvas: HTMLCanvasElement)
     const base64Image = canvasToBase64(canvas);
     console.log('准备发送API请求，图片数据长度:', base64Image.length);
     
-    const prompt = `请仔细观察这张图片中的物品，然后生成英语学习内容。请严格按照以下JSON格式返回，不要添加任何其他文字：
+    // 根据是否有用户输入来构建不同的提示词
+    let prompt = '';
+    
+    if (userWord && userWord.trim()) {
+      // 如果有用户输入的单词，结合图片和文字信息
+      prompt = `我已经知道这张图片中的物品是"${userWord.trim()}"`;
+      
+      if (userDescription && userDescription.trim()) {
+        prompt += `，详细描述是"${userDescription.trim()}"`;
+      }
+      
+      prompt += `。请结合这张图片和我提供的信息，生成英语学习内容。请严格按照以下JSON格式返回，不要添加任何其他文字：
+
+{
+  "english": "${userWord.trim()}",
+  "chinese": "对应的中文翻译",
+  "example": "包含该英文单词的日常口语化句子，要自然流畅，像平时说话一样，详细描述图片中物品的具体特征",
+  "exampleChinese": "例句的中文翻译"
+}
+
+要求：
+1. 英文单词使用我提供的"${userWord.trim()}"
+2. 例句必须是日常口语化的自然表达，结合图片中的视觉特征：
+   - 主语：用I, We, This等自然的开头
+   - 谓语：用常见动词（bought, got, have, found等）
+   - 宾语：具体的物品名称"${userWord.trim()}"
+   - 定语：根据图片描述颜色、材质、大小、形状等特征
+   - 状语：日常时间地点（yesterday, last week, at the store等）
+3. 例句要详细描述图片中物品的具体视觉特征：
+   - 观察图片中的颜色、材质、大小、形状
+   - 物品的状态、位置、样式
+   - 可见的细节特征
+4. 例句长度控制在15-20个单词，不要太长
+5. 语言要自然流畅，像日常对话
+6. 中文翻译要准确自然
+7. 只返回JSON格式，不要其他解释文字
+
+示例格式：
+- I bought this nice red ${userWord.trim()} last week that looks really fresh.
+- We got this old wooden ${userWord.trim()} that's really comfortable and looks great.`;
+    } else {
+      // 原有的识别逻辑，让AI自己识别图片
+      prompt = `请仔细观察这张图片中的物品，然后生成英语学习内容。请严格按照以下JSON格式返回，不要添加任何其他文字：
 
 {
   "english": "物品的英文名称（单词或短语）",
@@ -106,6 +152,7 @@ export async function identifyImageAndGenerateContent(canvas: HTMLCanvasElement)
 - 过于复杂：I recently purchased this magnificent antique mahogany dining table that features exquisitely carved legs.
 - 日常口语化：I bought this nice wooden table last week that has pretty carved legs.
 - 日常口语化：We got this old leather chair that's really comfortable and looks great.`;
+    }
 
     const requestBody = {
       contents: [
