@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { segmentByBFS, regionToDataURL, getSegmentationStats, type Region, type SegmentationOptions } from '../lib/useSegmentation';
+import { segmentByBFS, regionToDataURL, regionToCanvas, getSegmentationStats, type Region, type SegmentationOptions } from '../lib/useSegmentation';
+import { identifyImageAndGenerateContent, type EnglishLearningContent } from '../lib/geminiService';
 
 interface StickerGeneratorProps {
   onStickerGenerated?: (stickers: any[]) => void;
@@ -22,6 +23,11 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
   const [segmentedRegions, setSegmentedRegions] = useState<Region[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<Set<number>>(new Set());
   const [showSegmentation, setShowSegmentation] = useState(false);
+  
+  // AI识别和英语学习内容状态
+  const [learningContents, setLearningContents] = useState<Map<number, EnglishLearningContent>>(new Map());
+  const [isIdentifying, setIsIdentifying] = useState(false);
+  const [identificationProgress, setIdentificationProgress] = useState<{ current: number; total: number } | null>(null);
   
   // 固定的最优分割参数，专注于英语学习体验
   const segmentationOptions: SegmentationOptions = {
@@ -174,27 +180,92 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
     }
   };
 
-  // 生成选中区域的贴纸
-  const generateStickers = () => {
+  // 生成选中区域的贴纸并进行AI识别
+  const generateStickers = async () => {
     if (!processedImage || segmentedRegions.length === 0) return;
+
+    const selectedRegionsList = segmentedRegions.filter(region => selectedRegions.has(region.id));
+    
+    if (selectedRegionsList.length === 0) {
+      alert('请先选择要生成贴纸的物品');
+      return;
+    }
+
+    setIsIdentifying(true);
+    setIdentificationProgress({ current: 0, total: selectedRegionsList.length });
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const stickers = segmentedRegions
-        .filter(region => selectedRegions.has(region.id))
-        .map(region => ({
-          id: region.id,
-          dataUrl: regionToDataURL(region, img),
-          area: region.area,
-          bbox: region.bbox
-        }));
+    img.onload = async () => {
+      const stickers = [];
+      const newLearningContents = new Map(learningContents);
 
-      console.log(`生成了 ${stickers.length} 个贴纸`);
+      for (let i = 0; i < selectedRegionsList.length; i++) {
+        const region = selectedRegionsList[i];
+        
+        // 更新进度
+        setIdentificationProgress({ current: i + 1, total: selectedRegionsList.length });
+        
+        try {
+          // 生成贴纸数据
+          const dataUrl = regionToDataURL(region, img);
+          
+          // 直接使用regionToCanvas获取canvas
+          const canvas = regionToCanvas(region, img);
+          
+          // 验证canvas有效性
+          if (!canvas || canvas.width === 0 || canvas.height === 0) {
+            throw new Error(`区域 ${region.id} 的Canvas无效`);
+          }
+          
+          console.log(`区域 ${region.id} Canvas尺寸: ${canvas.width}x${canvas.height}`);
+          
+          // 调用AI识别
+          const learningContent = await identifyImageAndGenerateContent(canvas);
+          newLearningContents.set(region.id, learningContent);
+          
+          stickers.push({
+            id: region.id,
+            dataUrl: dataUrl,
+            area: region.area,
+            bbox: region.bbox,
+            learningContent: learningContent
+          });
+          
+        } catch (error) {
+          console.error(`识别区域 ${region.id} 失败:`, error);
+          
+          // 添加默认内容
+          const defaultContent: EnglishLearningContent = {
+            english: 'Unknown Object',
+            chinese: '未知物品',
+            example: 'I can see an unknown object.',
+            exampleChinese: '我能看到一个未知的物品。'
+          };
+          
+          newLearningContents.set(region.id, defaultContent);
+          
+          stickers.push({
+            id: region.id,
+            dataUrl: regionToDataURL(region, img),
+            area: region.area,
+            bbox: region.bbox,
+            learningContent: defaultContent
+          });
+        }
+      }
+
+      // 更新学习内容状态
+      setLearningContents(newLearningContents);
+      
+      console.log(`生成了 ${stickers.length} 个贴纸，包含AI识别内容`);
       
       if (onStickerGenerated) {
         onStickerGenerated(stickers);
       }
+      
+      setIsIdentifying(false);
+      setIdentificationProgress(null);
     };
     img.src = processedImage;
   };
@@ -206,6 +277,9 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
     setSegmentedRegions([]);
     setSelectedRegions(new Set());
     setShowSegmentation(false);
+    setLearningContents(new Map());
+    setIsIdentifying(false);
+    setIdentificationProgress(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -419,6 +493,18 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
                         清晰度: {region.blurScore.toFixed(1)}
                       </p>
                     )}
+                    
+                    {/* 显示AI识别的英语学习内容 */}
+                    {learningContents.has(region.id) && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                        <div className="font-medium text-blue-800">
+                          {learningContents.get(region.id)?.english}
+                        </div>
+                        <div className="text-blue-600">
+                          {learningContents.get(region.id)?.chinese}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   {isSelected && (
@@ -448,10 +534,20 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
             
             <button
               onClick={generateStickers}
-              disabled={selectedRegions.size === 0}
+              disabled={selectedRegions.size === 0 || isIdentifying}
               className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
             >
-              🎯 开始学习英语 ({selectedRegions.size})
+              {isIdentifying ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  AI识别中... {identificationProgress ? `(${identificationProgress.current}/${identificationProgress.total})` : ''}
+                </span>
+              ) : (
+                `🎯 开始学习英语 (${selectedRegions.size})`
+              )}
             </button>
             
             <span className="text-sm text-gray-600">

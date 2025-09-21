@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search, Download, Tag, Check, Grid, List, Plus, X } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
+import LearningDashboard from '../../components/LearningDashboard';
 
 // 模拟数据
 const mockStickers = [
@@ -68,6 +69,8 @@ export default function MyStickers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
+  const [generatedStickers, setGeneratedStickers] = useState<any[]>([]);
+  const [showLearningDashboard, setShowLearningDashboard] = useState(false);
 
   const filteredStickers = mockStickers.filter(sticker => {
     const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
@@ -341,12 +344,26 @@ export default function MyStickers() {
               <div className="p-6">
                 <StickerGenerator 
                   onStickerGenerated={(stickers) => {
-                    // Handle generated stickers - could add to mockStickers or refresh data
+                    // 保存生成的贴纸并显示学习仪表板
                     console.log('Generated stickers:', stickers);
+                    setGeneratedStickers(stickers);
                     setShowBackgroundRemover(false);
+                    setShowLearningDashboard(true);
                   }}
                 />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 学习仪表板 */}
+        {showLearningDashboard && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+              <LearningDashboard
+                stickers={generatedStickers}
+                onClose={() => setShowLearningDashboard(false)}
+              />
             </div>
           </div>
         )}
