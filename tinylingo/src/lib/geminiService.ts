@@ -292,56 +292,123 @@ export async function identifyMultipleImages(canvases: HTMLCanvasElement[]): Pro
 }
 
 /**
+ * 延迟函数，用于重试机制
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 重试配置
+ */
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+}
+
+/**
+ * 带重试机制的API调用
+ */
+async function retryApiCall<T>(
+  apiCall: () => Promise<T>,
+  config: RetryConfig = { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      lastError = error as Error;
+      
+      // 如果是最后一次尝试，直接抛出错误
+      if (attempt === config.maxRetries) {
+        break;
+      }
+      
+      // 检查是否是可重试的错误
+      const isRetryableError = error instanceof Error && (
+        error.message.includes('500') ||
+        error.message.includes('502') ||
+        error.message.includes('503') ||
+        error.message.includes('504') ||
+        error.message.includes('Internal error') ||
+        error.message.includes('network') ||
+        error.message.includes('timeout')
+      );
+      
+      if (!isRetryableError) {
+        // 不可重试的错误，直接抛出
+        throw error;
+      }
+      
+      // 计算延迟时间（指数退避）
+      const delayTime = Math.min(
+        config.baseDelay * Math.pow(2, attempt),
+        config.maxDelay
+      );
+      
+      console.log(`API调用失败，${delayTime}ms后进行第${attempt + 1}次重试:`, error.message);
+      await delay(delayTime);
+    }
+  }
+  
+  throw lastError;
+}
+
+/**
  * 使用Gemini AI生成图片
  */
 export async function generateImageWithGemini(options: ImageGenerationOptions): Promise<string> {
-  try {
-    const { word, description, style = 'cartoon', viewpoint = 'front' } = options;
-    
-    if (!word.trim()) {
-      throw new Error('Word is required for image generation');
-    }
-    
-    // 构建提示词 - 强调白色背景和单个物品
-    let prompt = `Create a single ${word}`;
-    
-    if (description && description.trim()) {
-      prompt += ` (${description.trim()})`;
-    }
-    
-    // 添加渐变背景和单个物品的要求 - 避免透明物体受绿幕影响
-    prompt += ' on a subtle gradient background from light gray (#F5F5F5) to white (#FFFFFF). The image should contain ONLY the single object with no text, no other objects, minimal shadows, and no distractions. Clean, isolated object on neutral gradient background that preserves transparent parts of objects naturally';
-    
-    // 添加风格描述
-    const styleDescriptions = {
-      cartoon: 'in a cartoon style, colorful and playful',
-      realistic: 'in a realistic photographic style, high detail',
-      pixel: 'in pixel art style, 8-bit retro gaming aesthetic',
-      watercolor: 'in watercolor painting style, soft and artistic',
-      sketch: 'in pencil sketch style, black and white line art'
-    };
-    
-    if (style && styleDescriptions[style]) {
-      prompt += `, ${styleDescriptions[style]}`;
-    }
-    
-    // 添加视角描述
-    const viewpointDescriptions = {
-      front: 'viewed from the front',
-      top: 'viewed from above, top-down perspective',
-      isometric: 'in isometric view, 3D perspective',
-      side: 'viewed from the side, profile view'
-    };
-    
-    if (viewpoint && viewpointDescriptions[viewpoint]) {
-      prompt += `, ${viewpointDescriptions[viewpoint]}`;
-    }
-    
-    // 添加通用质量描述，强调渐变背景和透明物体保护
-    prompt += '. High quality, clear, well-composed image with subtle gradient background from light gray to white, suitable for educational stickers. No text, no labels, no other objects, just the single item on neutral gradient background that naturally preserves any transparent or translucent parts of the object.';
-    
-    console.log('图片生成提示词:', prompt);
-    
+  const { word, description, style = 'cartoon', viewpoint = 'front' } = options;
+  
+  if (!word.trim()) {
+    throw new Error('Word is required for image generation');
+  }
+  
+  // 构建提示词 - 强调白色背景和单个物品
+  let prompt = `Create a single ${word}`;
+  
+  if (description && description.trim()) {
+    prompt += ` (${description.trim()})`;
+  }
+  
+  // 添加渐变背景和单个物品的要求 - 避免透明物体受绿幕影响
+  prompt += ' on a subtle gradient background from light gray (#F5F5F5) to white (#FFFFFF). The image should contain ONLY the single object with no text, no other objects, minimal shadows, and no distractions. Clean, isolated object on neutral gradient background that preserves transparent parts of the object.';
+  
+  // 添加风格描述
+  const styleDescriptions = {
+    cartoon: 'in a cartoon style, colorful and playful',
+    realistic: 'in a realistic photographic style, high detail',
+    pixel: 'in pixel art style, 8-bit retro gaming aesthetic',
+    watercolor: 'in watercolor painting style, soft and artistic',
+    sketch: 'in pencil sketch style, black and white line art'
+  };
+  
+  if (style && styleDescriptions[style]) {
+    prompt += `, ${styleDescriptions[style]}`;
+  }
+  
+  // 添加视角描述
+  const viewpointDescriptions = {
+    front: 'viewed from the front',
+    top: 'viewed from above, top-down perspective',
+    isometric: 'in isometric view, 3D perspective',
+    side: 'viewed from the side, profile view'
+  };
+  
+  if (viewpoint && viewpointDescriptions[viewpoint]) {
+    prompt += `, ${viewpointDescriptions[viewpoint]}`;
+  }
+  
+  // 添加通用质量描述，强调渐变背景和透明物体保护
+  prompt += '. High quality, clear, well-composed image with subtle gradient background from light gray to white, suitable for educational stickers. No text, no labels, no other objects, just the single item on neutral gradient background that naturally preserves any transparent or translucent parts of the object.';
+  
+  console.log('图片生成提示词:', prompt);
+  
+  // 使用重试机制调用API
+  return await retryApiCall(async () => {
     // 使用Gemini 2.5 Flash Image Preview模型
     const imageGenerationUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`;
     
@@ -367,7 +434,7 @@ export async function generateImageWithGemini(options: ImageGenerationOptions): 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini图片生成API错误:', response.status, errorText);
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+      throw new Error(`API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
     }
     
     const data: ImageGenerationResponse = await response.json();
@@ -388,9 +455,9 @@ export async function generateImageWithGemini(options: ImageGenerationOptions): 
     }
     
     throw new Error('API响应中没有找到图片数据');
-    
-  } catch (error) {
-    console.error('Gemini图片生成失败:', error);
-    throw error;
-  }
+  }, {
+    maxRetries: 3,
+    baseDelay: 2000,
+    maxDelay: 10000
+  });
 }

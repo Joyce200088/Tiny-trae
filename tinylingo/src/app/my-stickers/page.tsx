@@ -127,6 +127,8 @@ export default function MyStickers() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [transparentImage, setTransparentImage] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // 弹窗相关状态
   const [selectedSticker, setSelectedSticker] = useState<StickerData | null>(null);
@@ -362,6 +364,9 @@ export default function MyStickers() {
 
     setIsGeneratingAI(true);
     setTransparentImage(null); // 重置透明图片
+    setGenerationError(null); // 重置错误状态
+    setRetryCount(0); // 重置重试计数
+    
     try {
       console.log('开始生成AI图片:', aiGenerationOptions);
       const imageDataUrl = await generateImageWithGemini(aiGenerationOptions);
@@ -372,7 +377,17 @@ export default function MyStickers() {
       await handleRemoveBackground(imageDataUrl);
     } catch (error) {
       console.error('AI图片生成失败:', error);
-      alert('AI图片生成失败，请重试');
+      const errorMessage = error instanceof Error ? error.message : 'AI图片生成失败';
+      setGenerationError(errorMessage);
+      
+      // 提供更友好的错误信息
+      if (errorMessage.includes('500') || errorMessage.includes('Internal error')) {
+        alert('Gemini服务暂时不可用，请稍后重试。系统已自动重试多次，如果问题持续存在，请等待几分钟后再试。');
+      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
+        alert('API调用次数已达上限，请稍后重试。');
+      } else {
+        alert(`AI图片生成失败: ${errorMessage}`);
+      }
     } finally {
       setIsGeneratingAI(false);
     }
@@ -1112,6 +1127,26 @@ export default function MyStickers() {
                     )}
                     <span>{isGeneratingAI ? 'Generating...' : 'Generate Image'}</span>
                   </button>
+                  
+                  {/* 错误信息显示 */}
+                  {generationError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <div className="w-5 h-5 text-red-500 mt-0.5">⚠️</div>
+                        <div className="flex-1">
+                          <p className="text-sm text-red-700 font-medium">生成失败</p>
+                          <p className="text-xs text-red-600 mt-1">
+                            {generationError.includes('500') || generationError.includes('Internal error') 
+                              ? 'Gemini服务暂时不可用，系统已自动重试。请稍后再试。'
+                              : generationError.includes('quota') || generationError.includes('limit')
+                              ? 'API调用次数已达上限，请稍后重试。'
+                              : generationError
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 生成结果 */}

@@ -1,3 +1,8 @@
+运行网页：
+npm run dev 
+npm install 
+
+
 「TinyLingo · 微世界英语」(Next.js + TS + Tailwind)
 你是一名全栈工程师，请实现一个名为 TinyLingo – 微世界英语 的 Web 应用。技术栈：Next.js (App Router) + TypeScript + Tailwind CSS；前端画布用 react-konva 或 Fabric.js；后端用 Next.js Route Handlers（Node）+ 一个 Python 微服务 负责去背景（rembg + PIL）。要求像素级还原如下信息架构与交互。
 
