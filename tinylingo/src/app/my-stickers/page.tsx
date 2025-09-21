@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Download, Tag, Check, Grid, List, Plus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2 } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
 
+// 扩展贴纸接口，包含学习内容
+interface StickerData {
+  id: string;
+  name: string;
+  chinese?: string;
+  example?: string;
+  exampleChinese?: string;
+  category: string | null;
+  tags: string[];
+  thumbnailUrl?: string;
+  imageUrl?: string;
+  createdAt: string;
+  sorted: boolean;
+}
+
 // 模拟数据
-const mockStickers = [
+const mockStickers: StickerData[] = [
   {
     id: '1',
     name: 'Red Apple',
+    chinese: '红苹果',
     category: 'Food',
     tags: ['fruit', 'red', 'healthy'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -19,6 +35,7 @@ const mockStickers = [
   {
     id: '2',
     name: 'Blue Car',
+    chinese: '蓝色汽车',
     category: 'Vehicle',
     tags: ['transport', 'blue', 'car'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -28,6 +45,7 @@ const mockStickers = [
   {
     id: '3',
     name: 'Cute Cat',
+    chinese: '可爱的猫',
     category: 'Animal',
     tags: ['pet', 'cute', 'cat'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -55,6 +73,7 @@ const mockStickers = [
   {
     id: '6',
     name: 'Green Tree',
+    chinese: '绿树',
     category: 'Nature',
     tags: ['plant', 'green', 'tree'],
     thumbnailUrl: '/api/placeholder/150/150',
@@ -71,8 +90,53 @@ export default function MyStickers() {
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
   const [generatedStickers, setGeneratedStickers] = useState<any[]>([]);
   const [showLearningDashboard, setShowLearningDashboard] = useState(false);
+  const [allStickers, setAllStickers] = useState<StickerData[]>(mockStickers);
 
-  const filteredStickers = mockStickers.filter(sticker => {
+  // 从localStorage加载保存的贴纸
+  useEffect(() => {
+    const loadSavedStickers = () => {
+      try {
+        const savedStickers = localStorage.getItem('myStickers');
+        if (savedStickers) {
+          const parsedStickers: StickerData[] = JSON.parse(savedStickers);
+          // 合并模拟数据和保存的贴纸，避免重复
+          const existingIds = new Set(mockStickers.map(s => s.id));
+          const newStickers = parsedStickers.filter(s => !existingIds.has(s.id));
+          setAllStickers([...mockStickers, ...newStickers]);
+        } else {
+          // 如果没有保存的贴纸，只显示模拟数据
+          setAllStickers(mockStickers);
+        }
+      } catch (error) {
+        console.error('加载保存的贴纸失败:', error);
+        setAllStickers(mockStickers);
+      }
+    };
+
+    loadSavedStickers();
+    
+    // 监听localStorage变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'myStickers') {
+        loadSavedStickers();
+      }
+    };
+
+    // 监听自定义事件，用于同一页面内的更新
+    const handleCustomStorageChange = () => {
+      loadSavedStickers();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('myStickersUpdated', handleCustomStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('myStickersUpdated', handleCustomStorageChange);
+    };
+  }, []);
+
+  const filteredStickers = allStickers.filter(sticker => {
     const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
     const matchesSearch = sticker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          sticker.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -103,6 +167,39 @@ export default function MyStickers() {
         return acc;
       }, {} as Record<string, typeof filteredStickers>)
     : { 'Unsorted': filteredStickers };
+
+  // 删除贴纸功能
+  const deleteSticker = (stickerId: string) => {
+    if (confirm('确定要删除这个贴纸吗？')) {
+      const updatedStickers = allStickers.filter(s => s.id !== stickerId);
+      setAllStickers(updatedStickers);
+      
+      // 更新localStorage中保存的贴纸 - 使用正确的键名
+      const savedStickers = updatedStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
+      localStorage.setItem('myStickers', JSON.stringify(savedStickers));
+      
+      // 从选中列表中移除
+      setSelectedStickers(prev => prev.filter(id => id !== stickerId));
+    }
+  };
+
+  // 语音播放功能
+  const playAudio = (text: string, lang: string = 'en-US') => {
+    if ('speechSynthesis' in window) {
+      // 停止当前播放的语音
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = 0.8;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert('您的浏览器不支持语音合成功能');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -225,7 +322,7 @@ export default function MyStickers() {
                   {stickers.map((sticker) => (
                     <div
                       key={sticker.id}
-                      className={`relative bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all ${
+                      className={`group relative bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all ${
                         selectedStickers.includes(sticker.id)
                           ? 'ring-2 ring-blue-500 shadow-md'
                           : 'hover:shadow-md'
@@ -247,12 +344,63 @@ export default function MyStickers() {
 
                       {/* Thumbnail */}
                       <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <div className="text-gray-500 text-xs">Sticker</div>
+                        {sticker.imageUrl ? (
+                          <img 
+                            src={sticker.imageUrl} 
+                            alt={sticker.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : sticker.thumbnailUrl ? (
+                          <img 
+                            src={sticker.thumbnailUrl} 
+                            alt={sticker.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className="text-gray-500 text-xs">Sticker</div>
+                        )}
                       </div>
 
                       {/* Info */}
                       <div className="p-2">
                         <h3 className="text-sm font-medium text-gray-900 truncate">{sticker.name}</h3>
+                        {sticker.chinese && (
+                          <p className="text-xs text-gray-600 truncate">{sticker.chinese}</p>
+                        )}
+                        {sticker.example && (
+                          <p className="text-xs text-blue-600 truncate mt-1" title={sticker.example}>
+                            例句: {sticker.example}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs text-gray-500">{sticker.createdAt}</span>
+                          <div className="flex items-center space-x-1">
+                            {/* 语音播放按钮 */}
+                            {sticker.name && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playAudio(sticker.name, 'en-US');
+                                }}
+                                className="text-blue-500 hover:text-blue-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="播放英文发音"
+                              >
+                                <Volume2 className="w-3 h-3" />
+                              </button>
+                            )}
+                            {/* 删除按钮 */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSticker(sticker.id);
+                              }}
+                              className="text-red-500 hover:text-red-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="删除贴纸"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {sticker.tags.slice(0, 2).map((tag) => (
                             <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-1 py-0.5 rounded">
