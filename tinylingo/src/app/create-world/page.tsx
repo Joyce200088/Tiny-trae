@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect } from 'react-konva';
-import { Upload, Image, Layers, Settings, Play, Save, Undo, Redo, ZoomIn, ZoomOut } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
+import { Search, Upload, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, ZoomIn, ZoomOut, Play, Settings } from 'lucide-react';
+import useImage from 'use-image';
 
 // 模拟数据
 const mockStickers = [
