@@ -150,7 +150,7 @@ export default function StickerDetailModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="rounded-lg w-[1200px] h-[700px] flex flex-col overflow-hidden" style={{ backgroundColor: '#FFFBF5' }}>
         {/* 头部 - 关闭按钮和编辑按钮 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
@@ -190,12 +190,12 @@ export default function StickerDetailModal({
         </div>
 
         {/* 内容区域 - 左右布局 */}
-        <div className="p-6">
-          <div className="flex gap-8">
-            {/* 左侧 - 图片、英文单词、播放发音 */}
-            <div className="flex-shrink-0 w-80 flex flex-col items-center">
-              {/* 图片 */}
-              <div className="w-80 h-80 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex gap-8 h-full">
+            {/* 左侧 - 物品图、英文、中文、音标和发音 */}
+            <div className="flex-shrink-0 w-90 border border-black rounded-lg">
+              {/* 物品图片 */}
+              <div className="w-full h-60 rounded-t-lg flex items-center justify-center overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
                 {sticker.imageUrl || sticker.thumbnailUrl ? (
                   <img
                     src={sticker.imageUrl || sticker.thumbnailUrl}
@@ -209,61 +209,31 @@ export default function StickerDetailModal({
                   </div>
                 )}
               </div>
-
-              {/* 英文单词和音标 */}
-              <div className="w-full space-y-3 mb-4">
+              
+              {/* 内容区域 */}
+              <div className="p-4 space-y-6">
+                {/* 英文单词 */}
+                <div className="text-center">
                 {!isEditing ? (
-                  <>
-                    <h2 className="text-3xl font-bold text-gray-900 text-center break-words">{sticker.name}</h2>
-                    {sticker.phonetic && (
-                      <div className="text-xl text-blue-600 font-mono text-center">/{sticker.phonetic}/</div>
-                    )}
-                  </>
+                  <h2 className="text-3xl font-bold text-gray-900 break-words">{sticker.name}</h2>
                 ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-center">英文单词</label>
-                      <input
-                        type="text"
-                        value={editedSticker?.name || ''}
-                        onChange={(e) => setEditedSticker(prev => prev ? { ...prev, name: e.target.value } : null)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl font-bold text-center"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 text-center">音标</label>
-                      <input
-                        type="text"
-                        value={editedSticker?.phonetic || ''}
-                        onChange={(e) => setEditedSticker(prev => prev ? { ...prev, phonetic: e.target.value } : null)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-mono text-center"
-                        placeholder="请输入音标"
-                      />
-                    </div>
-                  </>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">英文单词</label>
+                    <input
+                      type="text"
+                      value={editedSticker?.name || ''}
+                      onChange={(e) => setEditedSticker(prev => prev ? { ...prev, name: e.target.value } : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-2xl font-bold text-center"
+                    />
+                  </div>
                 )}
               </div>
 
-              {/* 音频播放按钮 */}
-              <div className="w-full flex justify-center">
-                <button
-                  onClick={() => playAudio(sticker.name)}
-                  disabled={isPlaying}
-                  className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors shadow-md"
-                >
-                  <Volume2 className="w-5 h-5" />
-                  <span>{isPlaying ? '播放中...' : '播放发音'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 右侧 - 文字信息 */}
-            <div className="flex-1 space-y-6">
               {/* 中文翻译 */}
-              <div className="space-y-2">
+              <div className="text-center">
                 {!isEditing ? (
                   sticker.chinese && (
-                    <div className="text-2xl text-gray-800 font-medium">{sticker.chinese}</div>
+                    <div className="text-xl text-gray-700 font-medium">{sticker.chinese}</div>
                   )
                 ) : (
                   <div>
@@ -272,19 +242,55 @@ export default function StickerDetailModal({
                       type="text"
                       value={editedSticker?.chinese || ''}
                       onChange={(e) => setEditedSticker(prev => prev ? { ...prev, chinese: e.target.value } : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg text-center"
                       placeholder="请输入中文翻译"
                     />
                   </div>
                 )}
               </div>
 
+              {/* 音标 */}
+              <div className="text-center">
+                {!isEditing ? (
+                  sticker.phonetic && (
+                    <div className="text-base text-black font-mono">/{sticker.phonetic}/</div>
+                  )
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">音标</label>
+                    <input
+                      type="text"
+                      value={editedSticker?.phonetic || ''}
+                      onChange={(e) => setEditedSticker(prev => prev ? { ...prev, phonetic: e.target.value } : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-mono text-center"
+                      placeholder="请输入音标"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 发音按钮 */}
+              <div className="flex justify-center">
+                <button
+                  onClick={() => playAudio(sticker.name)}
+                  disabled={isPlaying}
+                  className="flex items-center space-x-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors shadow-md"
+                >
+                  <Volume2 className="w-5 h-5" />
+                  <span>{isPlaying ? '播放中...' : '播放发音'}</span>
+                </button>
+              </div>
+              </div>
+            </div>
+
+            {/* 右侧 - 例句、备注、标签 */}
+            <div className="flex-1 space-y-6 min-w-0">
               {/* 例句 */}
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold text-gray-900">例句</h3>
                 {!isEditing ? (
                   sticker.example && (
-                    <div className="bg-blue-50 rounded-lg p-4 space-y-3">
+                    <div className="relative rounded-lg p-4 space-y-3" style={{ backgroundColor: '#FAF4ED' }}>
                       <div className="text-gray-800 italic">"{sticker.example}"</div>
                       {sticker.exampleChinese && (
                         <div className="text-gray-600 text-sm">"{sticker.exampleChinese}"</div>
@@ -292,7 +298,8 @@ export default function StickerDetailModal({
                       <button
                         onClick={() => playAudio(sticker.example)}
                         disabled={isPlaying}
-                        className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                        className="absolute bottom-3 right-3 flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm px-2 py-1 rounded-md"
+                        style={{ backgroundColor: '#FAF4ED', border: 'none' }}
                       >
                         <Volume2 className="w-4 h-4" />
                         <span>播放例句</span>
@@ -307,6 +314,7 @@ export default function StickerDetailModal({
                         value={editedSticker?.example || ''}
                         onChange={(e) => setEditedSticker(prev => prev ? { ...prev, example: e.target.value } : null)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        style={{ backgroundColor: '#FAF4ED' }}
                         rows={2}
                         placeholder="请输入英文例句"
                       />
@@ -317,6 +325,7 @@ export default function StickerDetailModal({
                         value={editedSticker?.exampleChinese || ''}
                         onChange={(e) => setEditedSticker(prev => prev ? { ...prev, exampleChinese: e.target.value } : null)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        style={{ backgroundColor: '#FAF4ED' }}
                         rows={2}
                         placeholder="请输入中文例句"
                       />
@@ -329,7 +338,7 @@ export default function StickerDetailModal({
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold text-gray-900">备注</h3>
                 {!isEditing ? (
-                  <div className="bg-yellow-50 rounded-lg p-4 min-h-[60px]">
+                  <div className="rounded-lg p-4 min-h-[60px]" style={{ backgroundColor: '#FAF4ED' }}>
                     {sticker.notes ? (
                       <div className="text-gray-700">{sticker.notes}</div>
                     ) : (
@@ -342,6 +351,7 @@ export default function StickerDetailModal({
                       value={editedSticker?.notes || ''}
                       onChange={(e) => setEditedSticker(prev => prev ? { ...prev, notes: e.target.value } : null)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      style={{ backgroundColor: '#FAF4ED' }}
                       rows={3}
                       placeholder="请输入备注信息"
                     />
@@ -357,7 +367,8 @@ export default function StickerDetailModal({
                     {sticker.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="inline-flex items-center space-x-1 px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                        className="inline-flex items-center space-x-1 px-3 py-1 text-gray-700 text-sm rounded-full"
+                        style={{ backgroundColor: '#FAF4ED' }}
                       >
                         <Tag className="w-3 h-3" />
                         <span>{tag}</span>
@@ -370,9 +381,9 @@ export default function StickerDetailModal({
           </div>
         </div>
 
-        {/* 导航按钮 - 移到底部 */}
+        {/* 导航按钮 - 固定在底部 */}
         {stickers.length > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
+          <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
             <button
               onClick={goToPrevious}
               className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
@@ -381,9 +392,14 @@ export default function StickerDetailModal({
               <span>上一个</span>
             </button>
             
-            <span className="text-sm text-gray-500 font-medium">
-              {currentIndex + 1} / {stickers.length}
-            </span>
+            <div className="text-center">
+              <div className="text-sm text-gray-500 font-medium mb-1">
+                {currentIndex + 1} / {stickers.length}
+              </div>
+              <div className="text-xs text-gray-400">
+                使用 ← → 键导航，空格键播放发音，ESC 键关闭
+              </div>
+            </div>
             
             <button
               onClick={goToNext}
@@ -394,13 +410,6 @@ export default function StickerDetailModal({
             </button>
           </div>
         )}
-
-        {/* 底部提示 */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-center">
-          <div className="text-sm text-gray-500">
-            使用 ← → 键导航，空格键播放发音，ESC 键关闭
-          </div>
-        </div>
       </div>
     </div>
   );
