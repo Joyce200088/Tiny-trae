@@ -161,7 +161,7 @@ export default function MyStickers() {
 
   const groupedStickers = activeTab === 'sorted' 
     ? filteredStickers.reduce((acc, sticker) => {
-        const category = sticker.category || 'Uncategorized';
+        const category = sticker.category || 'Unsorted';
         if (!acc[category]) acc[category] = [];
         acc[category].push(sticker);
         return acc;
@@ -373,8 +373,8 @@ export default function MyStickers() {
                           </p>
                         )}
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-xs text-gray-500">{sticker.createdAt}</span>
-                          <div className="flex items-center space-x-1">
+                          <span className="text-xs text-gray-500" style={{display: 'none'}}>{sticker.createdAt}</span>
+                          <div className="flex items-center space-x-1 ml-auto">
                             {/* 语音播放按钮 */}
                             {sticker.name && (
                               <button

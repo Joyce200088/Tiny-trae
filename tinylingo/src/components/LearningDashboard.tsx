@@ -66,7 +66,7 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
     try {
       const selectedStickerData = stickers.filter(sticker => selectedStickers.has(sticker.id));
       
-      // 准备保存数据
+      // 构造保存的贴纸数据，直接放入unsorted
       const stickerData = selectedStickerData.map(sticker => ({
         id: `saved_${Date.now()}_${sticker.id}`, // 生成唯一ID避免冲突
         name: sticker.learningContent.english,
@@ -74,10 +74,10 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
         example: sticker.learningContent.example,
         exampleChinese: sticker.learningContent.exampleChinese,
         imageUrl: sticker.dataUrl,
-        category: 'AI Generated',
-        tags: ['ai-generated', 'learning'],
+        category: null, // 不设置分类，直接放入unsorted
+        tags: ['ai-generated', 'unsorted'],
         createdAt: new Date().toISOString().split('T')[0], // 格式化日期
-        sorted: true
+        sorted: false // 标记为未分类
       }));
 
       // 保存到localStorage (实际项目中应该调用API)

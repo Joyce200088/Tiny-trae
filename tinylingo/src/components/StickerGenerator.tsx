@@ -287,7 +287,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">智能贴纸生成器</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">生成贴纸</h2>
       
       {/* 文件上传区域 */}
       <div className="mb-6">
@@ -346,7 +346,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
       </div>
 
       {/* 质量选项 */}
-      <div className="mb-6">
+      <div className="mb-6 hidden">
         <h3 className="text-lg font-medium text-gray-700 mb-3">处理选项</h3>
         <div className="space-y-3">
           <label className="flex items-center">
@@ -403,14 +403,14 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
           disabled={!selectedFile || isProcessing}
           className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {isProcessing ? '🔄 智能分析中...' : '🎯 智能识别物品'}
+          {isProcessing ? '🔄 智能分析中...' : '生成贴纸'}
         </button>
         
         <button
           onClick={resetAll}
           className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
         >
-          🔄 重新开始
+          重新识别
         </button>
       </div>
 
@@ -559,7 +559,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
 
       {/* 处理结果 */}
       {processedImage && (
-        <div className="mb-6">
+        <div className="mb-6 hidden">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">去背景结果</h3>
           <div className="border rounded-lg p-4 bg-gray-50">
             <img
@@ -583,7 +583,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
       )}
 
       {/* 调试信息 */}
-      <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-600">
+      <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm text-gray-600 hidden">
         <p><strong>状态:</strong> {isProcessing ? '处理中' : '就绪'}</p>
         <p><strong>已选择文件:</strong> {selectedFile ? selectedFile.name : '无'}</p>
         <p><strong>处理结果:</strong> {processedImage ? '已生成透明PNG' : '无'}</p>
