@@ -78,7 +78,7 @@ export default function Explore() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -126,11 +126,11 @@ export default function Explore() {
         {/* Results Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+            <div key={item.id} className="rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-black" style={{backgroundColor: '#FFFBF5'}}>
               {/* Cover Image */}
               <div className={`${
                 item.type === 'world' ? 'aspect-video' : 'aspect-square'
-              } bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center`}>
+              } flex items-center justify-center`} style={{backgroundColor: '#FFFBF5'}}>
                 <div className="text-gray-500 text-sm">
                   {item.type === 'world' ? 'World Preview' : 'Sticker Preview'}
                 </div>

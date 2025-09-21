@@ -202,11 +202,12 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
             return (
               <div
                 key={sticker.id}
-                className={`bg-white rounded-lg shadow-md p-4 border-2 transition-all cursor-pointer relative ${
+                className={`rounded-lg shadow-md p-4 border-2 transition-all cursor-pointer relative border border-black ${
                   isSelected 
                     ? 'border-blue-500 bg-blue-50 shadow-lg' 
                     : 'border-gray-200 hover:shadow-lg hover:border-gray-300'
                 }`}
+                style={{backgroundColor: isSelected ? undefined : '#FFFBF5'}}
                 onClick={() => handleSelectSticker(sticker.id)}
               >
                 {/* 选择指示器 */}

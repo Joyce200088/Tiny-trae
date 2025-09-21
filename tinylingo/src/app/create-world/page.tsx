@@ -80,10 +80,10 @@ export default function CreateWorld() {
   };
 
   return (
-    <div className="h-screen bg-gray-100 flex">
-      {/* Main Canvas Area */}
+    <div className="h-screen flex">
+      {/* 左侧画布区域 */}
       <div className="flex-1 flex flex-col">
-        {/* Toolbar */}
+        {/* 工具栏 */}
         <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded">

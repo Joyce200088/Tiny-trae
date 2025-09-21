@@ -564,10 +564,10 @@ export default function MyStickers() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">MY STICKERS</h1>
           <p className="text-gray-600">Manage your collected stickers and organize them by categories</p>
         </div>

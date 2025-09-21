@@ -45,9 +45,9 @@ const mockWorlds = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-white py-20">
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <h1 className="text-6xl font-bold text-gray-900 mb-4">
             BUILD IT, LEARN IT
@@ -71,9 +71,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {mockWorlds.map((world) => (
-              <div key={world.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={world.id} className="rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-black" style={{backgroundColor: '#FFFBF5'}}>
                 {/* World Cover */}
-                <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                <div className="aspect-video flex items-center justify-center border-b border-black" style={{backgroundColor: '#FFFBF5'}}>
                   <div className="text-gray-500 text-sm">World Preview</div>
                 </div>
                 

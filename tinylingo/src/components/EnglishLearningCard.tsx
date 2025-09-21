@@ -31,7 +31,7 @@ const EnglishLearningCard: React.FC<EnglishLearningCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md mx-auto border border-gray-200">
+    <div className="rounded-lg shadow-lg p-6 max-w-md mx-auto border border-black" style={{backgroundColor: '#FFFBF5'}}>
       {/* 关闭按钮 */}
       {onClose && (
         <button
@@ -43,11 +43,12 @@ const EnglishLearningCard: React.FC<EnglishLearningCardProps> = ({
       )}
 
       {/* 物品图片 */}
-      <div className="text-center mb-4">
+      <div className="text-center mb-4 border-b border-black pb-4">
         <img
           src={stickerImage}
           alt={content.english}
-          className="w-32 h-32 object-contain mx-auto rounded-lg bg-gray-50 p-2"
+          className="w-32 h-32 object-contain mx-auto rounded-lg p-2"
+          style={{backgroundColor: '#FFFBF5'}}
         />
       </div>
 
