@@ -5,6 +5,7 @@ import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text } fro
 import useImage from 'use-image';
 import { Search, Sparkles, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, Play, Settings, X } from 'lucide-react';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
+import { useSearchParams } from 'next/navigation';
 
 // 贴纸数据接口
 interface StickerData {
@@ -142,6 +143,9 @@ const DraggableImage = ({
 };
 
 export default function CreateWorldPage() {
+  const searchParams = useSearchParams();
+  const worldId = searchParams.get('id');
+  
   const [activeTab, setActiveTab] = useState<'stickers' | 'background' | 'ai-generate'>('stickers');
   const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
   const [canvasObjects, setCanvasObjects] = useState<any[]>([]);
@@ -210,6 +214,112 @@ export default function CreateWorldPage() {
     setIsClient(true);
   }, []);
 
+  // 加载世界数据（编辑模式）
+  useEffect(() => {
+    if (isClient && worldId) {
+      const loadWorldData = () => {
+        try {
+          const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+          const worldToEdit = savedWorlds.find((world: any) => world.id === worldId);
+          
+          if (worldToEdit) {
+            setCanvasName(worldToEdit.name);
+            setCanvasObjects(worldToEdit.canvasObjects || []);
+            setSelectedBackground(worldToEdit.selectedBackground);
+            setCanvasSize(worldToEdit.canvasSize || { width: 800, height: 600 });
+            
+            // 初始化历史记录
+            setHistory([worldToEdit.canvasObjects || []]);
+            setHistoryIndex(0);
+          }
+        } catch (error) {
+          console.error('加载世界数据失败:', error);
+        }
+      };
+      
+      loadWorldData();
+    }
+  }, [isClient, worldId]);
+
+  // 生成画布预览图的函数
+  const generateCanvasPreview = async (): Promise<string> => {
+    if (!stageRef.current || canvasObjects.length === 0) return '';
+    
+    try {
+      // 计算所有贴纸的边界框，考虑旋转和缩放
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      canvasObjects.forEach(obj => {
+        // 考虑旋转和缩放的实际边界
+        const scaleX = obj.scaleX || 1;
+        const scaleY = obj.scaleY || 1;
+        const rotation = obj.rotation || 0;
+        
+        // 计算旋转后的边界框
+        const width = obj.width * Math.abs(scaleX);
+        const height = obj.height * Math.abs(scaleY);
+        
+        // 旋转后的边界框计算
+        const cos = Math.abs(Math.cos(rotation * Math.PI / 180));
+        const sin = Math.abs(Math.sin(rotation * Math.PI / 180));
+        const rotatedWidth = width * cos + height * sin;
+        const rotatedHeight = width * sin + height * cos;
+        
+        // 对象中心点
+        const centerX = obj.x + (obj.width * scaleX) / 2;
+        const centerY = obj.y + (obj.height * scaleY) / 2;
+        
+        // 计算实际边界
+        const objMinX = centerX - rotatedWidth / 2;
+        const objMinY = centerY - rotatedHeight / 2;
+        const objMaxX = centerX + rotatedWidth / 2;
+        const objMaxY = centerY + rotatedHeight / 2;
+        
+        minX = Math.min(minX, objMinX);
+        minY = Math.min(minY, objMinY);
+        maxX = Math.max(maxX, objMaxX);
+        maxY = Math.max(maxY, objMaxY);
+      });
+      
+      // 添加一些边距
+      const padding = 40; // 增加边距
+      minX -= padding;
+      minY -= padding;
+      maxX += padding;
+      maxY += padding;
+      
+      // 确保最小尺寸和合理的最大尺寸
+      const contentWidth = Math.max(400, Math.min(1200, maxX - minX));
+      const contentHeight = Math.max(300, Math.min(900, maxY - minY));
+      
+      // 获取画布的dataURL，指定区域
+      const dataURL = stageRef.current.toDataURL({
+        mimeType: 'image/png',
+        quality: 0.8,
+        pixelRatio: 1,
+        x: minX,
+        y: minY,
+        width: contentWidth,
+        height: contentHeight
+      });
+      return dataURL;
+    } catch (error) {
+      console.error('生成预览图失败:', error);
+      // 如果计算失败，使用默认方式
+      try {
+        const dataURL = stageRef.current.toDataURL({
+          mimeType: 'image/png',
+          quality: 0.8,
+          pixelRatio: 1
+        });
+        return dataURL;
+      } catch (fallbackError) {
+        console.error('预览图生成完全失败:', fallbackError);
+        return '';
+      }
+    }
+  };
+
   // 保存世界数据的函数
   const saveWorld = async () => {
     if (isSaving) return;
@@ -218,11 +328,16 @@ export default function CreateWorldPage() {
     setSaveStatus('idle');
     
     try {
+      // 生成预览图
+      const previewImage = await generateCanvasPreview();
+      
       const worldData = {
+        id: Date.now().toString(), // 添加唯一ID
         name: canvasName,
         canvasObjects: canvasObjects,
         selectedBackground: selectedBackground,
         canvasSize: canvasSize,
+        previewImage: previewImage, // 添加预览图
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -234,8 +349,12 @@ export default function CreateWorldPage() {
       const existingIndex = savedWorlds.findIndex((world: any) => world.name === canvasName);
       
       if (existingIndex >= 0) {
-        // 更新现有世界
-        savedWorlds[existingIndex] = { ...worldData, createdAt: savedWorlds[existingIndex].createdAt };
+        // 更新现有世界，保持原有ID和创建时间
+        savedWorlds[existingIndex] = { 
+          ...worldData, 
+          id: savedWorlds[existingIndex].id,
+          createdAt: savedWorlds[existingIndex].createdAt 
+        };
       } else {
         // 添加新世界
         savedWorlds.push(worldData);

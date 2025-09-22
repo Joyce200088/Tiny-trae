@@ -48,6 +48,7 @@ export default function MyWorlds() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'words' | 'likes'>('recent');
   const [savedWorlds, setSavedWorlds] = useState<any[]>([]);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // 从localStorage加载保存的世界
   useEffect(() => {
@@ -76,9 +77,22 @@ export default function MyWorlds() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
+
   // 合并模拟数据和保存的世界
   const allWorlds = [...mockWorlds, ...savedWorlds.map(world => ({
     ...world,
+    id: world.id || `saved-${Date.now()}-${Math.random()}`, // 确保每个世界都有唯一ID
     wordCount: world.canvasObjects?.length || 0,
     likes: 0,
     favorites: 0,
@@ -168,11 +182,19 @@ export default function MyWorlds() {
             {filteredWorlds.map((world) => (
               <div key={world.id} className="rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-black" style={{backgroundColor: '#FFFBF5'}}>
                 {/* Cover Image */}
-                <div className="aspect-video flex items-center justify-center relative" style={{backgroundColor: '#FFFBF5'}}>
-                  <div className="text-gray-500 text-sm">World Preview</div>
+                <div className="aspect-video relative border-b border-black" style={{backgroundColor: '#FFFBF5'}}>
+                  {world.previewImage ? (
+                    <img 
+                      src={world.previewImage} 
+                      alt={world.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">World Preview</div>
+                  )}
                   
                   {/* Privacy Badge */}
-                  <div className="absolute top-2 left-2">
+                  <div className="absolute top-2 left-2 z-10">
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       world.isPublic 
                         ? 'bg-green-100 text-green-800' 
@@ -183,10 +205,36 @@ export default function MyWorlds() {
                   </div>
 
                   {/* Actions Menu */}
-                  <div className="absolute top-2 right-2">
-                    <button className="p-1 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all">
+                  <div className="absolute top-2 right-2 z-10">
+                    <button 
+                      className="p-1 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === world.id ? null : world.id);
+                      }}
+                    >
                       <MoreVertical className="w-4 h-4 text-gray-600" />
                     </button>
+                    
+                    {/* Dropdown Menu */}
+                    {openMenuId === world.id && (
+                      <div 
+                        className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button 
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                          onClick={() => {
+                            // 分享功能逻辑
+                            console.log('Share world:', world.id);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <Share2 className="w-4 h-4" />
+                          <span>Share</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -197,36 +245,37 @@ export default function MyWorlds() {
                   
                   <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                     <span>{world.wordCount} Words</span>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-4 h-4" />
-                        <span>{world.likes}</span>
+                    {world.isPublic && (
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-1">
+                          <Heart className="w-4 h-4" />
+                          <span>{world.likes}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Star className="w-4 h-4" />
+                          <span>{world.favorites}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4" />
-                        <span>{world.favorites}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500 mb-4">
+                <div className="px-4 text-xs text-gray-500 mb-4">
                   Last modified: {new Date(world.lastModified).toLocaleDateString()}
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 px-4 pb-4">
                   <Link href={`/create-world?id=${world.id}`} className="flex-1">
                     <button className="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors">
                       Edit
                     </button>
                   </Link>
-                  <button className="bg-gray-100 text-gray-700 py-2 px-3 rounded text-sm hover:bg-gray-200 transition-colors">
-                    View
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-blue-500 transition-colors">
-                    <Share2 className="w-4 h-4" />
-                  </button>
+                  <Link href={`/view-world?id=${world.id}`} className="flex-1">
+                    <button className="w-full bg-gray-100 text-gray-700 py-2 px-3 rounded text-sm hover:bg-gray-200 transition-colors">
+                      View
+                    </button>
+                  </Link>
                 </div>
               </div>
             ))}
