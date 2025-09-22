@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text } from 'react-konva';
 import useImage from 'use-image';
-import { Search, Sparkles, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, ZoomIn, ZoomOut, Play, Settings, X } from 'lucide-react';
+import { Search, Sparkles, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, Play, Settings, X } from 'lucide-react';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 
 // 贴纸数据接口
@@ -55,8 +55,6 @@ const DraggableImage = ({
   const trRef = useRef<any>();
   const [image] = useImage(imageObj.src);
 
-
-
   useEffect(() => {
     if (isSelected && trRef.current && shapeRef.current) {
       // 将transformer附加到选中的形状
@@ -71,7 +69,7 @@ const DraggableImage = ({
         ref={shapeRef}
         {...imageObj}
         image={image}
-        draggable
+        draggable={isSelected} // 只有选中时才可拖拽
         onClick={onSelect}
         onTap={onSelect}
         onContextMenu={(e) => {
@@ -88,11 +86,13 @@ const DraggableImage = ({
           }
         }}
         onDragEnd={(e) => {
-          onChange({
-            ...imageObj,
-            x: e.target.x(),
-            y: e.target.y(),
-          });
+          if (isSelected) { // 只有选中时才处理拖拽结束事件
+            onChange({
+              ...imageObj,
+              x: e.target.x(),
+              y: e.target.y(),
+            });
+          }
         }}
         onTransformEnd={(e) => {
           const node = shapeRef.current;
@@ -167,8 +167,34 @@ export default function CreateWorldPage() {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [showLabelsInPreview, setShowLabelsInPreview] = useState(true);
   const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(new Set());
+  
+  // 画布尺寸状态
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  
+  // 响应式更新画布尺寸
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      if (typeof window !== 'undefined') {
+        const width = window.innerWidth - 320; // 减去侧边栏宽度
+        const height = window.innerHeight - 120; // 减去顶部导航栏高度
+        setCanvasSize({ width: Math.max(400, width), height: Math.max(300, height) });
+      }
+    };
+    
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+    };
+  }, []);
 
-  // 画布平移状态
+  // 画布命名状态
+  const [canvasName, setCanvasName] = useState('未命名世界');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+
+  // 画布位置和缩放状态
   const [canvasPosition, setCanvasPosition] = useState({ x: 0, y: 0 });
   const [canvasScale, setCanvasScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
@@ -683,16 +709,16 @@ export default function CreateWorldPage() {
     if (!isClient) return null;
     
     // 预览模式的画布平移状态
-    const [previewCanvasPosition, setPreviewCanvasPosition] = useState({ x: 0, y: 0 });
-    const [previewCanvasScale, setPreviewCanvasScale] = useState(1);
-    const [previewIsDragging, setPreviewIsDragging] = useState(false);
-    const previewStageRef = useRef<any>(null);
-    
-    // 计算画布的缩放比例，保持原始比例
-    const canvasWidth = 800;
-    const canvasHeight = 600;
-    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
-    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+  const [previewCanvasPosition, setPreviewCanvasPosition] = useState({ x: 0, y: 0 });
+  const [previewCanvasScale, setPreviewCanvasScale] = useState(1);
+  const [previewIsDragging, setPreviewIsDragging] = useState(false);
+  const previewStageRef = useRef<any>(null);
+  
+  // 计算画布的缩放比例，保持原始比例
+  const canvasWidth = canvasSize.width;
+  const canvasHeight = canvasSize.height;
+  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
     
     // 计算适合屏幕的缩放比例，保持宽高比
     const scaleX = screenWidth / canvasWidth;
@@ -754,7 +780,62 @@ export default function CreateWorldPage() {
         </div>
 
         {/* 画布容器 */}
-        <div className="flex-1 flex items-center justify-center bg-gray-200 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center bg-white overflow-hidden relative">
+          {/* 缩放控制组件 */}
+          <div className="absolute bottom-4 left-4 z-10 flex items-center space-x-2 bg-white rounded-lg shadow-lg px-3 py-2 border">
+            <button
+              onClick={() => {
+                const newScale = Math.max(0.1, previewCanvasScale / 1.2);
+                setPreviewCanvasScale(newScale);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600"
+              title="缩小"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </button>
+            
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={`${Math.round(previewCanvasScale * 100)}%`}
+                onChange={(e) => {
+                  const value = e.target.value.replace('%', '');
+                  const numValue = parseInt(value);
+                  if (!isNaN(numValue) && numValue > 0) {
+                    const newScale = Math.max(0.1, Math.min(5, numValue / 100));
+                    setPreviewCanvasScale(newScale);
+                  }
+                }}
+                className="w-16 text-center text-sm border-none outline-none bg-transparent font-medium"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            </div>
+            
+            <button
+              onClick={() => {
+                const newScale = Math.min(5, previewCanvasScale * 1.2);
+                setPreviewCanvasScale(newScale);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600"
+              title="放大"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+                <line x1="11" y1="8" x2="11" y2="14"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </button>
+          </div>
+          
           <div 
             className="w-full h-full"
             style={{ 
@@ -903,6 +984,45 @@ export default function CreateWorldPage() {
         <div className="bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
+              {/* 画布命名组件 */}
+              <div className="flex items-center mr-4">
+                {isEditingName ? (
+                  <input
+                    type="text"
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    onBlur={() => {
+                      setCanvasName(tempName.trim() || '未命名世界');
+                      setIsEditingName(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setCanvasName(tempName.trim() || '未命名世界');
+                        setIsEditingName(false);
+                      }
+                      if (e.key === 'Escape') {
+                        setTempName(canvasName);
+                        setIsEditingName(false);
+                      }
+                    }}
+                    className="px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    autoFocus
+                    onFocus={(e) => e.target.select()}
+                  />
+                ) : (
+                  <button
+                    onClick={() => {
+                      setTempName(canvasName);
+                      setIsEditingName(true);
+                    }}
+                    className="px-2 py-1 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                    title="点击编辑画布名称"
+                  >
+                    {canvasName}
+                  </button>
+                )}
+              </div>
+              
               <button 
                 onClick={undo}
                 disabled={historyIndex <= 0}
@@ -926,20 +1046,6 @@ export default function CreateWorldPage() {
                 title="重做 (Ctrl+Y)"
               >
                 <Redo className="w-5 h-5" />
-              </button>
-              <div className="w-px h-6 bg-gray-300 mx-2" />
-              <button 
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                title="缩小"
-              >
-                <ZoomOut className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-gray-600">100%</span>
-              <button 
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
-                title="放大"
-              >
-                <ZoomIn className="w-5 h-5" />
               </button>
               <div className="w-px h-6 bg-gray-300 mx-2" />
               <button 
@@ -992,9 +1098,64 @@ export default function CreateWorldPage() {
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 bg-gray-200 relative overflow-hidden">
+        <div className="flex-1 bg-white relative overflow-hidden">
+          {/* 缩放控制组件 */}
+          <div className="absolute bottom-4 left-4 z-10 flex items-center space-x-2 bg-white rounded-lg shadow-lg px-3 py-2 border">
+            <button
+              onClick={() => {
+                const newScale = Math.max(0.1, canvasScale / 1.2);
+                setCanvasScale(newScale);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600"
+              title="缩小"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </button>
+            
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={`${Math.round(canvasScale * 100)}%`}
+                onChange={(e) => {
+                  const value = e.target.value.replace('%', '');
+                  const numValue = parseInt(value);
+                  if (!isNaN(numValue) && numValue > 0) {
+                    const newScale = Math.max(0.1, Math.min(5, numValue / 100));
+                    setCanvasScale(newScale);
+                  }
+                }}
+                className="w-16 text-center text-sm border-none outline-none bg-transparent font-medium"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            </div>
+            
+            <button
+              onClick={() => {
+                const newScale = Math.min(5, canvasScale * 1.2);
+                setCanvasScale(newScale);
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600"
+              title="放大"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+                <line x1="11" y1="8" x2="11" y2="14"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </button>
+          </div>
+          
           <div 
-            className="absolute inset-4 bg-white rounded-lg shadow-lg"
+            className="w-full h-full bg-white"
             onDrop={(e) => {
               e.preventDefault();
               const data = e.dataTransfer.getData('text/plain');
@@ -1011,8 +1172,8 @@ export default function CreateWorldPage() {
                     // 添加AI生成的图片到画布
                     const newObject = {
                       id: `dropped_${Date.now()}`,
-                      x: Math.max(0, Math.min(x, 800 - dragData.width)),
-                      y: Math.max(0, Math.min(y, 600 - dragData.height)),
+                      x: Math.max(0, Math.min(x, rect.width - dragData.width)),
+                      y: Math.max(0, Math.min(y, rect.height - dragData.height)),
                       width: dragData.width,
                       height: dragData.height,
                       src: dragData.src,
@@ -1028,8 +1189,8 @@ export default function CreateWorldPage() {
                     // 添加贴纸到画布
                     const newObject = {
                       id: `sticker_${Date.now()}`,
-                      x: Math.max(0, Math.min(x, 800 - dragData.width)),
-                      y: Math.max(0, Math.min(y, 600 - dragData.height)),
+                      x: Math.max(0, Math.min(x, rect.width - dragData.width)),
+                      y: Math.max(0, Math.min(y, rect.height - dragData.height)),
                       width: dragData.width,
                       height: dragData.height,
                       src: dragData.src,
@@ -1056,8 +1217,8 @@ export default function CreateWorldPage() {
           >
             <Stage 
               ref={stageRef}
-              width={800} 
-              height={600}
+              width={canvasSize.width} 
+              height={canvasSize.height}
               scaleX={canvasScale}
               scaleY={canvasScale}
               x={canvasPosition.x}
