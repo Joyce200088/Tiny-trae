@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Image as KonvaImage, Transformer, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text } from 'react-konva';
 import useImage from 'use-image';
 import { Search, Sparkles, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, ZoomIn, ZoomOut, Play, Settings, X } from 'lucide-react';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
@@ -162,6 +162,18 @@ export default function CreateWorldPage() {
   // 历史记录管理状态
   const [history, setHistory] = useState<any[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  // 预览模式状态
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [showLabelsInPreview, setShowLabelsInPreview] = useState(true);
+  const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(new Set());
+
+  // 画布平移状态
+  const [canvasPosition, setCanvasPosition] = useState({ x: 0, y: 0 });
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const stageRef = useRef<any>(null);
 
   // 确保只在客户端运行
   useEffect(() => {
@@ -374,6 +386,21 @@ export default function CreateWorldPage() {
   // 键盘快捷键处理
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ESC键退出预览模式
+      if (e.key === 'Escape' && isPreviewMode) {
+        e.preventDefault();
+        setIsPreviewMode(false);
+        // 重置预览模式状态
+        setShowLabelsInPreview(true);
+        setHiddenLabels(new Set());
+        return;
+      }
+      
+      // 如果在预览模式下，阻止其他快捷键
+      if (isPreviewMode) {
+        return;
+      }
+      
       // 撤销 (Ctrl+Z)
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -651,6 +678,223 @@ export default function CreateWorldPage() {
     }
   }, [isClient, canvasObjects, history.length]);
 
+  // 预览模式组件
+  const PreviewMode = () => {
+    if (!isClient) return null;
+    
+    // 预览模式的画布平移状态
+    const [previewCanvasPosition, setPreviewCanvasPosition] = useState({ x: 0, y: 0 });
+    const [previewCanvasScale, setPreviewCanvasScale] = useState(1);
+    const [previewIsDragging, setPreviewIsDragging] = useState(false);
+    const previewStageRef = useRef<any>(null);
+    
+    // 计算画布的缩放比例，保持原始比例
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+    
+    // 计算适合屏幕的缩放比例，保持宽高比
+    const scaleX = screenWidth / canvasWidth;
+    const scaleY = screenHeight / canvasHeight;
+    const baseScale = Math.min(scaleX, scaleY) * 0.9; // 留一些边距
+    
+    const scaledWidth = screenWidth;
+    const scaledHeight = screenHeight - 80; // 减去顶部控制栏高度
+
+    const handleRightClick = (e: any, objId: string) => {
+      e.evt.preventDefault();
+      const newHiddenLabels = new Set(hiddenLabels);
+      if (newHiddenLabels.has(objId)) {
+        newHiddenLabels.delete(objId);
+      } else {
+        newHiddenLabels.add(objId);
+      }
+      setHiddenLabels(newHiddenLabels);
+    };
+    
+    return (
+      <div className="fixed inset-0 bg-gray-200 z-50 flex flex-col">
+        {/* 顶部控制栏 */}
+        <div className="absolute top-0 left-0 right-0 z-10 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+          <button
+            onClick={() => {
+              setIsPreviewMode(false);
+              // 重置预览模式状态
+              setShowLabelsInPreview(true);
+              setHiddenLabels(new Set());
+            }}
+            className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>返回编辑</span>
+          </button>
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowLabelsInPreview(!showLabelsInPreview)}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                showLabelsInPreview 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-black hover:bg-gray-200'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.997 1.997 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              <span>{showLabelsInPreview ? '隐藏标签' : '显示标签'}</span>
+            </button>
+            
+            <div className="text-black text-sm bg-gray-100 px-3 py-2 rounded-lg">
+              按 ESC 键退出预览 | 右键物品隐藏/显示标签
+            </div>
+          </div>
+        </div>
+
+        {/* 画布容器 */}
+        <div className="flex-1 flex items-center justify-center bg-gray-200 overflow-hidden">
+          <div 
+            className="w-full h-full"
+            style={{ 
+              position: 'relative'
+            }}
+          >
+            <Stage
+              ref={previewStageRef}
+              width={scaledWidth}
+              height={scaledHeight}
+              scaleX={previewCanvasScale}
+              scaleY={previewCanvasScale}
+              x={previewCanvasPosition.x}
+              y={previewCanvasPosition.y}
+              draggable={true}
+              onDragStart={(e) => {
+                setPreviewIsDragging(true);
+              }}
+              onDragMove={(e) => {
+                if (previewIsDragging) {
+                  const pos = e.target.position();
+                  setPreviewCanvasPosition({ x: pos.x, y: pos.y });
+                }
+              }}
+              onDragEnd={(e) => {
+                setPreviewIsDragging(false);
+                const pos = e.target.position();
+                setPreviewCanvasPosition({ x: pos.x, y: pos.y });
+              }}
+              onWheel={(e) => {
+                e.evt.preventDefault();
+                
+                const stage = previewStageRef.current;
+                if (!stage) return;
+                
+                const oldScale = previewCanvasScale;
+                const pointer = stage.getPointerPosition();
+                
+                const mousePointTo = {
+                  x: (pointer.x - previewCanvasPosition.x) / oldScale,
+                  y: (pointer.y - previewCanvasPosition.y) / oldScale,
+                };
+                
+                const scaleBy = 1.1;
+                const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+                
+                // 限制缩放范围
+                const clampedScale = Math.max(0.1, Math.min(5, newScale));
+                
+                const newPos = {
+                  x: pointer.x - mousePointTo.x * clampedScale,
+                  y: pointer.y - mousePointTo.y * clampedScale,
+                };
+                
+                setPreviewCanvasScale(clampedScale);
+                setPreviewCanvasPosition(newPos);
+              }}
+            >
+              <Layer>
+                {/* 背景 */}
+                {selectedBackground && (
+                  <KonvaImage
+                    image={(() => {
+                      const img = new window.Image();
+                      img.src = selectedBackground;
+                      return img;
+                    })()}
+                    width={canvasWidth}
+                    height={canvasHeight}
+                  />
+                )}
+                
+                {/* 画布对象 */}
+                {canvasObjects.map((obj) => {
+                  const shouldShowLabel = showLabelsInPreview && !hiddenLabels.has(obj.id) && obj.name;
+                  
+                  return (
+                    <Group key={obj.id}>
+                      <KonvaImage
+                        image={(() => {
+                          const img = new window.Image();
+                          img.src = obj.src;
+                          return img;
+                        })()}
+                        x={obj.x}
+                        y={obj.y}
+                        width={obj.width}
+                        height={obj.height}
+                        rotation={obj.rotation}
+                        scaleX={obj.scaleX}
+                        scaleY={obj.scaleY}
+                        onContextMenu={(e) => handleRightClick(e, obj.id)}
+                      />
+                      
+                      {/* 英文标签 */}
+                      {shouldShowLabel && (
+                        <Group>
+                          {/* 白色圆角背景 */}
+                          <Rect
+                            x={obj.x + (obj.width * obj.scaleX) / 2 - (obj.name.length * 6)}
+                            y={obj.y + obj.height * obj.scaleY + 10}
+                            width={Math.max(obj.name.length * 12, 60)}
+                            height={28}
+                            fill="white"
+                            cornerRadius={14}
+                            opacity={0.95}
+                            shadowColor="black"
+                            shadowBlur={6}
+                            shadowOpacity={0.2}
+                          />
+                          {/* 英文文字 */}
+                          <Text
+                            text={obj.name}
+                            x={obj.x + (obj.width * obj.scaleX) / 2 - (obj.name.length * 6)}
+                            y={obj.y + obj.height * obj.scaleY + 18}
+                            fontSize={16}
+                            fontFamily="Arial, sans-serif"
+                            fontStyle="bold"
+                            fill="#333333"
+                            align="center"
+                            width={Math.max(obj.name.length * 12, 60)}
+                          />
+                        </Group>
+                      )}
+                    </Group>
+                  );
+                })}
+              </Layer>
+            </Stage>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 如果是预览模式，显示预览组件
+  if (isPreviewMode) {
+    return <PreviewMode />;
+  }
+
   return (
     <div className="h-screen flex">
       {/* 左侧画布区域 */}
@@ -719,6 +963,7 @@ export default function CreateWorldPage() {
               <button 
                 className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
                 title="预览"
+                onClick={() => setIsPreviewMode(true)}
               >
                 <Play className="w-4 h-4" />
                 <span>Preview</span>
@@ -810,8 +1055,62 @@ export default function CreateWorldPage() {
             }}
           >
             <Stage 
+              ref={stageRef}
               width={800} 
               height={600}
+              scaleX={canvasScale}
+              scaleY={canvasScale}
+              x={canvasPosition.x}
+              y={canvasPosition.y}
+              draggable={!selectedObjectId}
+              onDragStart={(e) => {
+                if (!selectedObjectId) {
+                  setIsDragging(true);
+                  const pos = e.target.position();
+                  setDragStart({ x: pos.x, y: pos.y });
+                }
+              }}
+              onDragMove={(e) => {
+                if (isDragging && !selectedObjectId) {
+                  const pos = e.target.position();
+                  setCanvasPosition({ x: pos.x, y: pos.y });
+                }
+              }}
+              onDragEnd={(e) => {
+                if (isDragging) {
+                  setIsDragging(false);
+                  const pos = e.target.position();
+                  setCanvasPosition({ x: pos.x, y: pos.y });
+                }
+              }}
+              onWheel={(e) => {
+                e.evt.preventDefault();
+                
+                const stage = stageRef.current;
+                if (!stage) return;
+                
+                const oldScale = canvasScale;
+                const pointer = stage.getPointerPosition();
+                
+                const mousePointTo = {
+                  x: (pointer.x - canvasPosition.x) / oldScale,
+                  y: (pointer.y - canvasPosition.y) / oldScale,
+                };
+                
+                const scaleBy = 1.1;
+                const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+                
+                // 限制缩放范围
+                const clampedScale = Math.max(0.1, Math.min(5, newScale));
+                
+                const newPos = {
+                  x: pointer.x - mousePointTo.x * clampedScale,
+                  y: pointer.y - mousePointTo.y * clampedScale,
+                };
+                
+                setCanvasScale(clampedScale);
+                setCanvasPosition(newPos);
+              }}
               onClick={(e) => {
                 // 点击空白区域取消选择
                 if (e.target === e.target.getStage()) {
