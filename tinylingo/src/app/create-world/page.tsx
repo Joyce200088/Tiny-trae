@@ -55,6 +55,8 @@ const DraggableImage = ({
   const trRef = useRef<any>();
   const [image] = useImage(imageObj.src);
 
+
+
   useEffect(() => {
     if (isSelected && trRef.current && shapeRef.current) {
       // 将transformer附加到选中的形状
@@ -154,196 +156,111 @@ export default function CreateWorldPage() {
   const [myStickers, setMyStickers] = useState<StickerData[]>([]);
   
   // 提示信息状态
-  const [showCanvasTip, setShowCanvasTip] = useState(() => {
-    // 从localStorage读取是否已经关闭过提示
-    if (typeof window !== 'undefined') {
-      const dismissed = localStorage.getItem('canvasTipDismissed');
-      return dismissed !== 'true';
-    }
-    return true;
-  });
-  
-  // AI生成相关状态
-  const [aiGenerationOptions, setAiGenerationOptions] = useState<AIGenerationOptions>({
-    word: '',
-    description: '',
-    style: 'Cartoon',
-    viewpoint: 'front'
-  });
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [transparentImage, setTransparentImage] = useState<string | null>(null);
-  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showCanvasTip, setShowCanvasTip] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
-  // 键盘快捷键处理
+  // 历史记录管理状态
+  const [history, setHistory] = useState<any[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  // 确保只在客户端运行
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 删除选中对象
-      if (e.key === 'Delete' && selectedObjectId) {
-        setCanvasObjects(prev => prev.filter(obj => obj.id !== selectedObjectId));
-        setSelectedObjectId(null);
-      }
+    setIsClient(true);
+  }, []);
+
+  // 从localStorage加载My Stickers数据的函数
+  const loadMyStickers = () => {
+    try {
+      const savedData = localStorage.getItem('myStickers');
+      console.log('Loading myStickers from localStorage:', savedData); // 调试日志
       
-      // 复制选中对象
-      if (e.ctrlKey && e.key === 'c' && selectedObjectId) {
-        const selectedObj = canvasObjects.find(obj => obj.id === selectedObjectId);
-        if (selectedObj) {
-          const newObj = {
-            ...selectedObj,
-            id: `copied_${Date.now()}`,
-            x: selectedObj.x + 20,
-            y: selectedObj.y + 20
-          };
-          setCanvasObjects(prev => [...prev, newObj]);
-          setSelectedObjectId(newObj.id);
-        }
-      }
-      
-      // 全选
-      if (e.ctrlKey && e.key === 'a') {
-        e.preventDefault();
-        // 这里可以实现全选逻辑，暂时跳过
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedObjectId, canvasObjects]);
-  useEffect(() => {
-    const handleGlobalClick = () => {
-      if (contextMenu.visible) {
-        setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
-      }
-    };
-
-    document.addEventListener('click', handleGlobalClick);
-    return () => {
-      document.removeEventListener('click', handleGlobalClick);
-    };
-  }, [contextMenu.visible]);
-
-  // 从localStorage加载My Stickers数据
-  useEffect(() => {
-    const loadMyStickers = () => {
-      try {
-        const savedData = localStorage.getItem('myStickers');
-        if (savedData) {
-          const parsedData = JSON.parse(savedData);
-          
-          // 兼容旧格式（直接是数组）和新格式（包含deletedMockIds）
-          let userStickers: StickerData[] = [];
-          let deletedMockIds: string[] = [];
-          
-          if (Array.isArray(parsedData)) {
-            // 旧格式
-            userStickers = parsedData;
-          } else {
-            // 新格式
-            userStickers = parsedData.userStickers || [];
-            deletedMockIds = parsedData.deletedMockIds || [];
-          }
-          
-          // 模拟数据（与My Stickers页面保持一致）
-          const mockStickers: StickerData[] = [
-            {
-              id: '1',
-              name: 'Diving Mask',
-              chinese: '潜水镜',
-              phonetic: '/ˈdaɪvɪŋ mæsk/',
-              category: 'Diving Equipment',
-              tags: ['Pixel', 'Ai-generated'],
-              thumbnailUrl: '/Diving Mask.png',
-              createdAt: '2024-01-15',
-              sorted: true,
-              notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
-              mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
-            },
-            {
-              id: '2',
-              name: 'Calendar',
-              chinese: '日历',
-              phonetic: '/ˈkælɪndər/',
-              category: 'Daily Items',
-              tags: ['Cartoon', 'Ai-generated'],
-              thumbnailUrl: '/Calendar.png',
-              createdAt: '2024-01-15',
-              sorted: true,
-              notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
-              mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
-            },
-            {
-              id: '3', 
-              name: 'Industrial Shelving',
-              chinese: '工业货架',
-              phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
-              category: 'Furniture',
-              tags: ['Cartoon', 'Ai-generated'],
-              thumbnailUrl: '/Industrial Shelving.png',
-              createdAt: '2024-01-15',
-              sorted: true,
-              notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
-              mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
-            },
-            {
-              id: '4',
-              name: 'Ceramic Mug',
-              chinese: '陶瓷杯',
-              phonetic: '/səˈræmɪk mʌɡ/',
-              category: 'Kitchenware',
-              tags: ['Realistic', 'Ai-generated'],
-              thumbnailUrl: '/Ceramic Mug.png',
-              createdAt: '2024-01-15',
-              sorted: true,
-              notes: 'A drinking vessel made from fired clay, typically with a handle and used for hot beverages like coffee or tea.',
-              mnemonic: 'Ceramic（陶瓷的） + Mug（杯子） = 陶瓷制作的饮用杯'
-            }
-          ];
-          
-          // 过滤掉被删除的模拟数据
-          const availableMockStickers = mockStickers.filter(s => !deletedMockIds.includes(s.id));
-          
-          // 合并可用的模拟数据和用户贴纸，避免重复
-          const existingIds = new Set(availableMockStickers.map(s => s.id));
-          const newStickers = userStickers.filter(s => !existingIds.has(s.id));
-          setMyStickers([...availableMockStickers, ...newStickers]);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        console.log('Parsed myStickers data:', parsedData); // 调试日志
+        
+        // 兼容旧格式（直接是数组）和新格式（包含deletedMockIds）
+        let userStickers: StickerData[] = [];
+        let deletedMockIds: string[] = [];
+        
+        if (Array.isArray(parsedData)) {
+          // 旧格式
+          userStickers = parsedData;
+          console.log('Set myStickers (old format):', parsedData); // 调试日志
         } else {
-          // 如果没有保存的数据，显示默认模拟数据
-          const defaultStickers: StickerData[] = [
-            {
-              id: '1',
-              name: 'Diving Mask',
-              thumbnailUrl: '/Diving Mask.png',
-              category: 'Diving Equipment'
-            },
-            {
-              id: '2',
-              name: 'Calendar',
-              thumbnailUrl: '/Calendar.png',
-              category: 'Daily Items'
-            },
-            {
-              id: '3',
-              name: 'Industrial Shelving',
-              thumbnailUrl: '/Industrial Shelving.png',
-              category: 'Furniture'
-            },
-            {
-              id: '4',
-              name: 'Ceramic Mug',
-              thumbnailUrl: '/Ceramic Mug.png',
-              category: 'Kitchenware'
-            }
-          ];
-          setMyStickers(defaultStickers);
+          // 新格式
+          userStickers = parsedData.userStickers || [];
+          deletedMockIds = parsedData.deletedMockIds || [];
+          console.log('Set myStickers (new format):', parsedData.userStickers); // 调试日志
         }
-      } catch (error) {
-        console.error('加载My Stickers数据失败:', error);
-        // 出错时使用默认数据
+        
+        // 模拟数据（与My Stickers页面保持一致）
+        const mockStickers: StickerData[] = [
+          {
+            id: '1',
+            name: 'Diving Mask',
+            chinese: '潜水镜',
+            phonetic: '/ˈdaɪvɪŋ mæsk/',
+            category: 'Diving Equipment',
+            tags: ['Pixel', 'Ai-generated'],
+            thumbnailUrl: '/Diving Mask.png',
+            createdAt: '2024-01-15',
+            sorted: true,
+            notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
+            mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+          },
+          {
+            id: '2',
+            name: 'Calendar',
+            chinese: '日历',
+            phonetic: '/ˈkælɪndər/',
+            category: 'Daily Items',
+            tags: ['Cartoon', 'Ai-generated'],
+            thumbnailUrl: '/Calendar.png',
+            createdAt: '2024-01-15',
+            sorted: true,
+            notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
+            mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+          },
+          {
+            id: '3', 
+            name: 'Industrial Shelving',
+            chinese: '工业货架',
+            phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
+            category: 'Furniture',
+            tags: ['Cartoon', 'Ai-generated'],
+            thumbnailUrl: '/Industrial Shelving.png',
+            createdAt: '2024-01-15',
+            sorted: true,
+            notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
+            mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+          },
+          {
+            id: '4',
+            name: 'Ceramic Mug',
+            chinese: '陶瓷杯',
+            phonetic: '/səˈræmɪk mʌɡ/',
+            category: 'Kitchenware',
+            tags: ['Realistic', 'Ai-generated'],
+            thumbnailUrl: '/Ceramic Mug.png',
+            createdAt: '2024-01-15',
+            sorted: true,
+            notes: 'A drinking vessel made from fired clay, typically with a handle and used for hot beverages like coffee or tea.',
+            mnemonic: 'Ceramic（陶瓷的） + Mug（杯子） = 陶瓷制作的饮用杯'
+          }
+        ];
+        
+        // 过滤掉被删除的模拟数据
+        const availableMockStickers = mockStickers.filter(s => !deletedMockIds.includes(s.id));
+        
+        // 合并可用的模拟数据和用户贴纸，避免重复
+        const existingIds = new Set(availableMockStickers.map(s => s.id));
+        const newStickers = userStickers.filter(s => !existingIds.has(s.id));
+        const finalStickers = [...availableMockStickers, ...newStickers];
+        setMyStickers(finalStickers);
+        console.log('Set merged myStickers:', finalStickers); // 调试日志
+      } else {
+        console.log('No saved myStickers data, using mock data'); // 调试日志
+        // 如果没有保存的数据，显示默认模拟数据
         const defaultStickers: StickerData[] = [
           {
             id: '1',
@@ -371,47 +288,208 @@ export default function CreateWorldPage() {
           }
         ];
         setMyStickers(defaultStickers);
+        console.log('Set default myStickers:', defaultStickers); // 调试日志
+      }
+    } catch (error) {
+      console.error('加载My Stickers数据失败:', error);
+      // 出错时使用默认数据
+      const defaultStickers: StickerData[] = [
+        {
+          id: '1',
+          name: 'Diving Mask',
+          thumbnailUrl: '/Diving Mask.png',
+          category: 'Diving Equipment'
+        },
+        {
+          id: '2',
+          name: 'Calendar',
+          thumbnailUrl: '/Calendar.png',
+          category: 'Daily Items'
+        },
+        {
+          id: '3',
+          name: 'Industrial Shelving',
+          thumbnailUrl: '/Industrial Shelving.png',
+          category: 'Furniture'
+        },
+        {
+          id: '4',
+          name: 'Ceramic Mug',
+          thumbnailUrl: '/Ceramic Mug.png',
+          category: 'Kitchenware'
+        }
+      ];
+      setMyStickers(defaultStickers);
+    }
+  };
+
+  // 历史记录管理函数
+  const saveToHistory = (newObjects: any[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newObjects]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setCanvasObjects([...history[newIndex]]);
+      setSelectedObjectId(null);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setCanvasObjects([...history[newIndex]]);
+      setSelectedObjectId(null);
+    }
+  };
+
+  // 加载My Stickers数据
+  useEffect(() => {
+    if (isClient) {
+      loadMyStickers();
+    }
+  }, [isClient]);
+  
+  // AI生成相关状态
+  const [aiGenerationOptions, setAiGenerationOptions] = useState<AIGenerationOptions>({
+    word: '',
+    description: '',
+    style: 'Cartoon',
+    viewpoint: 'front'
+  });
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [transparentImage, setTransparentImage] = useState<string | null>(null);
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 键盘快捷键处理
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 撤销 (Ctrl+Z)
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      
+      // 重做 (Ctrl+Y 或 Ctrl+Shift+Z)
+      if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      
+      // 删除选中对象
+      if (e.key === 'Delete' && selectedObjectId) {
+        const newObjects = canvasObjects.filter(obj => obj.id !== selectedObjectId);
+        setCanvasObjects(newObjects);
+        saveToHistory(newObjects);
+        setSelectedObjectId(null);
+      }
+      
+      // 复制选中对象
+      if (e.ctrlKey && e.key === 'c' && selectedObjectId) {
+        const selectedObj = canvasObjects.find(obj => obj.id === selectedObjectId);
+        if (selectedObj) {
+          const newObj = {
+            ...selectedObj,
+            id: `copied_${Date.now()}`,
+            x: selectedObj.x + 20,
+            y: selectedObj.y + 20
+          };
+          const newObjects = [...canvasObjects, newObj];
+          setCanvasObjects(newObjects);
+          saveToHistory(newObjects);
+          setSelectedObjectId(newObj.id);
+        }
+      }
+      
+      // 全选
+      if (e.ctrlKey && e.key === 'a') {
+        e.preventDefault();
+        // 这里可以实现全选逻辑，暂时跳过
       }
     };
 
-    loadMyStickers();
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedObjectId, canvasObjects, historyIndex, history]);
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (contextMenu.visible) {
+        setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClick);
+    return () => {
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, [contextMenu.visible]);
+
+  // 清理blob URLs
+  useEffect(() => {
+    return () => {
+      if (transparentImage && transparentImage.startsWith('blob:')) {
+        URL.revokeObjectURL(transparentImage);
+      }
+      if (generatedImage && generatedImage.startsWith('blob:')) {
+        URL.revokeObjectURL(generatedImage);
+      }
+    };
+  }, [transparentImage, generatedImage]);
+
+  // 调试用：将myStickers设置为全局变量以便在控制台查看
+  useEffect(() => {
+    if (isClient && typeof window !== 'undefined') {
+      (window as any).debugMyStickers = myStickers;
+    }
+  }, [myStickers, isClient]);
 
   // 右键菜单操作
   const handleContextMenuAction = (action: string, objectId: string) => {
-    setCanvasObjects(prev => {
-      const objIndex = prev.findIndex(obj => obj.id === objectId);
-      if (objIndex === -1) return prev;
-      
-      const newObjects = [...prev];
-      const obj = newObjects[objIndex];
-      
-      switch (action) {
-        case 'flip-horizontal':
-          newObjects[objIndex] = { ...obj, scaleX: (obj.scaleX || 1) * -1 };
-          break;
-        case 'flip-vertical':
-          newObjects[objIndex] = { ...obj, scaleY: (obj.scaleY || 1) * -1 };
-          break;
-        case 'bring-to-front':
-          // 移到数组末尾（最上层）
-          const objToFront = newObjects.splice(objIndex, 1)[0];
-          newObjects.push(objToFront);
-          break;
-        case 'send-to-back':
-          // 移到数组开头（最下层）
-          const objToBack = newObjects.splice(objIndex, 1)[0];
-          newObjects.unshift(objToBack);
-          break;
-        case 'delete':
-          newObjects.splice(objIndex, 1);
-          setSelectedObjectId(null);
-          break;
-      }
-      
-      return newObjects;
-    });
+    const newObjects = canvasObjects.map(obj => ({ ...obj })); // 深拷贝
+    const objIndex = newObjects.findIndex(obj => obj.id === objectId);
+    if (objIndex === -1) return;
     
+    const obj = newObjects[objIndex];
+    
+    switch (action) {
+      case 'flip-horizontal':
+        newObjects[objIndex] = { ...obj, scaleX: (obj.scaleX || 1) * -1 };
+        break;
+      case 'flip-vertical':
+        newObjects[objIndex] = { ...obj, scaleY: (obj.scaleY || 1) * -1 };
+        break;
+      case 'bring-to-front':
+        // 移到数组末尾（最上层）
+        const objToFront = newObjects.splice(objIndex, 1)[0];
+        newObjects.push(objToFront);
+        break;
+      case 'send-to-back':
+        // 移到数组开头（最下层）
+        const objToBack = newObjects.splice(objIndex, 1)[0];
+        newObjects.unshift(objToBack);
+        break;
+      case 'delete':
+        newObjects.splice(objIndex, 1);
+        setSelectedObjectId(null);
+        break;
+    }
+    
+    setCanvasObjects(newObjects);
+    saveToHistory(newObjects);
     setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
   };
 
@@ -509,7 +587,9 @@ export default function CreateWorldPage() {
       src: imageToSave,
       name: aiGenerationOptions.word
     };
-    setCanvasObjects(prev => [...prev, newSticker]);
+    const newObjects = [...canvasObjects, newSticker];
+    setCanvasObjects(newObjects);
+    saveToHistory(newObjects);
 
     // 保存到My Stickers
     const newStickerData: StickerData = {
@@ -546,6 +626,14 @@ export default function CreateWorldPage() {
     }
 
     // 重置生成状态
+    // 清理旧的blob URLs以防止内存泄漏
+    if (generatedImage && generatedImage.startsWith('blob:')) {
+      URL.revokeObjectURL(generatedImage);
+    }
+    if (transparentImage && transparentImage.startsWith('blob:')) {
+      URL.revokeObjectURL(transparentImage);
+    }
+    
     setGeneratedImage(null);
     setTransparentImage(null);
     setAiGenerationOptions({
@@ -556,6 +644,13 @@ export default function CreateWorldPage() {
     });
   };
 
+  // 初始化历史记录
+  useEffect(() => {
+    if (isClient && history.length === 0) {
+      saveToHistory(canvasObjects);
+    }
+  }, [isClient, canvasObjects, history.length]);
+
   return (
     <div className="h-screen flex">
       {/* 左侧画布区域 */}
@@ -565,13 +660,25 @@ export default function CreateWorldPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <button 
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                onClick={undo}
+                disabled={historyIndex <= 0}
+                className={`p-2 rounded transition-colors ${
+                  historyIndex <= 0 
+                    ? 'text-gray-300 cursor-not-allowed' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
                 title="撤销 (Ctrl+Z)"
               >
                 <Undo className="w-5 h-5" />
               </button>
               <button 
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                onClick={redo}
+                disabled={historyIndex >= history.length - 1}
+                className={`p-2 rounded transition-colors ${
+                  historyIndex >= history.length - 1 
+                    ? 'text-gray-300 cursor-not-allowed' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
                 title="重做 (Ctrl+Y)"
               >
                 <Redo className="w-5 h-5" />
@@ -596,7 +703,9 @@ export default function CreateWorldPage() {
                 title="删除选中对象 (Delete)"
                 onClick={() => {
                   if (selectedObjectId) {
-                    setCanvasObjects(prev => prev.filter(obj => obj.id !== selectedObjectId));
+                    const newObjects = canvasObjects.filter(obj => obj.id !== selectedObjectId);
+                    setCanvasObjects(newObjects);
+                    saveToHistory(newObjects);
                     setSelectedObjectId(null);
                   }
                 }}
@@ -667,7 +776,9 @@ export default function CreateWorldPage() {
                       scaleX: 1,
                       scaleY: 1
                     };
-                    setCanvasObjects(prev => [...prev, newObject]);
+                    const newObjects = [...canvasObjects, newObject];
+                    setCanvasObjects(newObjects);
+                    saveToHistory(newObjects);
                   } else if (dragData.type === 'sticker') {
                     // 添加贴纸到画布
                     const newObject = {
@@ -682,7 +793,9 @@ export default function CreateWorldPage() {
                       scaleX: 1,
                       scaleY: 1
                     };
-                    setCanvasObjects(prev => [...prev, newObject]);
+                    const newObjects2 = [...canvasObjects, newObject];
+                    setCanvasObjects(newObjects2);
+                    saveToHistory(newObjects2);
                   } else if (dragData.type === 'background') {
                     // 设置背景
                     setSelectedBackground(dragData.id);
@@ -728,11 +841,11 @@ export default function CreateWorldPage() {
                       setSelectedObjectId(obj.id);
                     }}
                     onChange={(newAttrs) => {
-                      setCanvasObjects(prev => 
-                        prev.map(item => 
-                          item.id === obj.id ? newAttrs : item
-                        )
+                      const newObjects = canvasObjects.map(item => 
+                        item.id === obj.id ? newAttrs : item
                       );
+                      setCanvasObjects(newObjects);
+                      saveToHistory(newObjects);
                     }}
                     setContextMenu={setContextMenu}
                   />
@@ -881,8 +994,17 @@ export default function CreateWorldPage() {
           {activeTab === 'stickers' && (
             <div className="p-4">
               <h3 className="font-medium text-gray-900 mb-4">My Stickers</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {myStickers.map((sticker) => (
+              {!isClient ? (
+                <div className="text-center text-gray-500 py-8">
+                  加载中...
+                </div>
+              ) : (
+                <>
+                  <div className="mb-2 text-sm text-gray-500">
+                    总共 {myStickers.length} 个贴纸
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {myStickers.length > 0 ? myStickers.map((sticker) => (
                   <div
                     key={sticker.id}
                     className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center cursor-grab hover:bg-gray-200 transition-colors p-2 active:cursor-grabbing"
@@ -935,8 +1057,14 @@ export default function CreateWorldPage() {
                       {sticker.name}
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-3 text-center text-gray-500 py-8">
+                    暂无贴纸数据
+                  </div>
+                )}
               </div>
+                </>
+              )}
             </div>
           )}
 

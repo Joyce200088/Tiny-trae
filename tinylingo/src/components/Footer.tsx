@@ -1,9 +1,30 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
 export default function Footer() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return (
+      <footer className="bg-gray-900 text-white">
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-800 rounded mb-4"></div>
+            <div className="h-4 bg-gray-800 rounded mb-2"></div>
+            <div className="h-4 bg-gray-800 rounded mb-2"></div>
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-6 py-12">
