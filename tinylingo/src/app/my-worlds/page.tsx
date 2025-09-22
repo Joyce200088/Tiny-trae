@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Share2, Heart, Star, MoreVertical } from 'lucide-react';
 
@@ -47,11 +47,49 @@ const mockWorlds = [
 export default function MyWorlds() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'words' | 'likes'>('recent');
+  const [savedWorlds, setSavedWorlds] = useState<any[]>([]);
 
-  const filteredWorlds = mockWorlds
+  // 从localStorage加载保存的世界
+  useEffect(() => {
+    const loadSavedWorlds = () => {
+      try {
+        const saved = localStorage.getItem('savedWorlds');
+        if (saved) {
+          const parsedWorlds = JSON.parse(saved);
+          setSavedWorlds(parsedWorlds);
+        }
+      } catch (error) {
+        console.error('加载保存的世界失败:', error);
+      }
+    };
+
+    loadSavedWorlds();
+
+    // 监听localStorage变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'savedWorlds') {
+        loadSavedWorlds();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // 合并模拟数据和保存的世界
+  const allWorlds = [...mockWorlds, ...savedWorlds.map(world => ({
+    ...world,
+    wordCount: world.canvasObjects?.length || 0,
+    likes: 0,
+    favorites: 0,
+    isPublic: false,
+    lastModified: world.updatedAt || world.createdAt
+  }))];
+
+  const filteredWorlds = allWorlds
     .filter(world => 
       world.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      world.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (world.description && world.description.toLowerCase().includes(searchQuery.toLowerCase()))
     )
     .sort((a, b) => {
       switch (sortBy) {

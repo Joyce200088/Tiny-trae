@@ -201,10 +201,59 @@ export default function CreateWorldPage() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const stageRef = useRef<any>(null);
 
+  // 保存状态
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
   // 确保只在客户端运行
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // 保存世界数据的函数
+  const saveWorld = async () => {
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    setSaveStatus('idle');
+    
+    try {
+      const worldData = {
+        name: canvasName,
+        canvasObjects: canvasObjects,
+        selectedBackground: selectedBackground,
+        canvasSize: canvasSize,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // 保存到localStorage
+      const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+      
+      // 检查是否已存在同名世界
+      const existingIndex = savedWorlds.findIndex((world: any) => world.name === canvasName);
+      
+      if (existingIndex >= 0) {
+        // 更新现有世界
+        savedWorlds[existingIndex] = { ...worldData, createdAt: savedWorlds[existingIndex].createdAt };
+      } else {
+        // 添加新世界
+        savedWorlds.push(worldData);
+      }
+      
+      localStorage.setItem('savedWorlds', JSON.stringify(savedWorlds));
+      
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      
+    } catch (error) {
+      console.error('保存世界失败:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // 从localStorage加载My Stickers数据的函数
   const loadMyStickers = () => {
@@ -1156,12 +1205,29 @@ export default function CreateWorldPage() {
                 <span>Preview</span>
               </button>
               <button 
-                className="flex items-center space-x-2 px-4 py-2 text-gray-800 rounded hover:bg-gray-200 border"
-                style={{backgroundColor: '#FAF4ED', borderColor: '#E5E7EB'}}
+                className={`flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-200 border transition-all duration-200 ${
+                  saveStatus === 'success' 
+                    ? 'bg-green-100 border-green-300 text-green-800' 
+                    : saveStatus === 'error'
+                    ? 'bg-red-100 border-red-300 text-red-800'
+                    : 'text-gray-800 border-gray-300'
+                }`}
+                style={saveStatus === 'idle' ? {backgroundColor: '#FAF4ED', borderColor: '#E5E7EB'} : {}}
                 title="保存"
+                onClick={saveWorld}
+                disabled={isSaving}
               >
                 <Save className="w-4 h-4" />
-                <span>Save World</span>
+                <span>
+                  {isSaving 
+                    ? '保存中...' 
+                    : saveStatus === 'success' 
+                    ? 'Success' 
+                    : saveStatus === 'error'
+                    ? 'Unsuccess'
+                    : 'Save World'
+                  }
+                </span>
               </button>
             </div>
           </div>
