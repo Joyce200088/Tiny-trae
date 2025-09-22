@@ -704,15 +704,95 @@ export default function CreateWorldPage() {
     }
   }, [isClient, canvasObjects, history.length]);
 
+  // 计算所有贴纸的群组中心和边界框
+  const calculateGroupCenter = (objects: any[]) => {
+    if (objects.length === 0) {
+      return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0, centerX: 0, centerY: 0 };
+    }
+
+    // 计算所有贴纸的几何中心（基于每个贴纸的中心点）
+    let totalCenterX = 0;
+    let totalCenterY = 0;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    objects.forEach(obj => {
+      const objWidth = obj.width * (obj.scaleX || 1);
+      const objHeight = obj.height * (obj.scaleY || 1);
+      
+      // 计算每个贴纸的中心点
+      const objCenterX = obj.x + objWidth / 2;
+      const objCenterY = obj.y + objHeight / 2;
+      
+      totalCenterX += objCenterX;
+      totalCenterY += objCenterY;
+      
+      // 同时计算边界框
+      const left = obj.x;
+      const right = obj.x + objWidth;
+      const top = obj.y;
+      const bottom = obj.y + objHeight;
+
+      minX = Math.min(minX, left);
+      minY = Math.min(minY, top);
+      maxX = Math.max(maxX, right);
+      maxY = Math.max(maxY, bottom);
+    });
+
+    // 群组的几何中心（所有贴纸中心点的平均值）
+    const groupCenterX = totalCenterX / objects.length;
+    const groupCenterY = totalCenterY / objects.length;
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+
+    return { 
+      minX, minY, maxX, maxY, width, height, 
+      centerX: groupCenterX, 
+      centerY: groupCenterY 
+    };
+  };
+
+  // 计算自动居中的画布位置和缩放
+  const calculateCenterView = (objects: any[], containerWidth: number, containerHeight: number) => {
+    if (objects.length === 0) {
+      return { x: 0, y: 0, scale: 1 };
+    }
+
+    const groupData = calculateGroupCenter(objects);
+    
+    // 默认缩放为100%（1倍）
+    const scale = 1;
+    
+    // 计算居中位置 - 基于群组的几何中心
+    const containerCenterX = containerWidth / 2;
+    const containerCenterY = containerHeight / 2;
+    
+    const x = containerCenterX - (groupData.centerX * scale);
+    const y = containerCenterY - (groupData.centerY * scale);
+    
+    return { x, y, scale };
+  };
+
   // 预览模式组件
   const PreviewMode = () => {
     if (!isClient) return null;
     
-    // 预览模式的画布平移状态
-  const [previewCanvasPosition, setPreviewCanvasPosition] = useState({ x: 0, y: 0 });
-  const [previewCanvasScale, setPreviewCanvasScale] = useState(1);
-  const [previewIsDragging, setPreviewIsDragging] = useState(false);
-  const previewStageRef = useRef<any>(null);
+    // 预览模式的画布平移状态 - 使用自动居中计算的初始值
+    const centerView = calculateCenterView(canvasObjects, canvasSize.width, canvasSize.height - 80);
+    const [previewCanvasPosition, setPreviewCanvasPosition] = useState(centerView);
+    const [previewCanvasScale, setPreviewCanvasScale] = useState(centerView.scale);
+    const [previewIsDragging, setPreviewIsDragging] = useState(false);
+    const previewStageRef = useRef<any>(null);
+    
+    // 当画布对象或画布尺寸变化时，重新计算居中视图
+    useEffect(() => {
+      const newCenterView = calculateCenterView(canvasObjects, canvasSize.width, canvasSize.height - 80);
+      setPreviewCanvasPosition({ x: newCenterView.x, y: newCenterView.y });
+      setPreviewCanvasScale(newCenterView.scale);
+    }, [canvasObjects, canvasSize]);
   
   // 计算画布的缩放比例，保持原始比例
   const canvasWidth = canvasSize.width;
@@ -749,6 +829,7 @@ export default function CreateWorldPage() {
               // 重置预览模式状态
               setShowLabelsInPreview(true);
               setHiddenLabels(new Set());
+              // 不再同步预览模式的画布状态回编辑模式，保持编辑模式的原始状态
             }}
             className="bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2"
           >
@@ -936,7 +1017,7 @@ export default function CreateWorldPage() {
                           {/* 白色圆角背景 */}
                           <Rect
                             x={obj.x + (obj.width * obj.scaleX) / 2 - (obj.name.length * 6)}
-                            y={obj.y + obj.height * obj.scaleY + 10}
+                            y={obj.y - 38}
                             width={Math.max(obj.name.length * 12, 60)}
                             height={28}
                             fill="white"
@@ -950,7 +1031,7 @@ export default function CreateWorldPage() {
                           <Text
                             text={obj.name}
                             x={obj.x + (obj.width * obj.scaleX) / 2 - (obj.name.length * 6)}
-                            y={obj.y + obj.height * obj.scaleY + 18}
+                            y={obj.y - 30}
                             fontSize={16}
                             fontFamily="Arial, sans-serif"
                             fontStyle="bold"
@@ -981,7 +1062,7 @@ export default function CreateWorldPage() {
       {/* 左侧画布区域 */}
       <div className="flex-1 flex flex-col">
         {/* 工具栏 */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="border-b border-gray-200 px-4 py-3" style={{backgroundColor: '#FFFBF5'}}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               {/* 画布命名组件 */}
@@ -1075,7 +1156,8 @@ export default function CreateWorldPage() {
                 <span>Preview</span>
               </button>
               <button 
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-800 rounded hover:bg-gray-200 border"
+                style={{backgroundColor: '#FAF4ED', borderColor: '#E5E7EB'}}
                 title="保存"
               >
                 <Save className="w-4 h-4" />
@@ -1155,7 +1237,12 @@ export default function CreateWorldPage() {
           </div>
           
           <div 
-            className="w-full h-full bg-white"
+            className="w-full h-full"
+            style={{
+              background: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              backgroundColor: 'white'
+            }}
             onDrop={(e) => {
               e.preventDefault();
               const data = e.dataTransfer.getData('text/plain');
@@ -1409,7 +1496,7 @@ export default function CreateWorldPage() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+      <div className="w-80 border-l border-gray-200 flex flex-col" style={{backgroundColor: '#FFFBF5'}}>
         {/* Tab Headers */}
         <div className="border-b border-gray-200">
           <div className="flex">
@@ -1437,7 +1524,7 @@ export default function CreateWorldPage() {
             </button>
             <button
               onClick={() => setActiveTab('ai-generate')}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 ${
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
                 activeTab === 'ai-generate'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1453,21 +1540,23 @@ export default function CreateWorldPage() {
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'stickers' && (
             <div className="p-4">
-              <h3 className="font-medium text-gray-900 mb-4">My Stickers</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium text-gray-900">My Stickers</h3>
+                <div className="text-sm text-gray-500">
+                  总共 {myStickers.length} 张贴纸
+                </div>
+              </div>
               {!isClient ? (
                 <div className="text-center text-gray-500 py-8">
                   加载中...
                 </div>
               ) : (
                 <>
-                  <div className="mb-2 text-sm text-gray-500">
-                    总共 {myStickers.length} 个贴纸
-                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {myStickers.length > 0 ? myStickers.map((sticker) => (
                   <div
                     key={sticker.id}
-                    className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center cursor-grab hover:bg-gray-200 transition-colors p-2 active:cursor-grabbing"
+                    className="aspect-square rounded-lg flex flex-col items-center justify-center cursor-grab hover:bg-gray-200 transition-colors p-2 active:cursor-grabbing" style={{backgroundColor: '#FAF4ED'}}
                     draggable
                     onDragStart={(e) => {
                       const imageUrl = sticker.thumbnailUrl || sticker.imageUrl || '/api/placeholder/100/100';
@@ -1535,11 +1624,11 @@ export default function CreateWorldPage() {
                 {mockBackgrounds.map((bg) => (
                   <div
                     key={bg.id}
-                    className={`aspect-video bg-gray-100 rounded-lg flex items-center justify-center cursor-grab transition-all active:cursor-grabbing ${
+                    className={`aspect-video rounded-lg flex items-center justify-center cursor-grab transition-all active:cursor-grabbing ${
                       selectedBackground === bg.id
                         ? 'ring-2 ring-blue-500'
                         : 'hover:bg-gray-200'
-                    }`}
+                    }`} style={{backgroundColor: '#FAF4ED'}}
                     draggable
                     onDragStart={(e) => {
                       const dragData = {
@@ -1674,7 +1763,7 @@ export default function CreateWorldPage() {
                  <div className="space-y-4">
                    <h4 className="text-sm font-medium text-gray-900">Generated Image</h4>
                    
-                   <div className="bg-gray-100 rounded-lg p-4">
+                   <div className="rounded-lg p-4" style={{backgroundColor: '#FAF4ED'}}>
                      <img
                        src={generatedImage}
                        alt="Generated"
@@ -1718,7 +1807,7 @@ export default function CreateWorldPage() {
                      {transparentImage && (
                        <div className="space-y-2">
                          <h5 className="text-sm font-medium text-gray-900">Transparent Version</h5>
-                         <div className="bg-gray-100 rounded-lg p-4">
+                         <div className="rounded-lg p-4" style={{backgroundColor: '#FAF4ED'}}>
                            <img
                              src={transparentImage}
                              alt="Transparent"

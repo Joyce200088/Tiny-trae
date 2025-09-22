@@ -7,7 +7,7 @@ export default function Nav() {
   const username = "Joyce"; // 临时硬编码，后续从用户状态获取
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-6 py-4">
+    <nav className="border-b border-black px-6 py-4" style={{backgroundColor: '#FFFBF5'}}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center">
