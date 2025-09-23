@@ -271,9 +271,9 @@ export default function MyWorlds() {
                       Edit
                     </button>
                   </Link>
-                  <Link href={`/view-world?id=${world.id}`} className="flex-1">
-                    <button className="w-full bg-gray-100 text-gray-700 py-2 px-3 rounded text-sm hover:bg-gray-200 transition-colors">
-                      View
+                  <Link href={`/dictation?worldId=${world.id}`} className="flex-1">
+                    <button className="w-full bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700 transition-colors">
+                      Learn
                     </button>
                   </Link>
                 </div>

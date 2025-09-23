@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 import uvicorn
 from rembg import remove, new_session
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 import io
 import logging
 import numpy as np
+import base64
 from typing import Optional
 
 def upscale_image(image: Image.Image, scale_factor: int = 2) -> Image.Image:
@@ -86,7 +87,76 @@ def enhance_image_quality(image: Image.Image, original_image: Image.Image) -> Im
         logger.warning(f"Image enhancement failed, returning original: {e}")
         return image
 
-def refine_image_edges(image: Image.Image) -> Image.Image:
+def add_edge_outline(image: Image.Image, outline_width: int = 4, outline_color: tuple = (255, 255, 255, 255)) -> Image.Image:
+    """
+    Add white outline to the edges of objects in the image using PIL
+    
+    Args:
+        image: Input image with transparent background (RGBA)
+        outline_width: Width of the outline in pixels
+        outline_color: Color of the outline (R, G, B, A)
+        
+    Returns:
+        Image with white outline added to object edges
+    """
+    try:
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        # Convert PIL image to numpy array
+        img_array = np.array(image)
+        
+        # Extract alpha channel for edge detection
+        alpha_channel = img_array[:, :, 3]
+        
+        # Create binary mask from alpha channel (where object exists)
+        object_mask = (alpha_channel > 128).astype(np.uint8)
+        
+        # Create outline mask by dilating the object mask
+        outline_mask = np.zeros_like(object_mask)
+        
+        # Apply multiple iterations of dilation to create thick outline
+        current_mask = object_mask.copy()
+        for i in range(outline_width):
+            # Simple dilation using numpy operations
+            dilated = np.zeros_like(current_mask)
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue
+                    # Shift the mask and combine
+                    shifted = np.roll(np.roll(current_mask, dy, axis=0), dx, axis=1)
+                    dilated = dilated | shifted
+            
+            # The outline is the new dilated area minus the previous mask
+            new_outline = dilated & (~current_mask)
+            outline_mask = outline_mask | new_outline
+            current_mask = dilated
+        
+        # Create result image starting with original
+        result = img_array.copy()
+        
+        # Apply white outline where outline_mask is True
+        result[outline_mask == 1] = outline_color
+        
+        # Ensure original object pixels are preserved on top
+        for c in range(4):  # RGBA channels
+            result[:, :, c] = np.where(
+                object_mask == 1,
+                img_array[:, :, c],  # Keep original pixel
+                result[:, :, c]      # Use outline or background
+            )
+        
+        # Convert back to PIL Image
+        result_image = Image.fromarray(result, 'RGBA')
+        
+        return result_image
+        
+    except Exception as e:
+        logger.error(f"Error adding edge outline: {str(e)}")
+        return image  # Return original if outline fails
+
+def refine_edges(image: Image.Image) -> Image.Image:
     """
     Refine edges to reduce artifacts and improve quality
     
@@ -348,6 +418,78 @@ async def batch_remove_background(files: list[UploadFile] = File(...)):
             })
     
     return {"results": results}
+
+@app.post("/add-outline")
+async def add_outline_to_image(
+    file: UploadFile = File(...),
+    outline_width: Optional[int] = Query(4, description="Width of the outline in pixels (1-10)"),
+    outline_color: Optional[str] = Query("white", description="Color of the outline (white, black, red, blue, green)")
+):
+    """
+    Add outline to the edges of objects in an image
+    
+    Args:
+        file: Uploaded image file (preferably with transparent background)
+        outline_width: Width of the outline in pixels (1-10)
+        outline_color: Color of the outline
+        
+    Returns:
+        PNG image with outline added to object edges
+    """
+    try:
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Read and validate file size
+        contents = await file.read()
+        if len(contents) > 10 * 1024 * 1024:  # 10MB limit
+            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+        
+        # Validate outline width
+        if outline_width < 1 or outline_width > 10:
+            outline_width = 4
+        
+        # Parse outline color
+        color_map = {
+            "white": (255, 255, 255, 255),
+            "black": (0, 0, 0, 255),
+            "red": (255, 0, 0, 255),
+            "blue": (0, 0, 255, 255),
+            "green": (0, 255, 0, 255)
+        }
+        
+        outline_rgba = color_map.get(outline_color.lower(), (255, 255, 255, 255))
+        
+        # Load image
+        image = Image.open(io.BytesIO(contents))
+        
+        # Convert to RGBA if needed
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        # Add outline
+        outlined_image = add_edge_outline(image, outline_width, outline_rgba)
+        
+        # Save to bytes
+        output_buffer = io.BytesIO()
+        outlined_image.save(output_buffer, format='PNG', optimize=True)
+        output_data = output_buffer.getvalue()
+        
+        logger.info(f"Successfully added outline to image: {file.filename}")
+        
+        return Response(
+            content=output_data,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f"attachment; filename=outlined_{file.filename}",
+                "X-Processing-Time": "outline-added"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error adding outline to image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(

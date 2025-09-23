@@ -4,3 +4,5 @@ rembg>=2.0.62
 Pillow>=10.1.0
 python-multipart==0.0.6
 realesrgan
+opencv-python>=4.8.0
+numpy>=1.24.0
