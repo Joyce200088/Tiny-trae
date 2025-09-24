@@ -12,6 +12,7 @@ interface StickerData {
   exampleChinese?: string;
   audioUrl?: string;
   category: string | null;
+  partOfSpeech?: string; // 词性标签，如：noun, verb, adjective等
   tags: string[];
   thumbnailUrl?: string;
   imageUrl?: string;
@@ -221,8 +222,8 @@ export default function StickerDetailModal({
                   )}
                 </div>
 
-                {/* 发音按钮 */}
-                <div className="flex justify-center">
+                {/* 发音按钮和词性标签 */}
+                <div className="flex justify-center items-center space-x-3">
                   <button
                     onClick={() => playAudio(sticker.name)}
                     disabled={isPlaying}
@@ -231,6 +232,21 @@ export default function StickerDetailModal({
                     <Volume2 className="w-5 h-5" />
                     <span>{isPlaying ? '播放中...' : '播放发音'}</span>
                   </button>
+                  
+                  {/* 词性标签 */}
+                  {sticker.partOfSpeech && (
+                    <div className="px-3 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg border border-green-200">
+                      {sticker.partOfSpeech === 'noun' ? '名词' : 
+                       sticker.partOfSpeech === 'verb' ? '动词' : 
+                       sticker.partOfSpeech === 'adjective' ? '形容词' : 
+                       sticker.partOfSpeech === 'adverb' ? '副词' : 
+                       sticker.partOfSpeech === 'preposition' ? '介词' : 
+                       sticker.partOfSpeech === 'conjunction' ? '连词' : 
+                       sticker.partOfSpeech === 'pronoun' ? '代词' : 
+                       sticker.partOfSpeech === 'interjection' ? '感叹词' : 
+                       sticker.partOfSpeech}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

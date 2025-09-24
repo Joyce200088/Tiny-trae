@@ -17,6 +17,7 @@ interface StickerData {
   exampleChinese?: string;
   audioUrl?: string;
   category: string | null;
+  partOfSpeech?: string; // 词性标签，如：noun, verb, adjective等
   tags: string[];
   thumbnailUrl?: string;
   imageUrl?: string;
@@ -39,6 +40,7 @@ const mockStickers: StickerData[] = [
       chinese: '潜水镜',
       phonetic: '/ˈdaɪvɪŋ mæsk/',
       category: 'Diving Equipment',
+      partOfSpeech: 'noun', // 名词
       tags: ['Pixel', 'Ai-generated'],
       thumbnailUrl: '/Diving Mask.png',
       createdAt: '2024-01-15',
@@ -52,6 +54,7 @@ const mockStickers: StickerData[] = [
       chinese: '日历',
       phonetic: '/ˈkælɪndər/',
       category: 'Daily Items',
+      partOfSpeech: 'noun', // 名词
       tags: ['Cartoon', 'Ai-generated'],
       thumbnailUrl: '/Calendar.png',
       createdAt: '2024-01-15',
@@ -65,6 +68,7 @@ const mockStickers: StickerData[] = [
       chinese: '工业货架',
       phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
       category: 'Furniture',
+      partOfSpeech: 'noun', // 名词
       tags: ['Cartoon', 'Ai-generated'],
       thumbnailUrl: '/Industrial Shelving.png',
       createdAt: '2024-01-15',
@@ -78,6 +82,7 @@ const mockStickers: StickerData[] = [
       chinese: '陶瓷杯',
       phonetic: '/səˈræmɪk mʌɡ/',
       category: 'Kitchenware',
+      partOfSpeech: 'noun', // 名词
       tags: ['Realistic', 'Ai-generated'],
       thumbnailUrl: '/Ceramic Mug.png',
       createdAt: '2024-01-15',

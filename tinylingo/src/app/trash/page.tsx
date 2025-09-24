@@ -132,65 +132,35 @@ export default function TrashPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <Link href="/my-worlds">
-              <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
-                <ArrowLeft className="w-5 h-5" />
-                <span>返回我的世界</span>
-              </button>
-            </Link>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">垃圾桶</h1>
-              <p className="text-gray-600 mt-2">
-                已删除的世界将在30天后自动清除
-              </p>
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="mb-8">
+            <div className="flex items-center space-x-4 mb-4">
+              <Link href="/my-worlds">
+                <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
+                  <ArrowLeft className="w-5 h-5" />
+                  <span>返回我的世界</span>
+                </button>
+              </Link>
             </div>
             
-            {trashWorlds.length > 0 && (
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={toggleSelectAll}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  {selectedWorlds.length === trashWorlds.length ? '取消全选' : '全选'}
-                </button>
-                
-                {selectedWorlds.length > 0 && (
-                  <>
-                    <button
-                      onClick={restoreSelected}
-                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      <span>还原选中 ({selectedWorlds.length})</span>
-                    </button>
-                    
-                    <button
-                      onClick={deleteSelected}
-                      className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>永久删除 ({selectedWorlds.length})</span>
-                    </button>
-                  </>
-                )}
-                
-                <button
-                  onClick={emptyTrash}
-                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  清空垃圾桶
-                </button>
-              </div>
-            )}
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">TRASH</h1>
+            <p className="text-gray-600">已删除的世界将在30天后自动清除</p>
           </div>
+
+          {/* Controls */}
+          {trashWorlds.length > 0 && (
+            <div className="flex justify-end mb-6">
+              <button
+                onClick={emptyTrash}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                清空垃圾桶
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -207,25 +177,9 @@ export default function TrashPage() {
               return (
                 <div 
                   key={world.id} 
-                  className={`rounded-lg shadow-md overflow-hidden border-2 transition-all ${
-                    selectedWorlds.includes(world.id) 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 bg-white hover:shadow-lg'
-                  }`}
+                  className="rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200"
+                  style={{backgroundColor: '#FFFBF5'}}
                 >
-                  {/* Selection Checkbox */}
-                  <div className="p-3 border-b border-gray-200">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedWorlds.includes(world.id)}
-                        onChange={() => toggleSelection(world.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-600">选择</span>
-                    </label>
-                  </div>
-
                   {/* Cover Image */}
                   <div className="aspect-video relative" style={{backgroundColor: '#FFFBF5'}}>
                     {world.previewImage ? (
@@ -241,7 +195,7 @@ export default function TrashPage() {
                     )}
                     
                     {/* Days Remaining Badge */}
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-2 right-2 z-10">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         daysRemaining <= 7 
                           ? 'bg-red-100 text-red-800' 
@@ -267,14 +221,14 @@ export default function TrashPage() {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => restoreWorld(world.id)}
-                        className="flex-1 bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
+                        className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
                       >
                         <RotateCcw className="w-4 h-4" />
                         <span>还原</span>
                       </button>
                       <button
                         onClick={() => permanentlyDeleteWorld(world.id)}
-                        className="flex-1 bg-red-600 text-white py-2 px-3 rounded text-sm hover:bg-red-700 transition-colors flex items-center justify-center space-x-1"
+                        className="flex-1 bg-red-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-red-700 transition-colors flex items-center justify-center space-x-1"
                       >
                         <Trash2 className="w-4 h-4" />
                         <span>永久删除</span>

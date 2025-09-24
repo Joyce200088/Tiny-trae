@@ -14,6 +14,7 @@ interface StickerData {
   chinese?: string;
   phonetic?: string;
   category?: string;
+  partOfSpeech?: string; // 词性标签，如：noun, verb, adjective等
   tags?: string[];
   thumbnailUrl?: string;
   imageUrl?: string;
@@ -21,14 +22,6 @@ interface StickerData {
   sorted?: boolean;
   notes?: string;
   mnemonic?: string;
-}
-
-// AI生成选项接口
-interface AIGenerationOptions {
-  word: string;
-  description: string;
-  style: 'Cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch';
-  viewpoint: 'front' | 'top' | 'isometric' | 'side';
 }
 
 // 模拟背景数据
@@ -52,8 +45,8 @@ const DraggableImage = ({
   onChange: (newAttrs: any) => void;
   setContextMenu: (menu: any) => void;
 }) => {
-  const shapeRef = useRef<any>();
-  const trRef = useRef<any>();
+  const shapeRef = useRef<any>(null);
+  const trRef = useRef<any>(null);
   const [image] = useImage(imageObj.src);
 
   useEffect(() => {
@@ -563,10 +556,10 @@ export default function CreateWorldPage() {
   }, [isClient]);
   
   // AI生成相关状态
-  const [aiGenerationOptions, setAiGenerationOptions] = useState<AIGenerationOptions>({
+  const [aiGenerationOptions, setAiGenerationOptions] = useState<ImageGenerationOptions>({
     word: '',
     description: '',
-    style: 'Cartoon',
+    style: 'cartoon',
     viewpoint: 'front'
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -816,17 +809,17 @@ export default function CreateWorldPage() {
     const newStickerData: StickerData = {
       id: `ai_${Date.now()}`,
       name: aiGenerationOptions.word,
-      thumbnailUrl: imageToSave,
-      imageUrl: imageToSave,
+      thumbnailUrl: imageToSave || '',
+      imageUrl: imageToSave || '',
       category: 'AI Generated',
-      tags: [aiGenerationOptions.style, 'AI-generated'],
+      tags: [aiGenerationOptions.style || 'cartoon', 'AI-generated'],
       createdAt: new Date().toISOString().split('T')[0]
     };
 
     // 更新localStorage
     try {
       const savedData = localStorage.getItem('myStickers');
-      let currentData = { userStickers: [], deletedMockIds: [] };
+      let currentData: { userStickers: StickerData[], deletedMockIds: string[] } = { userStickers: [], deletedMockIds: [] };
       
       if (savedData) {
         const parsedData = JSON.parse(savedData);
@@ -860,7 +853,7 @@ export default function CreateWorldPage() {
     setAiGenerationOptions({
       word: '',
       description: '',
-      style: 'Cartoon',
+      style: 'cartoon',
       viewpoint: 'front'
     });
   };
@@ -958,7 +951,7 @@ export default function CreateWorldPage() {
     // 当画布对象或画布尺寸变化时，重新计算居中视图
     useEffect(() => {
       const newCenterView = calculateCenterView(canvasObjects, canvasSize.width, canvasSize.height - 80);
-      setPreviewCanvasPosition({ x: newCenterView.x, y: newCenterView.y });
+      setPreviewCanvasPosition({ x: newCenterView.x, y: newCenterView.y, scale: newCenterView.scale });
       setPreviewCanvasScale(newCenterView.scale);
     }, [canvasObjects, canvasSize]);
   
@@ -1106,13 +1099,13 @@ export default function CreateWorldPage() {
               onDragMove={(e) => {
                 if (previewIsDragging) {
                   const pos = e.target.position();
-                  setPreviewCanvasPosition({ x: pos.x, y: pos.y });
+                  setPreviewCanvasPosition({ x: pos.x, y: pos.y, scale: previewCanvasScale });
                 }
               }}
               onDragEnd={(e) => {
                 setPreviewIsDragging(false);
                 const pos = e.target.position();
-                setPreviewCanvasPosition({ x: pos.x, y: pos.y });
+                setPreviewCanvasPosition({ x: pos.x, y: pos.y, scale: previewCanvasScale });
               }}
               onWheel={(e) => {
                 e.evt.preventDefault();
@@ -1137,6 +1130,7 @@ export default function CreateWorldPage() {
                 const newPos = {
                   x: pointer.x - mousePointTo.x * clampedScale,
                   y: pointer.y - mousePointTo.y * clampedScale,
+                  scale: clampedScale
                 };
                 
                 setPreviewCanvasScale(clampedScale);
@@ -1878,11 +1872,11 @@ export default function CreateWorldPage() {
                     onChange={(e) => setAiGenerationOptions(prev => ({ ...prev, style: e.target.value as any }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Cartoon">Cartoon</option>
-                    <option value="realistic">Realistic</option>
-                    <option value="pixel">Pixel Art</option>
-                    <option value="watercolor">Watercolor</option>
-                    <option value="sketch">Sketch</option>
+                    <option value="cartoon">Cartoon</option>
+                              <option value="realistic">Realistic</option>
+                              <option value="pixel">Pixel Art</option>
+                              <option value="watercolor">Watercolor</option>
+                              <option value="sketch">Sketch</option>
                   </select>
                 </div>
 
@@ -1974,7 +1968,7 @@ export default function CreateWorldPage() {
                    <div className="space-y-2">
                      {!transparentImage && (
                        <button
-                         onClick={handleRemoveBackground}
+                         onClick={() => handleRemoveBackground()}
                          disabled={isRemovingBackground}
                          className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50"
                        >
