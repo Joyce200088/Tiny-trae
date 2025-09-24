@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { User } from 'lucide-react';
+import { User, Trash2 } from 'lucide-react';
 
 export default function Nav() {
   const username = "Joyce"; // 临时硬编码，后续从用户状态获取
@@ -35,6 +35,13 @@ export default function Nav() {
             className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
           >
             My Worlds
+          </Link>
+          <Link 
+            href="/trash" 
+            className="text-gray-700 hover:text-gray-900 font-medium transition-colors flex items-center space-x-1"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Trash</span>
           </Link>
           <Link 
             href="/explore" 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Share2, Heart, Star, MoreVertical } from 'lucide-react';
+import { Search, Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-react';
 
 // 模拟数据
 const mockWorlds = [
@@ -48,62 +48,245 @@ export default function MyWorlds() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'words' | 'likes'>('recent');
   const [savedWorlds, setSavedWorlds] = useState<any[]>([]);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    worldId: string | null;
+  }>({ visible: false, x: 0, y: 0, worldId: null });
+  const [deletingWorldId, setDeletingWorldId] = useState<string | null>(null);
+  const [undoTimer, setUndoTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // 客户端检测
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // 从localStorage加载保存的世界
   useEffect(() => {
-    const loadSavedWorlds = () => {
-      try {
-        const saved = localStorage.getItem('savedWorlds');
-        if (saved) {
-          const parsedWorlds = JSON.parse(saved);
-          setSavedWorlds(parsedWorlds);
+    if (isClient) {
+      const loadSavedWorlds = () => {
+        try {
+          const saved = localStorage.getItem('savedWorlds');
+          if (saved) {
+            const parsedWorlds = JSON.parse(saved);
+            setSavedWorlds(parsedWorlds);
+          }
+        } catch (error) {
+          console.error('加载保存的世界失败:', error);
         }
-      } catch (error) {
-        console.error('加载保存的世界失败:', error);
-      }
-    };
+      };
 
-    loadSavedWorlds();
+      loadSavedWorlds();
 
-    // 监听localStorage变化
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'savedWorlds') {
-        loadSavedWorlds();
-      }
-    };
+      // 监听localStorage变化
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'savedWorlds') {
+          loadSavedWorlds();
+        }
+      };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, [isClient]);
 
-  // 点击外部关闭菜单
+  // 处理右键菜单关闭
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (openMenuId) {
-        setOpenMenuId(null);
+    const handleClickOutside = () => {
+      if (contextMenu.visible) {
+        setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [openMenuId]);
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && contextMenu.visible) {
+        setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
+      }
+    };
+
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [contextMenu.visible]);
+
+  // 右键菜单处理函数
+  const handleContextMenu = (e: React.MouseEvent, worldId: string) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      worldId
+    });
+  };
+
+  // 删除世界到垃圾桶
+  const moveToTrash = (worldId: string) => {
+    setDeletingWorldId(worldId);
+    setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
+    
+    // 显示撤销提示
+    setShowUndoToast(true);
+    
+    // 设置500ms后从列表中移除（给淡出动画时间）
+    setTimeout(() => {
+      // 这里不做任何操作，让卡片保持淡出状态
+    }, 500);
+    
+    // 设置5秒后自动确认删除
+    const timer = setTimeout(() => {
+      confirmDelete(worldId);
+    }, 5000);
+    
+    setUndoTimer(timer);
+  };
+
+  // 撤销删除
+  const undoDelete = () => {
+    if (undoTimer) {
+      clearTimeout(undoTimer);
+      setUndoTimer(null);
+    }
+    
+    // 如果是mockWorld，从deletedMockWorlds中移除
+    if (isClient && deletingWorldId && mockWorlds.find(w => w.id === deletingWorldId)) {
+      const deletedMockWorlds = JSON.parse(localStorage.getItem('deletedMockWorlds') || '[]');
+      const updatedDeletedMockWorlds = deletedMockWorlds.filter((id: string) => id !== deletingWorldId);
+      localStorage.setItem('deletedMockWorlds', JSON.stringify(updatedDeletedMockWorlds));
+    }
+    
+    setDeletingWorldId(null);
+    setShowUndoToast(false);
+  };
+
+  // 确认删除（移动到垃圾桶）
+  const confirmDelete = (worldId: string) => {
+    const worldToDelete = allWorlds.find(w => w.id === worldId);
+    if (worldToDelete) {
+      // 添加到垃圾桶
+      const trashItem = {
+        ...worldToDelete,
+        deletedAt: new Date().toISOString(),
+        originalLocation: 'my-worlds'
+      };
+      
+      if (isClient) {
+        const existingTrash = JSON.parse(localStorage.getItem('trashWorlds') || '[]');
+        localStorage.setItem('trashWorlds', JSON.stringify([...existingTrash, trashItem]));
+        
+        // 从当前列表移除
+        if (savedWorlds.find(w => w.id === worldId)) {
+          // 如果是savedWorlds中的世界，从savedWorlds中移除
+          const updatedWorlds = savedWorlds.filter(w => w.id !== worldId);
+          setSavedWorlds(updatedWorlds);
+          localStorage.setItem('savedWorlds', JSON.stringify(updatedWorlds));
+        } else {
+          // 如果是mockWorlds中的世界，添加到deletedMockWorlds列表
+          const deletedMockWorlds = JSON.parse(localStorage.getItem('deletedMockWorlds') || '[]');
+          localStorage.setItem('deletedMockWorlds', JSON.stringify([...deletedMockWorlds, worldId]));
+        }
+      }
+    }
+    
+    setDeletingWorldId(null);
+    setShowUndoToast(false);
+    if (undoTimer) {
+      clearTimeout(undoTimer);
+      setUndoTimer(null);
+    }
+  };
+
+  // 复制世界
+  const copyWorld = (worldId: string) => {
+    const worldToCopy = allWorlds.find(w => w.id === worldId);
+    if (worldToCopy) {
+      const copiedWorld = {
+        ...worldToCopy,
+        id: `copied-${Date.now()}-${Math.random()}`,
+        name: `${worldToCopy.name} (副本)`,
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      };
+      
+      const updatedWorlds = [...savedWorlds, copiedWorld];
+      setSavedWorlds(updatedWorlds);
+      if (isClient) {
+        localStorage.setItem('savedWorlds', JSON.stringify(updatedWorlds));
+      }
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
+  };
+
+  // 重命名世界
+  const renameWorld = (worldId: string) => {
+    const worldToRename = allWorlds.find(w => w.id === worldId);
+    if (worldToRename) {
+      const newName = prompt('请输入新名称:', worldToRename.name);
+      if (newName && newName.trim()) {
+        if (savedWorlds.find(w => w.id === worldId)) {
+          // 更新savedWorlds中的世界
+          const updatedWorlds = savedWorlds.map(w => 
+            w.id === worldId ? { ...w, name: newName.trim() } : w
+          );
+          setSavedWorlds(updatedWorlds);
+          if (isClient) {
+            localStorage.setItem('savedWorlds', JSON.stringify(updatedWorlds));
+          }
+        }
+        // 注意：mockWorlds是只读的，不能重命名
+      }
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
+  };
+
+  // 分享世界
+  const shareWorld = (worldId: string) => {
+    const worldToShare = allWorlds.find(w => w.id === worldId);
+    if (worldToShare) {
+      // 这里可以实现分享逻辑，比如生成分享链接
+      const shareUrl = `${window.location.origin}/view-world?id=${worldId}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        alert('分享链接已复制到剪贴板！');
+      }).catch(() => {
+        alert(`分享链接: ${shareUrl}`);
+      });
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
+  };
 
   // 合并模拟数据和保存的世界
-  const allWorlds = [...mockWorlds, ...savedWorlds.map(world => ({
-    ...world,
-    id: world.id || `saved-${Date.now()}-${Math.random()}`, // 确保每个世界都有唯一ID
-    wordCount: world.canvasObjects?.length || 0,
-    likes: 0,
-    favorites: 0,
-    isPublic: false,
-    lastModified: world.updatedAt || world.createdAt
-  }))];
+  const deletedMockWorlds = isClient 
+    ? JSON.parse(localStorage.getItem('deletedMockWorlds') || '[]')
+    : [];
+  const allWorlds = [
+    ...mockWorlds.filter(world => !deletedMockWorlds.includes(world.id)), // 过滤掉已删除的mockWorlds
+    ...savedWorlds.map(world => ({
+      ...world,
+      id: world.id || `saved-${Date.now()}-${Math.random()}`, // 确保每个世界都有唯一ID
+      wordCount: world.canvasObjects?.length || 0,
+      likes: 0,
+      favorites: 0,
+      isPublic: false,
+      lastModified: world.updatedAt || world.createdAt,
+      isUserCreated: true
+    }))
+  ];
 
   const filteredWorlds = allWorlds
     .filter(world => 
-      world.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (world.description && world.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      // 过滤掉正在删除的世界
+      world.id !== deletingWorldId &&
+      (world.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (world.description && world.description.toLowerCase().includes(searchQuery.toLowerCase())))
     )
     .sort((a, b) => {
       switch (sortBy) {
@@ -180,7 +363,14 @@ export default function MyWorlds() {
 
             {/* World Cards */}
             {filteredWorlds.map((world) => (
-              <div key={world.id} className="rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-black" style={{backgroundColor: '#FFFBF5'}}>
+              <div 
+                key={world.id} 
+                className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border border-black ${
+                  deletingWorldId === world.id ? 'opacity-50 scale-95' : ''
+                }`} 
+                style={{backgroundColor: '#FFFBF5'}}
+                onContextMenu={(e) => handleContextMenu(e, world.id)}
+              >
                 {/* Cover Image */}
                 <div className="aspect-video relative border-b border-black" style={{backgroundColor: '#FFFBF5'}}>
                   {world.previewImage ? (
@@ -202,39 +392,6 @@ export default function MyWorlds() {
                     }`}>
                       {world.isPublic ? 'Public' : 'Private'}
                     </span>
-                  </div>
-
-                  {/* Actions Menu */}
-                  <div className="absolute top-2 right-2 z-10">
-                    <button 
-                      className="p-1 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenuId(openMenuId === world.id ? null : world.id);
-                      }}
-                    >
-                      <MoreVertical className="w-4 h-4 text-gray-600" />
-                    </button>
-                    
-                    {/* Dropdown Menu */}
-                    {openMenuId === world.id && (
-                      <div 
-                        className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button 
-                          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                          onClick={() => {
-                            // 分享功能逻辑
-                            console.log('Share world:', world.id);
-                            setOpenMenuId(null);
-                          }}
-                        >
-                          <Share2 className="w-4 h-4" />
-                          <span>Share</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -280,6 +437,61 @@ export default function MyWorlds() {
               </div>
             ))}
           </div>
+
+          {/* 右键菜单 */}
+          {contextMenu.visible && (
+            <div 
+              className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
+              style={{
+                left: contextMenu.x,
+                top: contextMenu.y,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => copyWorld(contextMenu.worldId!)}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
+              >
+                <Copy className="w-4 h-4" />
+                <span>复制</span>
+              </button>
+              <button
+                onClick={() => renameWorld(contextMenu.worldId!)}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>重命名</span>
+              </button>
+              <button
+                onClick={() => shareWorld(contextMenu.worldId!)}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>分享</span>
+              </button>
+              <hr className="my-1 border-gray-200" />
+              <button
+                onClick={() => moveToTrash(contextMenu.worldId!)}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>删除</span>
+              </button>
+            </div>
+          )}
+
+          {/* 撤销提示 */}
+          {showUndoToast && (
+            <div className="fixed top-4 right-4 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center space-x-3">
+              <span>已移至垃圾桶。</span>
+              <button
+                onClick={undoDelete}
+                className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition-colors"
+              >
+                撤销 (5s)
+              </button>
+            </div>
+          )}
 
           {filteredWorlds.length === 0 && searchQuery && (
             <div className="text-center py-12">
