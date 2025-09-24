@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X, VolumeX } from 'lucide-react';
-import Nav from '@/components/Nav';
+import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X } from 'lucide-react';
 
 
 
@@ -63,54 +62,15 @@ export default function DictationPage() {
    const router = useRouter();
    const searchParams = useSearchParams();
 
-  const [currentWordIndex, setCurrentWordIndex] = useState(1);
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [progress, setProgress] = useState(0);
   const [hideChinese, setHideChinese] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isAudioLoading, setIsAudioLoading] = useState(false);
-  const [audioError, setAudioError] = useState(false);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   const currentWord = mockWords[currentWordIndex];
   const previousWord = currentWordIndex > 0 ? mockWords[currentWordIndex - 1] : null;
   const currentStickerImage = getStickerImage(currentWord.english);
-
-  // 播放音频的函数
-  const playAudio = async () => {
-    if (!audioRef.current) return;
-    
-    setIsAudioLoading(true);
-    setAudioError(false);
-    
-    try {
-      // 使用文本转语音API或预录制的音频文件
-      // 这里使用浏览器的语音合成API作为示例
-      const utterance = new SpeechSynthesisUtterance(currentWord.english);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.8; // 稍微慢一点的语速
-      
-      utterance.onstart = () => {
-        setIsAudioLoading(false);
-      };
-      
-      utterance.onerror = () => {
-        setAudioError(true);
-        setIsAudioLoading(false);
-      };
-      
-      utterance.onend = () => {
-        setIsAudioLoading(false);
-      };
-      
-      speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.error('Audio playback failed:', error);
-      setAudioError(true);
-      setIsAudioLoading(false);
-    }
-  };
 
 
 
@@ -118,15 +78,6 @@ export default function DictationPage() {
 
   useEffect(() => {
     setProgress(((currentWordIndex + 1) / mockWords.length) * 100);
-  }, [currentWordIndex]);
-
-  // 当单词改变时自动播放音频
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      playAudio();
-    }, 500); // 延迟500ms播放，让用户有时间看到新单词
-
-    return () => clearTimeout(timer);
   }, [currentWordIndex]);
 
   const handlePreviousWord = () => {
@@ -165,78 +116,67 @@ export default function DictationPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Navigation */}
-      <Nav />
-      
-      {/* Main Content */}
-      <div className="fixed inset-0 top-[73px] bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col overflow-hidden">
-        {/* Dictation Controls Bar */}
-        <div className="px-6 py-4 flex items-center justify-between backdrop-blur-sm" style={{ backgroundColor: '#FFFBF5' }}>
-          {/* Left: Previous word navigation */}
-          <div className="flex items-center space-x-3">
-            {previousWord && (
-              <button
-                onClick={handlePreviousWord}
-                className="flex items-center space-x-3 p-2 rounded-lg transition-colors cursor-pointer select-none"
-                style={{ backgroundColor: '#FFFBF5' }}
-                type="button"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600 pointer-events-none" />
-                <div className="text-sm flex items-center space-x-2 pointer-events-none">
-                  <div className="text-gray-400">{previousWord.english}</div>
-                  <div className="text-gray-600">{previousWord.chinese}</div>
-                </div>
-              </button>
-            )}
-          </div>
-
-          {/* Right: Settings and return */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setHideChinese(!hideChinese)}
-              className="p-2 rounded-full transition-colors"
-              style={{ backgroundColor: '#FFFBF5' }}
-              title={hideChinese ? "显示中文意思" : "隐藏中文意思"}
-            >
-              {hideChinese ? (
-                <EyeOff className="w-5 h-5 text-gray-600" />
-              ) : (
-                <Eye className="w-5 h-5 text-gray-600" />
-              )}
-            </button>
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2 rounded-full transition-colors"
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FFFBF5' }}>
+      {/* Top navigation bar */}
+      <div className="flex items-center justify-between p-4" style={{ backgroundColor: '#FFFBF5' }}>
+        {/* Left: Previous word navigation */}
+        <div className="flex items-center">
+          {previousWord && (
+            <div 
+              onClick={handlePreviousWord}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
               style={{ backgroundColor: '#FFFBF5' }}
             >
-              <Settings className="w-5 h-5 text-gray-600" />
-            </button>
-            <button
-              onClick={handleReturn}
-              className="p-2 rounded-full transition-colors"
-              style={{ backgroundColor: '#FFFBF5' }}
-            >
-              <X className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
+              <ArrowLeft className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-800">
+                {previousWord.english} {previousWord.chinese}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex items-start justify-center overflow-hidden relative" style={{ backgroundColor: '#FFFBF5' }}>
-          <div className="w-full h-full flex flex-col items-center justify-start px-4 pt-4 pb-8">
+        {/* Right: Settings and return */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setHideChinese(!hideChinese)}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            title={hideChinese ? "显示中文意思" : "隐藏中文意思"}
+          >
+            {hideChinese ? (
+              <EyeOff className="w-5 h-5 text-gray-600" />
+            ) : (
+              <Eye className="w-5 h-5 text-gray-600" />
+            )}
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <Settings className="w-5 h-5 text-gray-600" />
+          </button>
+          <button
+            onClick={handleReturn}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
         {/* Sticker image and Chinese word */}
-        <div className="flex flex-col items-center mb-6">
-          {/* Sticker image - fixed height container */}
-          <div className="mb-2 h-45 flex items-center justify-center">
-            {currentStickerImage && (
+        <div className="flex flex-col items-center mb-8">
+          {/* Sticker image */}
+          {currentStickerImage && (
+            <div className="mb-2">
               <img 
                 src={`/${currentStickerImage}`}
                 alt={currentWord.english}
                 className="w-45 h-45 object-contain"
               />
-            )}
-          </div>
+            </div>
+          )}
           
           {/* Chinese word */}
           <div className="mb-2 h-12 flex items-center">
@@ -252,14 +192,6 @@ export default function DictationPage() {
             <div className="text-lg text-gray-600">
               {currentWord.pronunciation}
             </div>
-            <button
-              onClick={playAudio}
-              disabled={isAudioLoading}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
-              title="播放发音"
-            >
-              <Volume2 className={`w-5 h-5 ${isAudioLoading ? 'text-gray-400' : 'text-gray-600'}`} />
-            </button>
             <span 
               className="px-3 py-1 text-sm rounded-full text-gray-700"
               style={{ backgroundColor: '#FAF4ED' }}
@@ -270,7 +202,7 @@ export default function DictationPage() {
         </div>
 
         {/* Input form */}
-        <div className="w-full max-w-md mb-6 flex justify-center">
+        <div className="w-full max-w-md mb-8 flex justify-center">
           <form onSubmit={handleSubmit} className="flex items-center space-x-3">
             <input
               type="text"
@@ -293,15 +225,6 @@ export default function DictationPage() {
 
         {/* Progress and instructions */}
         <div className="w-full max-w-md text-center">
-          {/* Audio error message */}
-          {audioError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">
-                音频播放失败，请检查浏览器设置或手动点击播放按钮
-              </p>
-            </div>
-          )}
-
           {/* Progress bar */}
           <div className="mb-4">
             <div className="w-4/5 mx-auto">
@@ -329,9 +252,9 @@ export default function DictationPage() {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="rounded-lg p-6 w-full max-w-sm" style={{ backgroundColor: '#FFFBF5' }}>
-            <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm border-0" style={{ borderBottom: 'none' }}>
+            <div className="flex justify-between items-center mb-4 border-b-0" style={{ borderBottom: 'none' }}>
               <h3 className="text-lg font-semibold">设置</h3>
               <button
                 onClick={() => setShowSettings(false)}
@@ -345,23 +268,18 @@ export default function DictationPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   显示发音
                 </label>
-                <input type="checkbox" className="rounded" defaultChecked />
+                <input type="checkbox" className="rounded" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   自动播放发音
                 </label>
-                <input type="checkbox" className="rounded" defaultChecked />
+                <input type="checkbox" className="rounded" />
               </div>
             </div>
           </div>
         </div>
       )}
-        </div>
-      </div>
-
-      {/* Hidden audio element for potential future use */}
-      <audio ref={audioRef} style={{ display: 'none' }} />
     </div>
   );
 }
