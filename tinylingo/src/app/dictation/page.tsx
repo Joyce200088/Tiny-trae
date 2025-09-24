@@ -300,21 +300,21 @@ export default function DictationPage() {
             )}
           </div>
           
-          {/* Pronunciation and part of speech */}
-          <div className="flex items-center space-x-3 mb-4">
+          {/* Pronunciation */}
+          <div className="flex items-center justify-center mb-4">
             <div className="text-lg text-gray-600">
               {currentWord.pronunciation}
             </div>
-            <span 
-              className="px-3 py-1 text-sm rounded-full text-gray-700"
-              style={{ backgroundColor: '#FAF4ED' }}
-            >
-              {currentWord.partOfSpeech}
-            </span>
           </div>
           
           {/* Audio controls */}
           <div className="flex items-center justify-center space-x-3 mb-2">
+            <button
+              className="px-3 py-2 text-sm text-gray-800 rounded-full transition-colors w-18 text-center"
+              style={{ backgroundColor: '#FAF4ED' }}
+            >
+              {currentWord.partOfSpeech}
+            </button>
             <button
               onClick={isPlaying ? pauseAudio : playAudio}
               disabled={isLoading}
@@ -330,19 +330,10 @@ export default function DictationPage() {
                 <Play className="w-5 h-5" />
               )}
             </button>
-            <button
-              onClick={replayAudio}
-              disabled={isLoading}
-              className="p-3 text-gray-800 rounded-full hover:opacity-80 transition-colors flex items-center justify-center disabled:opacity-50"
-              style={{ backgroundColor: '#FAF4ED' }}
-              title="重播音频"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
             {/* 发音类型切换按钮 */}
             <button
               onClick={() => setPronunciationType(pronunciationType === 0 ? 1 : 0)}
-              className="px-3 py-2 text-sm text-gray-800 rounded-full hover:opacity-80 transition-colors"
+              className="px-3 py-2 text-sm text-gray-800 rounded-full hover:opacity-80 transition-colors w-18 text-center"
               style={{ backgroundColor: '#FAF4ED' }}
               title={pronunciationType === 0 ? "切换到英音" : "切换到美音"}
             >
@@ -353,7 +344,7 @@ export default function DictationPage() {
 
         {/* Input form */}
         <div className="w-full max-w-md mb-6 flex justify-center">
-          <form onSubmit={handleSubmit} className="flex items-center space-x-3">
+          <form onSubmit={handleSubmit} className="flex items-center space-x-3 ml-14">
             <input
               type="text"
               value={userInput}
