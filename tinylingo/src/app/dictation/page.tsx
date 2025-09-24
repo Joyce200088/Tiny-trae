@@ -164,22 +164,22 @@ export default function DictationPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        {/* Sticker image and Chinese word */}
-        <div className="flex flex-col items-center mb-8">
-          {/* Sticker image */}
+      <div className="flex-1 flex flex-col items-center justify-start px-4 pt-8 pb-4">
+        {/* Fixed height image area */}
+        <div className="w-45 h-45 mb-3 flex items-center justify-center">
           {currentStickerImage && (
-            <div className="mb-2">
-              <img 
-                src={`/${currentStickerImage}`}
-                alt={currentWord.english}
-                className="w-45 h-45 object-contain"
-              />
-            </div>
+            <img 
+              src={`/${currentStickerImage}`}
+              alt={currentWord.english}
+              className="w-45 h-45 object-contain"
+            />
           )}
-          
+        </div>
+        
+        {/* Content area with fixed positioning */}
+        <div className="flex flex-col items-center mb-6">
           {/* Chinese word */}
-          <div className="mb-2 h-12 flex items-center">
+          <div className="mb-3 h-10 flex items-center">
             {!hideChinese && (
               <h1 className="text-3xl font-bold text-gray-900">
                 {currentWord.chinese}
@@ -202,7 +202,7 @@ export default function DictationPage() {
         </div>
 
         {/* Input form */}
-        <div className="w-full max-w-md mb-8 flex justify-center">
+        <div className="w-full max-w-md mb-6 flex justify-center">
           <form onSubmit={handleSubmit} className="flex items-center space-x-3">
             <input
               type="text"
@@ -226,7 +226,7 @@ export default function DictationPage() {
         {/* Progress and instructions */}
         <div className="w-full max-w-md text-center">
           {/* Progress bar */}
-          <div className="mb-4">
+          <div className="mb-3">
             <div className="w-4/5 mx-auto">
               <div className="flex justify-between text-sm text-gray-600 mb-2">
                 <span>进度</span>
