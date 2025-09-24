@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X } from 'lucide-react';
+import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X, Play, Pause, RotateCcw } from 'lucide-react';
 
 
 
@@ -59,18 +59,87 @@ export default function DictationPage() {
     return imageMap[englishWord.toLowerCase()] || null;
   };
    
-   const router = useRouter();
-   const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [progress, setProgress] = useState(0);
   const [hideChinese, setHideChinese] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // 添加发音类型状态 (0: 美音, 1: 英音)
+  const [pronunciationType, setPronunciationType] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 音频相关的refs
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const nextAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentWord = mockWords[currentWordIndex];
   const previousWord = currentWordIndex > 0 ? mockWords[currentWordIndex - 1] : null;
+  const nextWord = currentWordIndex < mockWords.length - 1 ? mockWords[currentWordIndex + 1] : null;
   const currentStickerImage = getStickerImage(currentWord.english);
+
+  // 生成有道词典音频URL
+  const getYoudaoAudioUrl = (word: string, type: number = 0) => {
+    return `http://dict.youdao.com/dictvoice?type=${type}&audio=${encodeURIComponent(word)}`;
+  };
+
+  // 音频播放函数
+  const playAudio = async () => {
+    if (!audioRef.current) return;
+    
+    try {
+      setIsLoading(true);
+      setIsPlaying(true);
+      await audioRef.current.play();
+    } catch (error) {
+      console.error('音频播放失败:', error);
+      setIsPlaying(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 暂停音频
+  const pauseAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  // 重播音频
+  const replayAudio = async () => {
+    if (!audioRef.current) return;
+    
+    try {
+      audioRef.current.currentTime = 0;
+      setIsLoading(true);
+      setIsPlaying(true);
+      await audioRef.current.play();
+    } catch (error) {
+      console.error('音频重播失败:', error);
+      setIsPlaying(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 预加载下一个音频
+  const preloadNextAudio = () => {
+    if (nextWord && nextAudioRef.current) {
+      nextAudioRef.current.src = getYoudaoAudioUrl(nextWord.english, pronunciationType);
+      nextAudioRef.current.load();
+      // 预加载前几秒
+      nextAudioRef.current.addEventListener('canplaythrough', () => {
+        if (nextAudioRef.current) {
+          nextAudioRef.current.currentTime = 0;
+        }
+      }, { once: true });
+    }
+  };
 
 
 
@@ -78,19 +147,63 @@ export default function DictationPage() {
 
   useEffect(() => {
     setProgress(((currentWordIndex + 1) / mockWords.length) * 100);
-  }, [currentWordIndex]);
+    
+    // 初始化当前音频
+    if (audioRef.current) {
+      audioRef.current.src = getYoudaoAudioUrl(currentWord.english, pronunciationType);
+      audioRef.current.load();
+      
+      // 音频加载完成后自动播放
+      const handleCanPlay = () => {
+        playAudio();
+      };
+      
+      // 音频播放结束时的处理
+      const handleEnded = () => {
+        setIsPlaying(false);
+      };
+      
+      audioRef.current.addEventListener('canplaythrough', handleCanPlay);
+      audioRef.current.addEventListener('ended', handleEnded);
+      
+      // 清理事件监听器
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.removeEventListener('canplaythrough', handleCanPlay);
+          audioRef.current.removeEventListener('ended', handleEnded);
+        }
+      };
+    }
+    
+    // 预加载下一个音频
+    preloadNextAudio();
+  }, [currentWordIndex, pronunciationType]);
 
   const handlePreviousWord = () => {
     if (currentWordIndex > 0) {
+      // 停止当前音频
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+      
       setCurrentWordIndex(currentWordIndex - 1);
       setUserInput('');
+      // 音频会在useEffect中自动播放
     }
   };
 
   const handleNextWord = () => {
     if (currentWordIndex < mockWords.length - 1) {
+      // 停止当前音频
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+      
       setCurrentWordIndex(currentWordIndex + 1);
       setUserInput('');
+      // 音频会在useEffect中自动播放
     }
   };
 
@@ -164,7 +277,7 @@ export default function DictationPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-start px-4 pt-8 pb-4">
+      <div className="flex-1 flex flex-col items-center justify-start px-4 pt-0 pb-4">
         {/* Fixed height image area */}
         <div className="w-45 h-45 mb-3 flex items-center justify-center">
           {currentStickerImage && (
@@ -188,7 +301,7 @@ export default function DictationPage() {
           </div>
           
           {/* Pronunciation and part of speech */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 mb-4">
             <div className="text-lg text-gray-600">
               {currentWord.pronunciation}
             </div>
@@ -198,6 +311,43 @@ export default function DictationPage() {
             >
               {currentWord.partOfSpeech}
             </span>
+          </div>
+          
+          {/* Audio controls */}
+          <div className="flex items-center justify-center space-x-3 mb-2">
+            <button
+              onClick={isPlaying ? pauseAudio : playAudio}
+              disabled={isLoading}
+              className="p-3 text-gray-800 rounded-full hover:opacity-80 transition-colors flex items-center justify-center disabled:opacity-50"
+              style={{ backgroundColor: '#FAF4ED' }}
+              title={isPlaying ? "暂停播放" : "播放音频"}
+            >
+              {isLoading ? (
+                <Volume2 className="w-5 h-5 animate-pulse" />
+              ) : isPlaying ? (
+                <Pause className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5" />
+              )}
+            </button>
+            <button
+              onClick={replayAudio}
+              disabled={isLoading}
+              className="p-3 text-gray-800 rounded-full hover:opacity-80 transition-colors flex items-center justify-center disabled:opacity-50"
+              style={{ backgroundColor: '#FAF4ED' }}
+              title="重播音频"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+            {/* 发音类型切换按钮 */}
+            <button
+              onClick={() => setPronunciationType(pronunciationType === 0 ? 1 : 0)}
+              className="px-3 py-2 text-sm text-gray-800 rounded-full hover:opacity-80 transition-colors"
+              style={{ backgroundColor: '#FAF4ED' }}
+              title={pronunciationType === 0 ? "切换到英音" : "切换到美音"}
+            >
+              {pronunciationType === 0 ? "美音" : "英音"}
+            </button>
           </div>
         </div>
 
@@ -280,6 +430,10 @@ export default function DictationPage() {
           </div>
         </div>
       )}
+      
+      {/* Audio elements */}
+      <audio ref={audioRef} preload="auto" />
+      <audio ref={nextAudioRef} preload="auto" />
     </div>
   );
 }
