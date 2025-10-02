@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试背景去除API</title>
+</head>
+<body>
+    <h1>测试背景去除API</h1>
+    
+    <div>
+        <h2>1. 测试Next.js API路由</h2>
+        <input type="file" id="fileInput1" accept="image/*">
+        <button onclick="testNextjsAPI()">测试 /api/bg/remove</button>
+        <div id="result1"></div>
+    </div>
+    
+    <div>
+        <h2>2. 测试Python服务直接调用</h2>
+        <input type="file" id="fileInput2" accept="image/*">
+        <button onclick="testPythonService()">测试 Python服务</button>
+        <div id="result2"></div>
+    </div>
+
+    <script>
+        async function testNextjsAPI() {
+            const fileInput = document.getElementById('fileInput1');
+            const result = document.getElementById('result1');
+            
+            if (!fileInput.files[0]) {
+                result.innerHTML = '<p style="color: red;">请选择一个图片文件</p>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                result.innerHTML = '<p>正在处理...</p>';
+                const response = await fetch('/api/bg/remove', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    result.innerHTML = `<p style="color: green;">成功！</p><img src="${url}" style="max-width: 300px;">`;
+                } else {
+                    const errorText = await response.text();
+                    result.innerHTML = `<p style="color: red;">错误: ${response.status} - ${errorText}</p>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<p style="color: red;">请求失败: ${error.message}</p>`;
+            }
+        }
+        
+        async function testPythonService() {
+            const fileInput = document.getElementById('fileInput2');
+            const result = document.getElementById('result2');
+            
+            if (!fileInput.files[0]) {
+                result.innerHTML = '<p style="color: red;">请选择一个图片文件</p>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                result.innerHTML = '<p>正在处理...</p>';
+                const response = await fetch('http://localhost:8000/remove-background', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    result.innerHTML = `<p style="color: green;">成功！</p><img src="${url}" style="max-width: 300px;">`;
+                } else {
+                    const errorText = await response.text();
+                    result.innerHTML = `<p style="color: red;">错误: ${response.status} - ${errorText}</p>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<p style="color: red;">请求失败: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

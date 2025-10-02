@@ -337,8 +337,7 @@ function StickerDetailModal({
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
-      size="lg" 
-      className="bg-[#FFFBF5] max-h-[90vh] max-w-[80vw] flex flex-col"
+      className="bg-[#FFFBF5] max-h-[92vh] w-[1200px] flex flex-col"
       showCloseButton={false}
     >
       {/* 导航按钮 - 移动到顶部 */}
@@ -380,9 +379,9 @@ function StickerDetailModal({
         <div className="h-full p-4">
           <div className="flex gap-6 h-full">
             {/* 左侧 - 物品图、英文、中文、音标和发音 */}
-            <div className="flex-shrink-0 w-80 h-130 border border-black rounded-lg relative flex flex-col">
+            <div className="flex-shrink-0 w-80 h-120 border border-black rounded-lg relative flex flex-col">
               {/* 物品图片容器 - 包含图片 */}
-              <div className="w-full h-66 rounded-t-lg flex flex-col overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
+              <div className="w-full h-60 rounded-t-lg flex flex-col overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
               
               {/* 图片区域 */}
               <div className="flex-1 flex items-center justify-center p-4 relative">
@@ -391,7 +390,7 @@ function StickerDetailModal({
                     src={sticker.imageUrl || sticker.thumbnailUrl}
                     alt={sticker.name}
                     className="max-w-full max-h-full object-contain rounded-lg"
-                    style={{ width: '220px', height: '220px' }}
+                    style={{ width: '230px', height: '230px' }}
                   />
                 ) : (
                   <div className="text-gray-400 text-center">
@@ -408,7 +407,7 @@ function StickerDetailModal({
                       generateAiSuggestions();
                     }
                   }}
-                  className="absolute bottom-2 right-2 w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-20"
+                  className="absolute bottom-8 right-2 w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-20"
                   title="AI生成建议"
                 >
                   <Sparkles className="w-6 h-6" />
@@ -442,7 +441,7 @@ function StickerDetailModal({
                 <button
                   onClick={() => playAudio(sticker.name)}
                   disabled={isPlaying}
-                  className="flex items-center justify-center w-14 h-10 text-gray-800 rounded-lg hover:opacity-80 disabled:opacity-50 transition-colors"
+                  className="flex items-center justify-center w-12 h-8 text-gray-800 rounded-lg hover:opacity-80 disabled:opacity-50 transition-colors"
                   style={{ backgroundColor: '#FAF4ED' }}
                 >
                   <Volume2 className="w-4 h-4" />
@@ -450,7 +449,7 @@ function StickerDetailModal({
                 
                 {/* 词性标签 */}
                 {sticker.partOfSpeech && (
-                  <div className="px-2 py-2 text-gray-800 text-sm font-medium rounded-lg w-14 h-10 flex items-center justify-center"
+                  <div className="px-2 py-2 text-gray-800 text-sm font-medium rounded-lg w-12 h-8 flex items-center justify-center"
                        style={{ backgroundColor: '#FAF4ED' }}>
                     {sticker.partOfSpeech === 'noun' ? '名词' : 
                      sticker.partOfSpeech === 'verb' ? '动词' : 
@@ -523,7 +522,7 @@ function StickerDetailModal({
             </div>
 
             {/* 右侧 - 例句、备注、巧记方法、标签、相关词 */}
-            <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(82vh-20px)]">
               <div className="space-y-4">
             {/* 例句 */}
             <div className="space-y-2">

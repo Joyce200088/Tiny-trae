@@ -21,10 +21,10 @@ const Modal: React.FC<ModalProps> = ({
   showCloseButton = true
 }) => {
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-2xl',
-    lg: 'max-w-4xl',
-    xl: 'max-w-6xl',
+    sm: 'max-w-[80vw]',
+    md: 'max-w-[80vw]',
+    lg: 'max-w-[80vw]',
+    xl: 'max-w-[80vw]',
     full: 'w-11/12 h-5/6'
   };
 
@@ -57,11 +57,11 @@ const Modal: React.FC<ModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 pl-4 pr-4 py-4"
       onClick={onClose}
     >
       <div 
-        className={`bg-white rounded-lg shadow-xl ${sizeClasses[size]} flex flex-col overflow-hidden ${className}`}
+        className={`bg-white rounded-lg shadow-xl ${size ? sizeClasses[size] : ''} flex flex-col overflow-hidden ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}

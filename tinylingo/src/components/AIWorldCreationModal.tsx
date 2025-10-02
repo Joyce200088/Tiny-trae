@@ -65,6 +65,13 @@ interface GeneratedSticker {
   tags: string[];
   isSelected: boolean;
   generationStatus: 'pending' | 'generating' | 'completed' | 'error';
+  // 添加AI智能建议相关字段
+  masteryStatus?: 'unfamiliar' | 'vague' | 'mastered';
+  relatedWords?: Array<{
+    word: string;
+    chinese: string;
+    partOfSpeech: 'noun' | 'verb' | 'adjective' | 'adverb';
+  }>;
 }
 
 // 模拟场景数据
@@ -325,22 +332,45 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           selectedViewpoint
         );
 
+        // 自动调用AI智能建议功能，获取详细的单词信息
+        let detailedWordInfo = null;
+        try {
+          console.log('开始生成单词详情信息:', word.word);
+          const { analyzeWordWithGemini } = await import('@/lib/gemini');
+          detailedWordInfo = await analyzeWordWithGemini({
+            word: stickerInfo.word,
+            currentData: {
+              chinese: stickerInfo.translation,
+              pronunciation: stickerInfo.pronunciation,
+              examples: stickerInfo.examples,
+              mnemonic: stickerInfo.description,
+              partOfSpeech: 'noun'
+            }
+          });
+          console.log('单词详情信息生成成功');
+        } catch (detailError) {
+          console.warn('单词详情信息生成失败，使用基础信息:', detailError);
+        }
+
         const generatedSticker: GeneratedSticker = {
           id: word.id,
           word: stickerInfo.word,
-          chinese: stickerInfo.translation,
+          chinese: detailedWordInfo?.cn || stickerInfo.translation,
           imageUrl: imageUrl,
           thumbnailUrl: imageUrl,
           difficulty: stickerInfo.difficulty === 'beginner' ? 'A1' : 
                      stickerInfo.difficulty === 'intermediate' ? 'B1' : 'B2',
           category: word.category,
-          partOfSpeech: 'noun',
-          pronunciation: stickerInfo.pronunciation,
-          examples: stickerInfo.examples,
-          mnemonic: [stickerInfo.description],
-          tags: stickerInfo.tags,
+          partOfSpeech: detailedWordInfo?.pos || 'noun',
+          pronunciation: detailedWordInfo?.audio || stickerInfo.pronunciation,
+          examples: detailedWordInfo?.examples || stickerInfo.examples,
+          mnemonic: detailedWordInfo?.mnemonic ? [detailedWordInfo.mnemonic] : [stickerInfo.description],
+          tags: stickerInfo.tags, // 保持原有标签，不自动生成
           isSelected: true,
-          generationStatus: 'completed'
+          generationStatus: 'completed',
+          // 掌握状态不自动生成，保持默认值让用户选择
+          masteryStatus: 'unfamiliar', // 固定为初始状态
+          relatedWords: detailedWordInfo?.relatedWords || [] // 自动生成相关词汇
         };
 
         // 更新生成完成的贴纸
@@ -386,7 +416,10 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           mnemonic: [`${word.word} 记忆方法：联想${word.chinese}的特点`],
           tags: ['AI-generated', word.category],
           isSelected: true,
-          generationStatus: 'completed'
+          generationStatus: 'completed',
+          // 添加AI智能建议的默认字段
+          masteryStatus: 'unfamiliar',
+          relatedWords: []
         };
 
         setGeneratedStickers(prev => prev.map(sticker => 
@@ -437,20 +470,20 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
     // 将GeneratedSticker转换为StickerData格式
     const stickerData: StickerData = {
       id: sticker.id,
-      word: sticker.word,
+      name: sticker.word, // StickerData使用name字段
       chinese: sticker.chinese,
+      phonetic: sticker.pronunciation, // StickerData使用phonetic字段
       imageUrl: sticker.imageUrl,
       thumbnailUrl: sticker.thumbnailUrl,
-      difficulty: sticker.difficulty,
       category: sticker.category,
       partOfSpeech: sticker.partOfSpeech,
-      pronunciation: sticker.pronunciation,
       examples: sticker.examples,
       mnemonic: sticker.mnemonic,
       tags: sticker.tags,
-      masteryStatus: 'not_started' as MasteryStatus,
+      masteryStatus: 'unfamiliar', // 固定为初始状态，让用户选择
+      relatedWords: sticker.relatedWords || [], // 使用AI生成的相关词汇
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      sorted: false,
       notes: ''
     };
     
@@ -515,7 +548,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
       const blob = await response.blob();
       console.log('图片blob大小:', blob.size, 'bytes, 类型:', blob.type);
       
-      const file = new File([blob], `${sticker.word}-image.png`, { type: 'image/png' });
+      const file = new File([blob], `${sticker.word}-image.png`, { type: blob.type || 'image/png' });
 
       // 调用背景去除API
       const formData = new FormData();
@@ -580,8 +613,8 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 pl-4 pr-4 py-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center space-x-3">
@@ -602,7 +635,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
         </div>
 
         {/* Progress Steps */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
@@ -629,7 +662,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6">
           {/* 错误提示 */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -953,7 +986,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+        <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               {currentStep > 1 && (
@@ -979,20 +1012,20 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
         sticker={selectedSticker}
         stickers={generatedStickers.filter(s => s.generationStatus === 'completed').map(s => ({
           id: s.id,
-          word: s.word,
+          name: s.word, // StickerData使用name字段而不是word
           chinese: s.chinese,
+          phonetic: s.pronunciation, // StickerData使用phonetic字段
           imageUrl: s.imageUrl,
           thumbnailUrl: s.thumbnailUrl,
-          difficulty: s.difficulty,
           category: s.category,
           partOfSpeech: s.partOfSpeech,
-          pronunciation: s.pronunciation,
           examples: s.examples,
           mnemonic: s.mnemonic,
           tags: s.tags,
-          masteryStatus: 'not_started' as MasteryStatus,
+          masteryStatus: 'unfamiliar', // 固定为初始状态，让用户选择
+          relatedWords: s.relatedWords || [], // 使用AI生成的相关词汇
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          sorted: false,
           notes: ''
         }))}
         isOpen={isModalOpen}
