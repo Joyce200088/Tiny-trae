@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Volume2, ChevronLeft, ChevronRight, Tag, ChevronDown, ChevronUp } from 'lucide-react';
+import { Volume2, ChevronLeft, ChevronRight, Tag, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { StickerData } from '@/types/sticker';
 import { Modal, Button } from '@/components/ui';
 
@@ -156,26 +156,72 @@ function StickerDetailModal({
       onClose={onClose} 
       size="xl" 
       className="bg-[#FFFBF5]"
-      showCloseButton={true}
+      showCloseButton={false}
     >
+      {/* 导航按钮 - 移动到顶部 */}
+      {stickers.length > 1 && (
+        <div className="flex-shrink-0 flex items-center px-6 py-3 border-b border-gray-200" style={{ backgroundColor: '#FAF4ED' }}>
+          <Button
+            onClick={goToPrevious}
+            variant="ghost"
+            className="flex items-center space-x-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>上一个</span>
+          </Button>
+          
+          <div className="flex-1 text-center">
+            <div className="text-sm text-gray-500 font-medium mb-1">
+              {currentIndex + 1} / {stickers.length}
+            </div>
+            <div className="text-xs text-gray-400">
+              使用 ← → 键导航，空格键播放发音，ESC 键关闭
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-1 ml-12">
+            <Button
+              onClick={goToNext}
+              variant="ghost"
+              className="flex items-center gap-1 px-2 py-1 text-sm"
+            >
+              <span>下一个</span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              className="flex items-center px-1 py-1"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="flex gap-8 h-full">
           {/* 左侧 - 物品图、英文、中文、音标和发音 */}
           <div className="flex-shrink-0 w-90 border border-black rounded-lg">
-            {/* 物品图片 */}
-            <div className="w-full h-60 rounded-t-lg flex items-center justify-center overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
-              {sticker.imageUrl || sticker.thumbnailUrl ? (
-                <img
-                  src={sticker.imageUrl || sticker.thumbnailUrl}
-                  alt={sticker.name}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="text-gray-400 text-center">
-                  <div className="text-4xl mb-2">📷</div>
-                  <div>暂无图片</div>
-                </div>
-              )}
+            {/* 物品图片容器 - 包含图片和掌握状态 */}
+            <div className="w-full h-68 rounded-t-lg flex flex-col overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
+              {/* 图片区域 */}
+              <div className="flex-1 flex items-center justify-center p-4">
+                {sticker.imageUrl || sticker.thumbnailUrl ? (
+                  <img
+                    src={sticker.imageUrl || sticker.thumbnailUrl}
+                    alt={sticker.name}
+                    className="max-w-full max-h-full object-contain rounded-lg"
+                    style={{ width: '200px', height: '200px' }}
+                  />
+                ) : (
+                  <div className="text-gray-400 text-center">
+                    <div className="text-4xl mb-2">📷</div>
+                    <div>暂无图片</div>
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* 内容区域 */}
@@ -204,15 +250,14 @@ function StickerDetailModal({
                 <button
                   onClick={() => playAudio(sticker.name)}
                   disabled={isPlaying}
-                  className="flex items-center space-x-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors shadow-md"
+                  className="flex items-center justify-center w-16 h-10 bg-black text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors shadow-md"
                 >
-                  <Volume2 className="w-5 h-5" />
-                  <span>{isPlaying ? '播放中...' : '播放发音'}</span>
+                  <Volume2 className="w-4 h-4" />
                 </button>
                 
                 {/* 词性标签 */}
                 {sticker.partOfSpeech && (
-                  <div className="px-3 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg border border-green-200">
+                  <div className="px-3 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg border border-green-200 w-16 h-10 flex items-center justify-center">
                     {sticker.partOfSpeech === 'noun' ? '名词' : 
                      sticker.partOfSpeech === 'verb' ? '动词' : 
                      sticker.partOfSpeech === 'adjective' ? '形容词' : 
@@ -347,38 +392,6 @@ function StickerDetailModal({
             </div>
           </div>
         </div>
-
-        {/* 导航按钮 - 固定在底部 */}
-        {stickers.length > 1 && (
-          <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-t border-gray-200" style={{ backgroundColor: '#FAF4ED' }}>
-            <Button
-              onClick={goToPrevious}
-              variant="ghost"
-              className="flex items-center space-x-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span>上一个</span>
-            </Button>
-            
-            <div className="text-center">
-              <div className="text-sm text-gray-500 font-medium mb-1">
-                {currentIndex + 1} / {stickers.length}
-              </div>
-              <div className="text-xs text-gray-400">
-                使用 ← → 键导航，空格键播放发音，ESC 键关闭
-              </div>
-            </div>
-            
-            <Button
-              onClick={goToNext}
-              variant="ghost"
-              className="flex items-center space-x-2"
-            >
-              <span>下一个</span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
       </div>
     </Modal>
   );
