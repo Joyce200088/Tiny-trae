@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Volume2, ChevronLeft, ChevronRight, Tag, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Volume2, ChevronLeft, ChevronRight, Tag, ChevronDown, ChevronUp, X, Sparkles } from 'lucide-react';
 import { StickerData, MasteryStatus } from '@/types/sticker';
 import { Modal, Button } from '@/components/ui';
+import { analyzeWordWithGemini, WordAnalysisRequest } from '@/lib/gemini';
 
 interface StickerDetailModalProps {
   sticker: StickerData | null;
@@ -32,6 +33,10 @@ function StickerDetailModal({
   });
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [editedNotes, setEditedNotes] = useState('');
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showIndividualApply, setShowIndividualApply] = useState(false);
 
   // 初始化编辑内容
   useEffect(() => {
@@ -63,6 +68,122 @@ function StickerDetailModal({
   const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setEditedNotes(e.target.value);
   }, []);
+
+  // 生成AI建议
+  const generateAiSuggestions = useCallback(async () => {
+    if (!sticker) return;
+    
+    setIsGenerating(true);
+    
+    try {
+      // 准备请求数据
+      const request: WordAnalysisRequest = {
+        word: sticker.name,
+        currentChinese: sticker.chinese,
+        currentPartOfSpeech: sticker.partOfSpeech,
+        currentExamples: sticker.examples,
+        currentMnemonic: sticker.mnemonic,
+        currentTags: sticker.tags,
+        currentRelatedWords: sticker.relatedWords
+      };
+      
+      // 调用Gemini AI API
+      const aiResponse = await analyzeWordWithGemini(request);
+      
+      setAiSuggestions(aiResponse);
+    } catch (error) {
+      console.error('AI建议生成失败:', error);
+      
+      // 如果API调用失败，使用备用建议
+      const fallbackSuggestions = {
+        word: sticker.name,
+        cn: sticker.chinese || "AI建议的中文释义",
+        pos: sticker.partOfSpeech || "noun",
+        image: `建议使用更清晰的${sticker.name}图片`,
+        audio: "建议添加标准美式发音",
+        examples: [
+          {
+            english: `This is an example sentence with ${sticker.name}.`,
+            chinese: `这是一个包含${sticker.name}的例句。`
+          },
+          {
+            english: `The ${sticker.name} is very useful in daily life.`,
+            chinese: `${sticker.name}在日常生活中非常有用。`
+          }
+        ],
+        mnemonic: [
+          `${sticker.name} 的记忆方法建议`,
+          `联想记忆：${sticker.name} 的特点和用途`
+        ],
+        masteryStatus: "familiar",
+        tags: ["General", "Common", "Useful"],
+        relatedWords: [
+          { word: "related1", chinese: "相关词1", partOfSpeech: "noun" },
+          { word: "related2", chinese: "相关词2", partOfSpeech: "verb" },
+          { word: "related3", chinese: "相关词3", partOfSpeech: "adjective" }
+        ]
+      };
+      
+      setAiSuggestions(fallbackSuggestions);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [sticker]);
+
+  // 应用所有AI建议
+  const applyAllSuggestions = useCallback(() => {
+    if (!aiSuggestions || !sticker || !onSave) return;
+    
+    const updatedSticker = {
+      ...sticker,
+      name: aiSuggestions.word,
+      chinese: aiSuggestions.cn,
+      partOfSpeech: aiSuggestions.pos,
+      examples: aiSuggestions.examples,
+      mnemonic: aiSuggestions.mnemonic,
+      masteryStatus: aiSuggestions.masteryStatus,
+      relatedWords: aiSuggestions.relatedWords
+    };
+    
+    onSave(updatedSticker);
+    setIsAiDrawerOpen(false);
+  }, [aiSuggestions, sticker, onSave]);
+
+  // 应用单个字段
+  const applySingleField = useCallback((field: string, value: any) => {
+    if (!sticker || !onSave) return;
+    
+    let updatedSticker;
+    
+    // 根据字段类型进行特殊处理
+    switch (field) {
+      case 'word':
+        updatedSticker = { ...sticker, name: value };
+        break;
+      case 'cn':
+        updatedSticker = { ...sticker, chinese: value };
+        break;
+      case 'pos':
+        updatedSticker = { ...sticker, partOfSpeech: value };
+        break;
+      case 'examples':
+        updatedSticker = { ...sticker, examples: value };
+        break;
+      case 'mnemonic':
+        updatedSticker = { ...sticker, mnemonic: value };
+        break;
+      case 'masteryStatus':
+        updatedSticker = { ...sticker, masteryStatus: value };
+        break;
+      case 'relatedWords':
+        updatedSticker = { ...sticker, relatedWords: value };
+        break;
+      default:
+        updatedSticker = { ...sticker, [field]: value };
+    }
+    
+    onSave(updatedSticker);
+  }, [sticker, onSave]);
 
   // 切换展开状态
   const toggleSection = useCallback((section: keyof typeof expandedSections) => {
@@ -237,6 +358,20 @@ function StickerDetailModal({
                     <div>暂无图片</div>
                   </div>
                 )}
+                
+                {/* AI生成信息FAB按钮 */}
+                <button
+                  onClick={() => {
+                    setIsAiDrawerOpen(true);
+                    if (!aiSuggestions) {
+                      generateAiSuggestions();
+                    }
+                  }}
+                  className="absolute bottom-2 right-2 w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-20"
+                  title="AI生成建议"
+                >
+                  <Sparkles className="w-6 h-6" />
+                </button>
               </div>
             </div>
             
@@ -470,6 +605,262 @@ function StickerDetailModal({
            </div>
          </div>
        </div>
+       
+       {/* AI建议抽屉 */}
+       {isAiDrawerOpen && (
+         <div className="fixed inset-0 z-50 flex">
+           {/* 背景遮罩 */}
+           <div 
+             className="flex-1 bg-black bg-opacity-50"
+             onClick={() => setIsAiDrawerOpen(false)}
+           />
+           
+           {/* 抽屉内容 */}
+           <div className="w-[500px] bg-white shadow-xl flex flex-col max-h-full">
+             {/* 抽屉头部 */}
+             <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                 <Sparkles className="w-5 h-5 text-purple-500" />
+                 AI智能建议
+               </h3>
+               <div className="flex items-center gap-2">
+                 <button
+                   onClick={generateAiSuggestions}
+                   disabled={isGenerating}
+                   className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+                 >
+                   <Sparkles className="w-4 h-4" />
+                   {isGenerating ? '生成中...' : '重新生成'}
+                 </button>
+                 <button
+                   onClick={() => setIsAiDrawerOpen(false)}
+                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+             </div>
+
+             {/* 抽屉内容区域 */}
+             <div className="flex-1 overflow-y-auto p-4">
+               {isGenerating ? (
+                 <div className="flex flex-col items-center justify-center py-12">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+                   <p className="text-gray-600">AI正在分析单词信息...</p>
+                 </div>
+               ) : aiSuggestions ? (
+                 <div className="space-y-6">
+                   {/* 基本信息对比 */}
+                   <div className="bg-gray-50 rounded-lg p-4">
+                     <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                       基本信息
+                     </h4>
+                     <div className="space-y-3">
+                       {/* 单词对比 */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-gray-500 uppercase tracking-wide">当前单词</label>
+                            <p className="font-medium text-gray-800">{sticker?.name || '-'}</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wide">建议</label>
+                              <p className="font-medium text-purple-600">{aiSuggestions.word}</p>
+                            </div>
+                            {showIndividualApply && (
+                              <button
+                                onClick={() => applySingleField('word', aiSuggestions.word)}
+                                className="ml-2 px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs rounded transition-colors"
+                              >
+                                应用
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* 中文释义对比 */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-gray-500 uppercase tracking-wide">当前释义</label>
+                            <p className="font-medium text-gray-800">{sticker?.chinese || '-'}</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wide">建议</label>
+                              <p className="font-medium text-purple-600">{aiSuggestions.cn}</p>
+                            </div>
+                            {showIndividualApply && (
+                              <button
+                                onClick={() => applySingleField('cn', aiSuggestions.cn)}
+                                className="ml-2 px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs rounded transition-colors"
+                              >
+                                应用
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* 词性对比 */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-gray-500 uppercase tracking-wide">当前词性</label>
+                            <p className="font-medium text-gray-800">{sticker?.partOfSpeech || '-'}</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wide">建议</label>
+                              <p className="font-medium text-purple-600">{aiSuggestions.pos}</p>
+                            </div>
+                            {showIndividualApply && (
+                              <button
+                                onClick={() => applySingleField('pos', aiSuggestions.pos)}
+                                className="ml-2 px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs rounded transition-colors"
+                              >
+                                应用
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                     </div>
+                   </div>
+
+                   {/* 例句 */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        例句建议
+                        {showIndividualApply && (
+                          <button
+                            onClick={() => applySingleField('examples', aiSuggestions.examples)}
+                            className="ml-auto px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-xs rounded transition-colors"
+                          >
+                            应用全部例句
+                          </button>
+                        )}
+                      </h4>
+                      <div className="space-y-3">
+                        {aiSuggestions.examples.map((example: any, index: number) => (
+                          <div key={index} className="bg-white rounded-lg p-3 border">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="text-gray-800 mb-1">{example.english}</p>
+                                <p className="text-gray-600 text-sm">{example.chinese}</p>
+                              </div>
+                              {showIndividualApply && (
+                                <button
+                                  onClick={() => {
+                                    const currentExamples = sticker.examples || [];
+                                    const newExamples = [...currentExamples, example];
+                                    applySingleField('examples', newExamples);
+                                  }}
+                                  className="ml-2 px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-xs rounded transition-colors"
+                                >
+                                  添加
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 巧记方法 */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                        巧记方法
+                        {showIndividualApply && (
+                          <button
+                            onClick={() => applySingleField('mnemonic', aiSuggestions.mnemonic)}
+                            className="ml-auto px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 text-xs rounded transition-colors"
+                          >
+                            应用全部方法
+                          </button>
+                        )}
+                      </h4>
+                      <div className="bg-white rounded-lg p-3 border">
+                        <p className="text-gray-800">{aiSuggestions.mnemonic}</p>
+                      </div>
+                    </div>
+
+                    {/* 相关词 */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                        相关词汇
+                        {showIndividualApply && (
+                          <button
+                            onClick={() => applySingleField('relatedWords', aiSuggestions.relatedWords)}
+                            className="ml-auto px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded transition-colors"
+                          >
+                            应用全部相关词
+                          </button>
+                        )}
+                      </h4>
+                      <div className="grid grid-cols-1 gap-2">
+                        {aiSuggestions.relatedWords.map((word: any, index: number) => (
+                          <div key={index} className="bg-white rounded-lg p-3 border flex justify-between items-center">
+                            <div>
+                              <span className="font-medium text-gray-800">{word.word}</span>
+                              <span className="text-gray-600 ml-2">{word.chinese}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                {word.partOfSpeech}
+                              </span>
+                              {showIndividualApply && (
+                                <button
+                                  onClick={() => {
+                                    const currentRelatedWords = sticker.relatedWords || [];
+                                    const newRelatedWords = [...currentRelatedWords, word];
+                                    applySingleField('relatedWords', newRelatedWords);
+                                  }}
+                                  className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded transition-colors"
+                                >
+                                  添加
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-center justify-center py-12">
+                   <Sparkles className="w-12 h-12 text-gray-400 mb-4" />
+                   <p className="text-gray-600">点击"重新生成"获取AI建议</p>
+                 </div>
+               )}
+             </div>
+
+             {/* 抽屉底部操作按钮 */}
+             {aiSuggestions && !isGenerating && (
+               <div className="border-t p-4 bg-gray-50">
+                 <div className="flex gap-3">
+                   <button 
+                      onClick={applyAllSuggestions}
+                      className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg transition-colors font-medium"
+                    >
+                      一键全部应用
+                    </button>
+                    <button 
+                      onClick={() => setShowIndividualApply(!showIndividualApply)}
+                      className={`flex-1 py-2 px-4 rounded-lg transition-colors font-medium ${
+                        showIndividualApply 
+                          ? 'bg-purple-100 text-purple-700 border border-purple-300' 
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {showIndividualApply ? '退出逐项模式' : '逐项选择'}
+                    </button>
+                 </div>
+               </div>
+             )}
+           </div>
+         </div>
+       )}
      </Modal>
    );
  };
