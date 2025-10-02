@@ -15,6 +15,7 @@ const mockStickers: StickerData[] = [
     thumbnailUrl: '/Diving Mask.png',
     createdAt: '2024-01-15',
     sorted: true,
+    masteryStatus: 'mastered',
     notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
     mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
   },
@@ -29,6 +30,7 @@ const mockStickers: StickerData[] = [
     thumbnailUrl: '/Calendar.png',
     createdAt: '2024-01-15',
     sorted: true,
+    masteryStatus: 'vague',
     notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
     mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
   },
@@ -43,6 +45,7 @@ const mockStickers: StickerData[] = [
     thumbnailUrl: '/Industrial Shelving.png',
     createdAt: '2024-01-15',
     sorted: true,
+    masteryStatus: 'unfamiliar',
     notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
     mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
   },
@@ -57,6 +60,7 @@ const mockStickers: StickerData[] = [
     thumbnailUrl: '/Ceramic Mug.png',
     createdAt: '2024-01-15',
     sorted: true,
+    masteryStatus: 'mastered',
     notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.',
     mnemonic: 'Ceramic（陶瓷）来自希腊语keramos（陶土），Mug（马克杯）指有柄的饮用杯'
   }

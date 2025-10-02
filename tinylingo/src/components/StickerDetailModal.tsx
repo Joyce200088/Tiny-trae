@@ -37,6 +37,7 @@ function StickerDetailModal({
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showIndividualApply, setShowIndividualApply] = useState(false);
+  const [isMasteryEditing, setIsMasteryEditing] = useState(false); // 掌握状态编辑模式
 
   // 初始化编辑内容
   useEffect(() => {
@@ -115,7 +116,7 @@ function StickerDetailModal({
           `${sticker.name} 的记忆方法建议`,
           `联想记忆：${sticker.name} 的特点和用途`
         ],
-        masteryStatus: "familiar",
+        masteryStatus: "mastered",
         tags: ["General", "Common", "Useful"],
         relatedWords: [
           { word: "related1", chinese: "相关词1", partOfSpeech: "noun" },
@@ -309,14 +310,6 @@ function StickerDetailModal({
               <span>下一个</span>
               <ChevronRight className="w-4 h-4" />
             </Button>
-
-            <Button
-              onClick={onClose}
-              variant="ghost"
-              className="flex items-center px-1 py-1"
-            >
-              <X className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       )}
@@ -326,22 +319,9 @@ function StickerDetailModal({
         <div className="h-full p-4">
           <div className="flex gap-6 h-full">
             {/* 左侧 - 物品图、英文、中文、音标和发音 */}
-            <div className="flex-shrink-0 w-80 h-120 border border-black rounded-lg relative flex flex-col">
-              {/* 物品图片容器 - 包含图片和掌握状态 */}
+            <div className="flex-shrink-0 w-80 h-130 border border-black rounded-lg relative flex flex-col">
+              {/* 物品图片容器 - 包含图片 */}
               <div className="w-full h-66 rounded-t-lg flex flex-col overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
-              {/* 掌握状态Badge */}
-              {sticker.masteryStatus && (
-                <div className="absolute top-2 right-2 z-10">
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    sticker.masteryStatus === 'mastered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                    sticker.masteryStatus === 'vague' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                    'bg-red-100 text-red-800 border border-red-200'
-                  }`}>
-                    {sticker.masteryStatus === 'mastered' ? '掌握' :
-                     sticker.masteryStatus === 'vague' ? '模糊' : '陌生'}
-                  </div>
-                </div>
-              )}
               
               {/* 图片区域 */}
               <div className="flex-1 flex items-center justify-center p-4 relative">
@@ -401,14 +381,16 @@ function StickerDetailModal({
                 <button
                   onClick={() => playAudio(sticker.name)}
                   disabled={isPlaying}
-                  className="flex items-center justify-center w-14 h-10 bg-black text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors shadow-md"
+                  className="flex items-center justify-center w-14 h-10 text-gray-800 rounded-lg hover:opacity-80 disabled:opacity-50 transition-colors"
+                  style={{ backgroundColor: '#FAF4ED' }}
                 >
                   <Volume2 className="w-4 h-4" />
                 </button>
                 
                 {/* 词性标签 */}
                 {sticker.partOfSpeech && (
-                  <div className="px-2 py-2 bg-green-100 text-green-800 text-sm font-medium rounded-lg border border-green-200 w-14 h-10 flex items-center justify-center">
+                  <div className="px-2 py-2 text-gray-800 text-sm font-medium rounded-lg w-14 h-10 flex items-center justify-center"
+                       style={{ backgroundColor: '#FAF4ED' }}>
                     {sticker.partOfSpeech === 'noun' ? '名词' : 
                      sticker.partOfSpeech === 'verb' ? '动词' : 
                      sticker.partOfSpeech === 'adjective' ? '形容词' : 
@@ -419,6 +401,61 @@ function StickerDetailModal({
                      sticker.partOfSpeech === 'interjection' ? '感叹词' : 
                      sticker.partOfSpeech}
                   </div>
+                )}
+              </div>
+
+              {/* 掌握状态 */}
+              <div className="flex justify-center">
+                {isMasteryEditing ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (sticker && onSave) {
+                          onSave({ ...sticker, masteryStatus: 'unfamiliar' });
+                        }
+                        setIsMasteryEditing(false);
+                      }}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200 hover:bg-red-200 transition-colors"
+                    >
+                      陌生
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (sticker && onSave) {
+                          onSave({ ...sticker, masteryStatus: 'vague' });
+                        }
+                        setIsMasteryEditing(false);
+                      }}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-200 transition-colors"
+                    >
+                      模糊
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (sticker && onSave) {
+                          onSave({ ...sticker, masteryStatus: 'mastered' });
+                        }
+                        setIsMasteryEditing(false);
+                      }}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 hover:bg-green-200 transition-colors"
+                    >
+                      掌握
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsMasteryEditing(true)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity ${
+                      sticker.masteryStatus === 'mastered' ? 'bg-green-100 text-green-800 border border-green-200' :
+                      sticker.masteryStatus === 'vague' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                      sticker.masteryStatus === 'unfamiliar' ? 'bg-red-100 text-red-800 border border-red-200' :
+                      'bg-gray-100 text-gray-600 border border-gray-200'
+                    }`}
+                  >
+                    {sticker.masteryStatus === 'mastered' ? '掌握' :
+                     sticker.masteryStatus === 'vague' ? '模糊' :
+                     sticker.masteryStatus === 'unfamiliar' ? '陌生' : '设置掌握状态'}
+                  </button>
                 )}
               </div>
             </div>
@@ -509,21 +546,19 @@ function StickerDetailModal({
                 style={{ backgroundColor: '#FAF4ED' }}
               >
                 {sticker.mnemonic ? (
-                  <div className="text-gray-700">
-                    {Array.isArray(sticker.mnemonic) ? (
-                      <div className="space-y-2">
-                        {sticker.mnemonic.map((method, index) => (
-                          <div key={index} className="p-2 bg-white/50 rounded-md">
-                            {method}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-2 bg-white/50 rounded-md">
-                        {sticker.mnemonic}
-                      </div>
-                    )}
-                  </div>
+                  Array.isArray(sticker.mnemonic) ? (
+                    <div className="space-y-2 text-gray-700">
+                      {sticker.mnemonic.map((method, index) => (
+                        <div key={index}>
+                          {method}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-gray-700">
+                      {sticker.mnemonic}
+                    </div>
+                  )
                 ) : (
                   <div className="text-gray-400 italic">暂无巧记方法</div>
                 )}
