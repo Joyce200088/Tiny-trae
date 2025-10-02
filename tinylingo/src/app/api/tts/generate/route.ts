@@ -50,7 +50,7 @@ async function generateSpeech(request: TTSRequest): Promise<TTSResult> {
     audioUrl,
     duration,
     format: 'wav',
-    size: wavData.length
+    size: wavData.byteLength
   }
 }
 

@@ -13,7 +13,9 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'A spherical ball used in the sport of soccer (football), typically made of leather or synthetic materials with a distinctive black and white pattern.',
-      mnemonic: 'Soccer来自Association Football的缩写，Ball指球形物体'
+      mnemonic: 'Soccer来自Association Football的缩写，Ball指球形物体',
+      isCollected: false,
+      rarity: 'common'
     },
     {
       id: '2',
@@ -26,7 +28,9 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'An orange ball with distinctive lines used in basketball, designed to bounce consistently and provide good grip for players.',
-      mnemonic: 'Basket（篮子） + Ball（球） = 投入篮子的球类运动'
+      mnemonic: 'Basket（篮子） + Ball（球） = 投入篮子的球类运动',
+      isCollected: true,
+      rarity: 'common'
     },
     {
       id: '3',
@@ -39,7 +43,9 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'A racket used to hit a tennis ball, consisting of a handle and a circular frame with strings stretched across it.',
-      mnemonic: 'Tennis（网球） + Racket（球拍） = 网球运动使用的击球工具'
+      mnemonic: 'Tennis（网球） + Racket（球拍） = 网球运动使用的击球工具',
+      isCollected: false,
+      rarity: 'rare'
     },
     {
       id: '4',
@@ -52,7 +58,9 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'A large leather glove worn by baseball players to catch and field balls, with a deep pocket and webbing between fingers.',
-      mnemonic: 'Baseball（棒球） + Glove（手套） = 棒球运动中接球用的专用手套'
+      mnemonic: 'Baseball（棒球） + Glove（手套） = 棒球运动中接球用的专用手套',
+      isCollected: true,
+      rarity: 'uncommon'
     }
 ];
 
@@ -132,10 +140,16 @@ export async function POST(request: NextRequest) {
     const newSticker = {
       id: (mockStickers.length + 1).toString(),
       name,
+      chinese: '',
+      phonetic: '',
       category,
       tags: tags || [],
+      thumbnailUrl: imageUrl,
       imageUrl,
       createdAt: new Date().toISOString(),
+      sorted: false,
+      notes: '',
+      mnemonic: '',
       isCollected: true,
       rarity
     };

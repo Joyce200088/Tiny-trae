@@ -1,31 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, Download, Tag, Check, Grid, List, Plus, X, Volume2, Upload, Sparkles, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Download, Tag, Check, Plus, X, Volume2, Upload, Sparkles, Edit, Trash2, Search } from 'lucide-react';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
 import StickerDetailModal from '../../components/StickerDetailModal';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
-
-// 扩展贴纸接口，包含学习内容
-interface StickerData {
-  id: string;
-  name: string;
-  chinese?: string;
-  phonetic?: string;
-  example?: string;
-  exampleChinese?: string;
-  audioUrl?: string;
-  category: string | null;
-  partOfSpeech?: string; // 词性标签，如：noun, verb, adjective等
-  tags: string[];
-  thumbnailUrl?: string;
-  imageUrl?: string;
-  createdAt: string;
-  sorted: boolean;
-  notes?: string; // 新增备注字段
-  mnemonic?: string; // 新增巧记字段
-}
+import { StickerDataUtils } from '../../utils/stickerDataUtils';
+import { StickerData } from '@/types/sticker';
+import { SearchInput, ViewModeToggle, Button } from '@/components/ui';
+import { useLocalStorage, useDebounce, useStickerData } from '@/hooks';
 
 interface UploadedFile {
   file: File;
@@ -92,16 +76,22 @@ const mockStickers: StickerData[] = [
     }
 ];
 
-export default function MyStickers() {
-  const [activeTab, setActiveTab] = useState<'sorted' | 'unsorted'>('sorted');
+function MyStickers() {
+  // 使用自定义hooks管理状态
+  const { stickers: allStickers, loading, error, addSticker, updateSticker, deleteSticker, deleteStickers, refreshStickers } = useStickerData();
+  
+  const [activeTab, setActiveTab] = useLocalStorage<'sorted' | 'unsorted'>('my-stickers-active-tab', 'sorted');
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedTags, setSelectedTags] = useLocalStorage<string[]>('my-stickers-selected-tags', []);
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'card'>('my-stickers-view-mode', 'grid');
+  
+  // 使用防抖优化搜索
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
   const [generatedStickers, setGeneratedStickers] = useState<any[]>([]);
   const [showLearningDashboard, setShowLearningDashboard] = useState(false);
-  const [allStickers, setAllStickers] = useState<StickerData[]>(mockStickers);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -120,7 +110,7 @@ export default function MyStickers() {
   const [aiGenerationOptions, setAiGenerationOptions] = useState<ImageGenerationOptions>({
     word: '',
     description: '',
-    style: 'Cartoon',
+    style: 'cartoon',
     viewpoint: 'front'
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -148,77 +138,24 @@ export default function MyStickers() {
     }
   }, [contextMenu]);
 
-  // 从localStorage加载保存的贴纸
+  // 初始化时刷新贴纸数据
   useEffect(() => {
-    const loadSavedStickers = () => {
-      try {
-        const savedData = localStorage.getItem('myStickers');
-        if (savedData) {
-          const parsedData = JSON.parse(savedData);
-          
-          // 兼容旧格式（直接是数组）和新格式（包含deletedMockIds）
-          let userStickers: StickerData[] = [];
-          let deletedMockIds: string[] = [];
-          
-          if (Array.isArray(parsedData)) {
-            // 旧格式
-            userStickers = parsedData;
-          } else {
-            // 新格式
-            userStickers = parsedData.userStickers || [];
-            deletedMockIds = parsedData.deletedMockIds || [];
-          }
-          
-          // 过滤掉被删除的模拟数据
-          const availableMockStickers = mockStickers.filter(s => !deletedMockIds.includes(s.id));
-          
-          // 合并可用的模拟数据和用户贴纸，避免重复
-          const existingIds = new Set(availableMockStickers.map(s => s.id));
-          const newStickers = userStickers.filter(s => !existingIds.has(s.id));
-          setAllStickers([...availableMockStickers, ...newStickers]);
-        } else {
-          // 如果没有保存的数据，显示所有模拟数据
-          setAllStickers(mockStickers);
-        }
-      } catch (error) {
-        console.error('加载保存的贴纸失败:', error);
-        setAllStickers(mockStickers);
-      }
-    };
+    refreshStickers();
+  }, [refreshStickers]);
 
-    loadSavedStickers();
-    
-    // 监听localStorage变化
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'myStickers') {
-        loadSavedStickers();
-      }
-    };
+  // 使用useMemo优化过滤逻辑
+  const filteredStickers = useMemo(() => {
+    return allStickers.filter(sticker => {
+      const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
+      const matchesSearch = sticker.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+                           sticker.tags.some(tag => tag.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+      const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => sticker.tags.includes(tag));
+      return matchesTab && matchesSearch && matchesTags;
+    });
+  }, [allStickers, activeTab, debouncedSearchQuery, selectedTags]);
 
-    // 监听自定义事件，用于同一页面内的更新
-    const handleCustomStorageChange = () => {
-      loadSavedStickers();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('myStickersUpdated', handleCustomStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('myStickersUpdated', handleCustomStorageChange);
-    };
-  }, []);
-
-  const filteredStickers = allStickers.filter(sticker => {
-    const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
-    const matchesSearch = sticker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         sticker.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => sticker.tags.includes(tag));
-    return matchesTab && matchesSearch && matchesTags;
-  });
-
-  // 获取所有可用的标签
-  const getAllTags = () => {
+  // 使用useMemo优化标签计算
+  const availableTags = useMemo(() => {
     const tagSet = new Set<string>();
     
     // 只包含允许的标签
@@ -232,21 +169,33 @@ export default function MyStickers() {
       });
     });
     return Array.from(tagSet).sort();
-  };
+  }, [allStickers]);
 
-  const availableTags = getAllTags();
+  // 使用useMemo优化分组逻辑
+  const groupedStickers = useMemo(() => {
+    return activeTab === 'sorted'
+      ? filteredStickers.reduce((acc, sticker) => {
+          const category = sticker.category || 'Uncategorized';
+          if (!acc[category]) {
+            acc[category] = [];
+          }
+          acc[category].push(sticker);
+          return acc;
+        }, {} as Record<string, typeof filteredStickers>)
+      : { 'Unsorted': filteredStickers };
+  }, [activeTab, filteredStickers]);
 
-  // 处理标签选择
-  const handleTagToggle = (tag: string) => {
+  // 使用useCallback优化事件处理函数
+  const handleTagToggle = useCallback((tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag) 
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
-  };
+  }, [setSelectedTags]);
 
   // 标签管理函数
-  const handleAddTag = () => {
+  const handleAddTag = useCallback(() => {
     if (newTagName.trim() && !availableTags.includes(newTagName.trim())) {
       // 创建一个新的贴纸来包含这个标签，或者可以添加到现有贴纸
       // 这里我们先简单地添加到第一个贴纸，实际应用中可能需要更复杂的逻辑
@@ -256,86 +205,86 @@ export default function MyStickers() {
         }
         return sticker;
       });
-      setAllStickers(updatedStickers);
+      // 使用自定义hook的更新函数
+      if (updatedStickers.length > 0) {
+        updatedStickers.forEach(sticker => {
+          updateSticker(sticker.id, sticker);
+        });
+      }
       setNewTagName('');
       setShowAddTagModal(false);
     }
-  };
+  }, [newTagName, availableTags, allStickers, updateSticker]);
 
-  const handleDeleteTag = (tagToDelete: string) => {
-    const updatedStickers = allStickers.map(sticker => ({
-      ...sticker,
-      tags: sticker.tags.filter(tag => tag !== tagToDelete)
-    }));
-    setAllStickers(updatedStickers);
+  const handleDeleteTag = useCallback((tagToDelete: string) => {
+    // 批量更新所有包含该标签的贴纸
+    const stickersToUpdate = allStickers.filter(sticker => 
+      sticker.tags.includes(tagToDelete)
+    );
+    
+    stickersToUpdate.forEach(sticker => {
+      const updatedSticker = {
+        ...sticker,
+        tags: sticker.tags.filter(tag => tag !== tagToDelete)
+      };
+      updateSticker(sticker.id, updatedSticker);
+    });
+    
     setSelectedTags(prev => prev.filter(tag => tag !== tagToDelete));
     setContextMenu(null);
-  };
+  }, [allStickers, updateSticker, setSelectedTags]);
 
-  const handleEditTag = (oldName: string, newName: string) => {
+  const handleEditTag = useCallback((oldName: string, newName: string) => {
     if (newName.trim() && newName !== oldName) {
-      const updatedStickers = allStickers.map(sticker => ({
-        ...sticker,
-        tags: sticker.tags.map(tag => tag === oldName ? newName.trim() : tag)
-      }));
-      setAllStickers(updatedStickers);
+      // 批量更新所有包含该标签的贴纸
+      const stickersToUpdate = allStickers.filter(sticker => 
+        sticker.tags.includes(oldName)
+      );
+      
+      stickersToUpdate.forEach(sticker => {
+        const updatedSticker = {
+          ...sticker,
+          tags: sticker.tags.map(tag => tag === oldName ? newName.trim() : tag)
+        };
+        updateSticker(sticker.id, updatedSticker);
+      });
+      
       setSelectedTags(prev => prev.map(tag => tag === oldName ? newName.trim() : tag));
     }
     setEditingTag(null);
     setContextMenu(null);
-  };
+  }, [allStickers, updateSticker, setSelectedTags]);
 
-  const handleTagRightClick = (e: React.MouseEvent, tag: string) => {
+  const handleTagRightClick = useCallback((e: React.MouseEvent, tag: string) => {
     e.preventDefault();
     setContextMenu({
       tag,
       x: e.clientX,
       y: e.clientY
     });
-  };
+  }, []);
 
-  // 点击其他地方关闭右键菜单
-  const handleClickOutside = () => {
-    setContextMenu(null);
-    setEditingTag(null);
-  };
-
-  const handleSelectSticker = (stickerId: string) => {
+  const handleSelectSticker = useCallback((stickerId: string) => {
     setSelectedStickers(prev => 
       prev.includes(stickerId) 
         ? prev.filter(id => id !== stickerId)
         : [...prev, stickerId]
     );
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedStickers.length === filteredStickers.length) {
       setSelectedStickers([]);
     } else {
       setSelectedStickers(filteredStickers.map(s => s.id));
     }
-  };
+  }, [selectedStickers.length, filteredStickers]);
 
   // 批量删除功能
   const handleBatchDelete = () => {
     if (selectedStickers.length === 0) return;
     
-    const updatedStickers = allStickers.filter(s => !selectedStickers.includes(s.id));
-    setAllStickers(updatedStickers);
-    
-    // 分别处理模拟数据和用户保存的贴纸
-    const deletedMockIds = selectedStickers.filter(id => mockStickers.find(mock => mock.id === id));
-    const remainingUserStickers = updatedStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
-    
-    // 更新localStorage - 保存用户贴纸和被删除的模拟数据ID
-    const storageData = {
-      userStickers: remainingUserStickers,
-      deletedMockIds: deletedMockIds
-    };
-    localStorage.setItem('myStickers', JSON.stringify(storageData));
-    
-    // 触发更新事件
-    window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+    deleteStickers(selectedStickers);
     
     // 清空选中状态
     setSelectedStickers([]);
@@ -345,51 +294,10 @@ export default function MyStickers() {
     console.log(`Successfully deleted ${selectedStickers.length} stickers`);
   };
 
-  const groupedStickers = activeTab === 'sorted' 
-    ? filteredStickers.reduce((acc, sticker) => {
-        const category = sticker.category || 'Unsorted';
-        if (!acc[category]) acc[category] = [];
-        acc[category].push(sticker);
-        return acc;
-      }, {} as Record<string, typeof filteredStickers>)
-    : { 'Unsorted': filteredStickers };
-
   // 删除贴纸功能
-  const deleteSticker = (stickerId: string) => {
+  const deleteStickerHandler = (stickerId: string) => {
     if (confirm('确定要删除这个贴纸吗？')) {
-      const updatedStickers = allStickers.filter(s => s.id !== stickerId);
-      setAllStickers(updatedStickers);
-      
-      // 获取当前localStorage数据
-      const savedData = localStorage.getItem('myStickers');
-      let deletedMockIds: string[] = [];
-      let userStickers: StickerData[] = [];
-      
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        if (Array.isArray(parsedData)) {
-          userStickers = parsedData;
-        } else {
-          userStickers = parsedData.userStickers || [];
-          deletedMockIds = parsedData.deletedMockIds || [];
-        }
-      }
-      
-      // 检查删除的是否是模拟数据
-      const isMockSticker = mockStickers.find(mock => mock.id === stickerId);
-      if (isMockSticker) {
-        deletedMockIds.push(stickerId);
-      }
-      
-      // 更新用户贴纸列表
-      const remainingUserStickers = updatedStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
-      
-      // 保存更新后的数据
-      const storageData = {
-        userStickers: remainingUserStickers,
-        deletedMockIds: deletedMockIds
-      };
-      localStorage.setItem('myStickers', JSON.stringify(storageData));
+      deleteSticker(stickerId);
       
       // 从选中列表中移除
       setSelectedStickers(prev => prev.filter(id => id !== stickerId));
@@ -499,33 +407,8 @@ export default function MyStickers() {
         }
       }
       
-      // 保存到localStorage
-      const savedData = localStorage.getItem('myStickers');
-      let existingData = { userStickers: [], deletedMockIds: [] };
-      
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        if (Array.isArray(parsedData)) {
-          // 兼容旧格式
-          existingData.userStickers = parsedData;
-        } else {
-          // 新格式
-          existingData = parsedData;
-        }
-      }
-      
-      const updatedStickers = [...existingData.userStickers, ...processedStickers];
-      const updatedData = {
-        userStickers: updatedStickers,
-        deletedMockIds: existingData.deletedMockIds
-      };
-      localStorage.setItem('myStickers', JSON.stringify(updatedData));
-      
-      // 更新本地状态
-      setAllStickers(prev => [...prev, ...processedStickers]);
-      
-      // 触发更新事件
-      window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+      // 批量添加贴纸
+      processedStickers.forEach(sticker => addSticker(sticker));
       
       // 重置上传状态
       setUploadedFiles([]);
@@ -667,39 +550,14 @@ export default function MyStickers() {
           };
 
           // 保存到localStorage
-          const savedData = localStorage.getItem('myStickers');
-          let existingData = { userStickers: [], deletedMockIds: [] };
-          
-          if (savedData) {
-            const parsedData = JSON.parse(savedData);
-            if (Array.isArray(parsedData)) {
-              // 兼容旧格式
-              existingData.userStickers = parsedData;
-            } else {
-              // 新格式
-              existingData = parsedData;
-            }
-          }
-          
-          const updatedStickers = [...existingData.userStickers, newSticker];
-          const updatedData = {
-            userStickers: updatedStickers,
-            deletedMockIds: existingData.deletedMockIds
-          };
-          localStorage.setItem('myStickers', JSON.stringify(updatedData));
-
-          // 更新本地状态
-          setAllStickers(prev => [...prev, newSticker]);
-
-          // 触发更新事件
-          window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+          addSticker(newSticker);
 
           // 重置状态
           setGeneratedImage(null);
           setAiGenerationOptions({
             word: '',
             description: '',
-            style: 'Cartoon',
+            style: 'cartoon',
             viewpoint: 'front'
           });
           setShowAIGenerator(false);
@@ -723,28 +581,7 @@ export default function MyStickers() {
             sorted: false
           };
 
-          const savedData = localStorage.getItem('myStickers');
-          let existingData = { userStickers: [], deletedMockIds: [] };
-          
-          if (savedData) {
-            const parsedData = JSON.parse(savedData);
-            if (Array.isArray(parsedData)) {
-              // 兼容旧格式
-              existingData.userStickers = parsedData;
-            } else {
-              // 新格式
-              existingData = parsedData;
-            }
-          }
-          
-          const updatedStickers = [...existingData.userStickers, newSticker];
-          const updatedData = {
-            userStickers: updatedStickers,
-            deletedMockIds: existingData.deletedMockIds
-          };
-          localStorage.setItem('myStickers', JSON.stringify(updatedData));
-          setAllStickers(prev => [...prev, newSticker]);
-          window.dispatchEvent(new CustomEvent('myStickersUpdated'));
+          addSticker(newSticker);
 
           setGeneratedImage(null);
           setShowAIGenerator(false);
@@ -797,28 +634,13 @@ export default function MyStickers() {
 
   // 保存贴纸修改
   const handleSaveSticker = (updatedSticker: StickerData) => {
-    // 更新本地状态中的贴纸数据
-    const updatedAllStickers = allStickers.map(sticker => 
-      sticker.id === updatedSticker.id ? updatedSticker : sticker
-    );
-    setAllStickers(updatedAllStickers);
+    // 使用hook更新贴纸
+    updateSticker(updatedSticker.id, updatedSticker);
     
     // 更新选中的贴纸
     setSelectedSticker(updatedSticker);
     
-    // 保存到localStorage
-    try {
-      // 获取当前保存的贴纸（排除模拟数据）
-      const savedStickers = updatedAllStickers.filter(s => !mockStickers.find(mock => mock.id === s.id));
-      localStorage.setItem('myStickers', JSON.stringify(savedStickers));
-      
-      // 触发更新事件
-      window.dispatchEvent(new CustomEvent('myStickersUpdated'));
-      
-      console.log('保存贴纸成功:', updatedSticker);
-    } catch (error) {
-      console.error('保存贴纸到localStorage失败:', error);
-    }
+    console.log('保存贴纸成功:', updatedSticker);
   };
 
   return (
@@ -858,42 +680,20 @@ export default function MyStickers() {
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
+            <ViewModeToggle
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+            />
           </div>
 
           {/* Search and Actions */}
           <div className="flex items-center justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search stickers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            <SearchInput
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stickers..."
+              className="flex-1 max-w-md"
+            />
 
             {/* Batch Actions */}
             <div className="flex items-center space-x-2 ml-4">
@@ -967,7 +767,7 @@ export default function MyStickers() {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2" onClick={handleClickOutside}>
+            <div className="flex flex-wrap gap-2">
               {/* 添加标签按钮 */}
               <button
                 onClick={() => setShowAddTagModal(true)}
@@ -1084,7 +884,7 @@ export default function MyStickers() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteSticker(sticker.id);
+                          deleteStickerHandler(sticker.id);
                         }}
                         className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
                         title="Delete sticker"
@@ -1725,3 +1525,6 @@ export default function MyStickers() {
     </div>
   );
 }
+
+// 使用React.memo优化组件性能
+export default React.memo(MyStickers);

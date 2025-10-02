@@ -6,23 +6,68 @@ import useImage from 'use-image';
 import { Search, Sparkles, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, Play, Settings, X } from 'lucide-react';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 import { useSearchParams } from 'next/navigation';
+import { StickerDataUtils } from '@/utils/stickerDataUtils';
+import { StickerData } from '@/types/sticker';
 
-// 贴纸数据接口
-interface StickerData {
-  id: string;
-  name: string;
-  chinese?: string;
-  phonetic?: string;
-  category?: string;
-  partOfSpeech?: string; // 词性标签，如：noun, verb, adjective等
-  tags?: string[];
-  thumbnailUrl?: string;
-  imageUrl?: string;
-  createdAt?: string;
-  sorted?: boolean;
-  notes?: string;
-  mnemonic?: string;
-}
+// 模拟贴纸数据
+const mockStickers: StickerData[] = [
+  {
+    id: '1',
+    name: 'Diving Mask',
+    chinese: '潜水镜',
+    phonetic: '/ˈdaɪvɪŋ mæsk/',
+    category: 'Diving Equipment',
+    partOfSpeech: 'noun',
+    tags: ['Pixel', 'Ai-generated'],
+    thumbnailUrl: '/Diving Mask.png',
+    createdAt: '2024-01-15',
+    sorted: true,
+    notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
+    mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+  },
+  {
+    id: '2',
+    name: 'Calendar',
+    chinese: '日历',
+    phonetic: '/ˈkælɪndər/',
+    category: 'Daily Items',
+    partOfSpeech: 'noun',
+    tags: ['Cartoon', 'Ai-generated'],
+    thumbnailUrl: '/Calendar.png',
+    createdAt: '2024-01-15',
+    sorted: true,
+    notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
+    mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+  },
+  {
+    id: '3', 
+    name: 'Industrial Shelving',
+    chinese: '工业货架',
+    phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
+    category: 'Furniture',
+    partOfSpeech: 'noun',
+    tags: ['Cartoon', 'Ai-generated'],
+    thumbnailUrl: '/Industrial Shelving.png',
+    createdAt: '2024-01-15',
+    sorted: true,
+    notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
+    mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+  },
+  {
+    id: '4',
+    name: 'Ceramic Mug',
+    chinese: '陶瓷杯',
+    phonetic: '/səˈræmɪk mʌɡ/',
+    category: 'Kitchenware',
+    partOfSpeech: 'noun',
+    tags: ['Realistic', 'Ai-generated'],
+    thumbnailUrl: '/Ceramic Mug.png',
+    createdAt: '2024-01-15',
+    sorted: true,
+    notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.',
+    mnemonic: 'Ceramic（陶瓷）来自希腊语keramos（陶土），Mug（马克杯）指有柄的饮用杯'
+  }
+];
 
 // 模拟背景数据
 const mockBackgrounds = [
@@ -370,155 +415,12 @@ export default function CreateWorldPage() {
   // 从localStorage加载My Stickers数据的函数
   const loadMyStickers = () => {
     try {
-      const savedData = localStorage.getItem('myStickers');
-      console.log('Loading myStickers from localStorage:', savedData); // 调试日志
-      
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        console.log('Parsed myStickers data:', parsedData); // 调试日志
-        
-        // 兼容旧格式（直接是数组）和新格式（包含deletedMockIds）
-        let userStickers: StickerData[] = [];
-        let deletedMockIds: string[] = [];
-        
-        if (Array.isArray(parsedData)) {
-          // 旧格式
-          userStickers = parsedData;
-          console.log('Set myStickers (old format):', parsedData); // 调试日志
-        } else {
-          // 新格式
-          userStickers = parsedData.userStickers || [];
-          deletedMockIds = parsedData.deletedMockIds || [];
-          console.log('Set myStickers (new format):', parsedData.userStickers); // 调试日志
-        }
-        
-        // 模拟数据（与My Stickers页面保持一致）
-        const mockStickers: StickerData[] = [
-          {
-            id: '1',
-            name: 'Diving Mask',
-            chinese: '潜水镜',
-            phonetic: '/ˈdaɪvɪŋ mæsk/',
-            category: 'Diving Equipment',
-            tags: ['Pixel', 'Ai-generated'],
-            thumbnailUrl: '/Diving Mask.png',
-            createdAt: '2024-01-15',
-            sorted: true,
-            notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
-            mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
-          },
-          {
-            id: '2',
-            name: 'Calendar',
-            chinese: '日历',
-            phonetic: '/ˈkælɪndər/',
-            category: 'Daily Items',
-            tags: ['Cartoon', 'Ai-generated'],
-            thumbnailUrl: '/Calendar.png',
-            createdAt: '2024-01-15',
-            sorted: true,
-            notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
-            mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
-          },
-          {
-            id: '3', 
-            name: 'Industrial Shelving',
-            chinese: '工业货架',
-            phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
-            category: 'Furniture',
-            tags: ['Cartoon', 'Ai-generated'],
-            thumbnailUrl: '/Industrial Shelving.png',
-            createdAt: '2024-01-15',
-            sorted: true,
-            notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
-            mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
-          },
-          {
-            id: '4',
-            name: 'Ceramic Mug',
-            chinese: '陶瓷杯',
-            phonetic: '/səˈræmɪk mʌɡ/',
-            category: 'Kitchenware',
-            tags: ['Realistic', 'Ai-generated'],
-            thumbnailUrl: '/Ceramic Mug.png',
-            createdAt: '2024-01-15',
-            sorted: true,
-            notes: 'A drinking vessel made from fired clay, typically with a handle and used for hot beverages like coffee or tea.',
-            mnemonic: 'Ceramic（陶瓷的） + Mug（杯子） = 陶瓷制作的饮用杯'
-          }
-        ];
-        
-        // 过滤掉被删除的模拟数据
-        const availableMockStickers = mockStickers.filter(s => !deletedMockIds.includes(s.id));
-        
-        // 合并可用的模拟数据和用户贴纸，避免重复
-        const existingIds = new Set(availableMockStickers.map(s => s.id));
-        const newStickers = userStickers.filter(s => !existingIds.has(s.id));
-        const finalStickers = [...availableMockStickers, ...newStickers];
-        setMyStickers(finalStickers);
-        console.log('Set merged myStickers:', finalStickers); // 调试日志
-      } else {
-        console.log('No saved myStickers data, using mock data'); // 调试日志
-        // 如果没有保存的数据，显示默认模拟数据
-        const defaultStickers: StickerData[] = [
-          {
-            id: '1',
-            name: 'Diving Mask',
-            thumbnailUrl: '/Diving Mask.png',
-            category: 'Diving Equipment'
-          },
-          {
-            id: '2',
-            name: 'Calendar',
-            thumbnailUrl: '/Calendar.png',
-            category: 'Daily Items'
-          },
-          {
-            id: '3',
-            name: 'Industrial Shelving',
-            thumbnailUrl: '/Industrial Shelving.png',
-            category: 'Furniture'
-          },
-          {
-            id: '4',
-            name: 'Ceramic Mug',
-            thumbnailUrl: '/Ceramic Mug.png',
-            category: 'Kitchenware'
-          }
-        ];
-        setMyStickers(defaultStickers);
-        console.log('Set default myStickers:', defaultStickers); // 调试日志
-      }
+      const allStickers = StickerDataUtils.getAllAvailableStickers(mockStickers);
+      setMyStickers(allStickers);
+      console.log('Loaded myStickers using StickerDataUtils:', allStickers);
     } catch (error) {
-      console.error('加载My Stickers数据失败:', error);
-      // 出错时使用默认数据
-      const defaultStickers: StickerData[] = [
-        {
-          id: '1',
-          name: 'Diving Mask',
-          thumbnailUrl: '/Diving Mask.png',
-          category: 'Diving Equipment'
-        },
-        {
-          id: '2',
-          name: 'Calendar',
-          thumbnailUrl: '/Calendar.png',
-          category: 'Daily Items'
-        },
-        {
-          id: '3',
-          name: 'Industrial Shelving',
-          thumbnailUrl: '/Industrial Shelving.png',
-          category: 'Furniture'
-        },
-        {
-          id: '4',
-          name: 'Ceramic Mug',
-          thumbnailUrl: '/Ceramic Mug.png',
-          category: 'Kitchenware'
-        }
-      ];
-      setMyStickers(defaultStickers);
+      console.error('Failed to load myStickers:', error);
+      setMyStickers([]);
     }
   };
 
@@ -809,29 +711,21 @@ export default function CreateWorldPage() {
     const newStickerData: StickerData = {
       id: `ai_${Date.now()}`,
       name: aiGenerationOptions.word,
-      thumbnailUrl: imageToSave || '',
-      imageUrl: imageToSave || '',
+      chinese: '',
+      phonetic: '',
       category: 'AI Generated',
+      partOfSpeech: 'noun',
       tags: [aiGenerationOptions.style || 'cartoon', 'AI-generated'],
-      createdAt: new Date().toISOString().split('T')[0]
+      thumbnailUrl: imageToSave || '',
+      createdAt: new Date().toISOString().split('T')[0],
+      sorted: false,
+      notes: '',
+      mnemonic: ''
     };
 
     // 更新localStorage
     try {
-      const savedData = localStorage.getItem('myStickers');
-      let currentData: { userStickers: StickerData[], deletedMockIds: string[] } = { userStickers: [], deletedMockIds: [] };
-      
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        if (Array.isArray(parsedData)) {
-          currentData.userStickers = parsedData;
-        } else {
-          currentData = parsedData;
-        }
-      }
-      
-      currentData.userStickers.push(newStickerData);
-      localStorage.setItem('myStickers', JSON.stringify(currentData));
+      StickerDataUtils.addSticker(newStickerData);
       
       // 更新本地状态
       setMyStickers(prev => [...prev, newStickerData]);

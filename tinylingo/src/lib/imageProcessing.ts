@@ -5,9 +5,22 @@ export interface Point {
   y: number
 }
 
+export interface Pixel extends Point {
+  r: number
+  g: number
+  b: number
+  a: number
+}
+
 export interface ConnectedComponent {
   id: number
-  pixels: Point[]
+  pixels: Pixel[]
+  bounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
   boundingBox: {
     x: number
     y: number
@@ -29,10 +42,10 @@ export interface SegmentationOptions {
 export class ImageSegmentation {
   private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
-  private imageData: ImageData
-  private width: number
-  private height: number
-  private visited: boolean[][]
+  private imageData!: ImageData
+  private width!: number
+  private height!: number
+  private visited!: boolean[][]
   private components: ConnectedComponent[]
 
   constructor(canvas: HTMLCanvasElement) {
@@ -128,8 +141,8 @@ export class ImageSegmentation {
   /**
    * BFS算法寻找连通区域
    */
-  private bfsConnectedComponent(startX: number, startY: number, alphaThreshold: number): Point[] {
-    const component: Point[] = []
+  private bfsConnectedComponent(startX: number, startY: number, alphaThreshold: number): Pixel[] {
+    const component: Pixel[] = []
     const queue: Point[] = [{ x: startX, y: startY }]
     const directions = [
       { x: -1, y: 0 }, { x: 1, y: 0 },  // 左右
@@ -142,7 +155,8 @@ export class ImageSegmentation {
 
     while (queue.length > 0) {
       const current = queue.shift()!
-      component.push(current)
+      const [r, g, b, a] = this.getPixel(current.x, current.y)
+      component.push({ x: current.x, y: current.y, r, g, b, a })
 
       for (const dir of directions) {
         const newX = current.x + dir.x
@@ -166,7 +180,7 @@ export class ImageSegmentation {
   /**
    * 计算边界框
    */
-  private calculateBoundingBox(pixels: Point[]): ConnectedComponent['boundingBox'] {
+  private calculateBoundingBox(pixels: Pixel[]): ConnectedComponent['boundingBox'] {
     if (pixels.length === 0) {
       return { x: 0, y: 0, width: 0, height: 0 }
     }
@@ -194,7 +208,7 @@ export class ImageSegmentation {
   /**
    * 计算质心
    */
-  private calculateCentroid(pixels: Point[]): Point {
+  private calculateCentroid(pixels: Pixel[]): Point {
     if (pixels.length === 0) {
       return { x: 0, y: 0 }
     }
@@ -288,6 +302,7 @@ export class ImageSegmentation {
             const component: ConnectedComponent = {
               id: componentId++,
               pixels,
+              bounds: boundingBox,
               boundingBox,
               area: pixels.length,
               centroid,

@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { EnglishLearningContent } from '../lib/geminiService';
 import EnglishLearningCard from './EnglishLearningCard';
+import { StickerDataUtils } from '@/utils/stickerDataUtils';
+import { ViewModeToggle, Button } from '@/components/ui';
 
 interface StickerWithLearning {
   id: number;
@@ -17,7 +19,7 @@ interface LearningDashboardProps {
   onClose?: () => void;
 }
 
-const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose }) => {
+function LearningDashboard({ stickers, onClose }: LearningDashboardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'grid' | 'card'>('grid');
   const [selectedStickers, setSelectedStickers] = useState<Set<number>>(new Set());
@@ -31,10 +33,11 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
     );
   }
 
-  const currentSticker = stickers[currentIndex];
+  // 使用useMemo缓存当前贴纸
+  const currentSticker = useMemo(() => stickers[currentIndex], [stickers, currentIndex]);
 
   // 处理选择贴纸
-  const handleSelectSticker = (stickerId: number) => {
+  const handleSelectSticker = useCallback((stickerId: number) => {
     setSelectedStickers(prev => {
       const newSet = new Set(prev);
       if (newSet.has(stickerId)) {
@@ -44,19 +47,35 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
       }
       return newSet;
     });
-  };
+  }, []);
 
   // 全选/取消全选
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedStickers.size === stickers.length) {
       setSelectedStickers(new Set());
     } else {
       setSelectedStickers(new Set(stickers.map(s => s.id)));
     }
-  };
+  }, [selectedStickers.size, stickers]);
+
+  // 生成语音文件
+  const generateSpeech = useCallback(async (text: string, stickerId: number): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        utterance.onend = () => resolve();
+        utterance.onerror = () => reject(new Error('Speech synthesis failed'));
+        speechSynthesis.speak(utterance);
+      } else {
+        reject(new Error('Speech synthesis not supported'));
+      }
+    });
+  }, []);
 
   // 保存选中的贴纸到MY STICKERS
-  const saveSelectedStickers = async () => {
+  const saveSelectedStickers = useCallback(async () => {
     if (selectedStickers.size === 0) {
       alert('请先选择要保存的贴纸');
       return;
@@ -81,29 +100,9 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
       }));
 
       // 保存到localStorage (实际项目中应该调用API)
-      const savedData = localStorage.getItem('myStickers');
-      let existingData = { userStickers: [], deletedMockIds: [] };
-      
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        if (Array.isArray(parsedData)) {
-          // 兼容旧格式
-          existingData.userStickers = parsedData;
-        } else {
-          // 新格式
-          existingData = parsedData;
-        }
+      for (const sticker of stickerData) {
+        StickerDataUtils.addSticker(sticker);
       }
-      
-      const updatedStickers = [...existingData.userStickers, ...stickerData];
-      const updatedData = {
-        userStickers: updatedStickers,
-        deletedMockIds: existingData.deletedMockIds
-      };
-      localStorage.setItem('myStickers', JSON.stringify(updatedData));
-
-      // 触发自定义事件通知MY STICKERS页面更新
-      window.dispatchEvent(new CustomEvent('myStickersUpdated'));
 
       // 生成语音文件 (使用Web Speech API)
       for (const sticker of selectedStickerData) {
@@ -123,23 +122,7 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
     } finally {
       setIsSaving(false);
     }
-  };
-
-  // 生成语音文件
-  const generateSpeech = async (text: string, stickerId: number): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.8;
-        utterance.onend = () => resolve();
-        utterance.onerror = () => reject(new Error('Speech synthesis failed'));
-        speechSynthesis.speak(utterance);
-      } else {
-        reject(new Error('Speech synthesis not supported'));
-      }
-    });
-  };
+  }, [selectedStickers, stickers, generateSpeech]);
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6">
@@ -166,38 +149,25 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
 
           {/* 保存按钮 */}
           {selectedStickers.size > 0 && (
-            <button
+            <Button
               onClick={saveSelectedStickers}
               disabled={isSaving}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+              variant="primary"
+              className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400"
             >
               {isSaving ? '保存中...' : `保存到MY STICKERS (${selectedStickers.size})`}
-            </button>
+            </Button>
           )}
 
           {/* 视图切换 */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'grid' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              📱 网格视图
-            </button>
-            <button
-              onClick={() => setViewMode('card')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'card' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              📚 卡片学习
-            </button>
-          </div>
+          <ViewModeToggle
+            viewMode={viewMode}
+            onViewModeChange={(mode) => setViewMode(mode as 'grid' | 'card')}
+            options={[
+              { value: 'grid', label: '网格视图', icon: <span>📱</span> },
+              { value: 'card', label: '卡片学习', icon: <span>📚</span> }
+            ]}
+          />
 
           {/* 关闭按钮 */}
           {onClose && (
@@ -369,6 +339,16 @@ const LearningDashboard: React.FC<LearningDashboardProps> = ({ stickers, onClose
       </div>
     </div>
   );
-};
+}
 
-export default LearningDashboard;
+// 使用React.memo优化组件性能
+export default React.memo(LearningDashboard, (prevProps, nextProps) => {
+  // 自定义比较函数，只在关键props变化时重新渲染
+  return (
+    prevProps.stickers.length === nextProps.stickers.length &&
+    prevProps.stickers.every((sticker, index) => 
+      sticker.id === nextProps.stickers[index]?.id
+    ) &&
+    prevProps.onClose === nextProps.onClose
+  );
+});

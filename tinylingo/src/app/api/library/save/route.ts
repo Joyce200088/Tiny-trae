@@ -237,11 +237,11 @@ export async function POST(request: NextRequest) {
     const { savedItems, zipBuffer, zipFilename } = await saveToLibrary(body)
     
     // 返回ZIP文件
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${zipFilename}"`,
-        'Content-Length': zipBuffer.length.toString(),
+        'Content-Length': zipBuffer.byteLength.toString(),
         'X-Saved-Items': JSON.stringify({
           count: savedItems.length,
           items: savedItems.map(item => ({

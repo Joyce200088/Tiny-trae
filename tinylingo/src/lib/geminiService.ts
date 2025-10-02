@@ -314,7 +314,7 @@ async function retryApiCall<T>(
   apiCall: () => Promise<T>,
   config: RetryConfig = { maxRetries: 3, baseDelay: 1000, maxDelay: 10000 }
 ): Promise<T> {
-  let lastError: Error;
+  let lastError: Error = new Error('Unknown error');
   
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {

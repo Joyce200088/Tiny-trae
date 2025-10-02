@@ -1,4 +1,5 @@
 // TTS (Text-to-Speech) utility library with cooldown and audio management
+import { useState } from 'react';
 
 export interface TTSOptions {
   language?: string;
@@ -144,7 +145,9 @@ class TTSManager {
         // Limit cache size
         if (this.audioCache.size > 50) {
           const firstKey = this.audioCache.keys().next().value;
-          this.audioCache.delete(firstKey);
+          if (firstKey) {
+            this.audioCache.delete(firstKey);
+          }
         }
       }
 
@@ -258,8 +261,8 @@ export const getTTSCooldown = (text: string) =>
 
 // React hook for TTS functionality
 export function useTTS() {
-  const [isPlaying, setIsPlaying] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const speakText = async (text: string, options?: TTSOptions) => {
     setError(null);
@@ -291,6 +294,3 @@ export function useTTS() {
     getCooldown: ttsManager.getCooldownRemaining.bind(ttsManager)
   };
 }
-
-// Add React import for the hook
-import React from 'react';

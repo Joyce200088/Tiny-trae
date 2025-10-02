@@ -459,7 +459,7 @@ const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated 
                           const img = new Image();
                           img.crossOrigin = 'anonymous';
                           img.onload = () => {
-                            const regionCanvas = regionToDataURL(region, img, true);
+                            const regionCanvas = regionToDataURL(region, img, true) as HTMLCanvasElement;
                             const ctx = canvas.getContext('2d');
                             if (ctx && regionCanvas) {
                               canvas.width = 100;
