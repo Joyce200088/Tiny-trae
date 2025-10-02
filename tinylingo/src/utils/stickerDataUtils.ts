@@ -76,14 +76,34 @@ export class StickerDataUtils {
 
   /**
    * 更新贴纸
+   * 如果是用户贴纸，直接更新；如果是模拟贴纸，复制到用户贴纸中并标记原模拟贴纸为已删除
    */
-  static updateSticker(updatedSticker: StickerData): void {
+  static updateSticker(updatedSticker: StickerData, mockStickerIds?: string[]): void {
     const currentData = this.loadStickerData();
-    const index = currentData.userStickers.findIndex(s => s.id === updatedSticker.id);
-    if (index !== -1) {
-      currentData.userStickers[index] = updatedSticker;
-      this.saveStickerData(currentData);
+    const userStickerIndex = currentData.userStickers.findIndex(s => s.id === updatedSticker.id);
+    
+    if (userStickerIndex !== -1) {
+      // 更新现有用户贴纸
+      currentData.userStickers[userStickerIndex] = updatedSticker;
+    } else {
+      // 检查是否是模拟贴纸
+      const isMockSticker = mockStickerIds && mockStickerIds.includes(updatedSticker.id);
+      
+      if (isMockSticker) {
+        // 模拟贴纸被修改 - 复制到用户贴纸中
+        currentData.userStickers.push(updatedSticker);
+        
+        // 标记原模拟贴纸为已删除，这样getAllAvailableStickers就不会返回原版本
+        if (!currentData.deletedMockIds.includes(updatedSticker.id)) {
+          currentData.deletedMockIds.push(updatedSticker.id);
+        }
+      } else {
+        // 新贴纸 - 直接添加
+        currentData.userStickers.push(updatedSticker);
+      }
     }
+    
+    this.saveStickerData(currentData);
   }
 
   /**

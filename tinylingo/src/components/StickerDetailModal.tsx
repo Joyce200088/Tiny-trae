@@ -38,6 +38,67 @@ function StickerDetailModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [showIndividualApply, setShowIndividualApply] = useState(false);
   const [isMasteryEditing, setIsMasteryEditing] = useState(false); // 掌握状态编辑模式
+  const [addedItems, setAddedItems] = useState<{
+    examples: Set<string>;
+    relatedWords: Set<string>;
+  }>({
+    examples: new Set(),
+    relatedWords: new Set()
+  }); // 跟踪已添加的项目
+
+  // 跟踪"应用全部"按钮的状态
+  const [appliedBulkActions, setAppliedBulkActions] = useState<{
+    examples: boolean;
+    mnemonic: boolean;
+    relatedWords: boolean;
+  }>({
+    examples: false,
+    mnemonic: false,
+    relatedWords: false
+  });
+
+  // 检查项目是否已添加
+  const isItemAdded = useCallback((type: 'examples' | 'relatedWords', item: any) => {
+    const itemKey = type === 'examples' 
+      ? `${item.english}-${item.chinese}` 
+      : `${item.word}-${item.chinese}`;
+    return addedItems[type].has(itemKey);
+  }, [addedItems]);
+
+  // 标记项目为已添加
+  const markItemAsAdded = useCallback((type: 'examples' | 'relatedWords', item: any) => {
+    const itemKey = type === 'examples' 
+      ? `${item.english}-${item.chinese}` 
+      : `${item.word}-${item.chinese}`;
+    
+    setAddedItems(prev => ({
+      ...prev,
+      [type]: new Set([...prev[type], itemKey])
+    }));
+  }, []);
+
+  // 标记"应用全部"操作为已完成
+  const markBulkActionAsApplied = useCallback((type: 'examples' | 'mnemonic' | 'relatedWords') => {
+    setAppliedBulkActions(prev => ({
+      ...prev,
+      [type]: true
+    }));
+  }, []);
+
+  // 重置已添加项目状态
+  useEffect(() => {
+    if (isAiDrawerOpen) {
+      setAddedItems({
+        examples: new Set(),
+        relatedWords: new Set()
+      });
+      setAppliedBulkActions({
+        examples: false,
+        mnemonic: false,
+        relatedWords: false
+      });
+    }
+  }, [isAiDrawerOpen]);
 
   // 初始化编辑内容
   useEffect(() => {
@@ -767,10 +828,18 @@ function StickerDetailModal({
                         例句建议
                         {showIndividualApply && (
                           <button
-                            onClick={() => applySingleField('examples', aiSuggestions.examples)}
-                            className="ml-auto px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-xs rounded transition-colors"
+                            onClick={() => {
+                              applySingleField('examples', aiSuggestions.examples);
+                              markBulkActionAsApplied('examples');
+                            }}
+                            disabled={appliedBulkActions.examples}
+                            className={`ml-auto px-2 py-1 text-xs rounded transition-colors ${
+                              appliedBulkActions.examples
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-100 hover:bg-green-200 text-green-700'
+                            }`}
                           >
-                            应用全部例句
+                            {appliedBulkActions.examples ? '已应用全部例句' : '应用全部例句'}
                           </button>
                         )}
                       </h4>
@@ -788,10 +857,16 @@ function StickerDetailModal({
                                     const currentExamples = sticker.examples || [];
                                     const newExamples = [...currentExamples, example];
                                     applySingleField('examples', newExamples);
+                                    markItemAsAdded('examples', example);
                                   }}
-                                  className="ml-2 px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-xs rounded transition-colors"
+                                  disabled={isItemAdded('examples', example)}
+                                  className={`ml-2 px-2 py-1 text-xs rounded transition-colors ${
+                                    isItemAdded('examples', example)
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                      : 'bg-green-100 hover:bg-green-200 text-green-700'
+                                  }`}
                                 >
-                                  添加
+                                  {isItemAdded('examples', example) ? '已添加' : '添加'}
                                 </button>
                               )}
                             </div>
@@ -807,10 +882,18 @@ function StickerDetailModal({
                         巧记方法
                         {showIndividualApply && (
                           <button
-                            onClick={() => applySingleField('mnemonic', aiSuggestions.mnemonic)}
-                            className="ml-auto px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 text-xs rounded transition-colors"
+                            onClick={() => {
+                              applySingleField('mnemonic', aiSuggestions.mnemonic);
+                              markBulkActionAsApplied('mnemonic');
+                            }}
+                            disabled={appliedBulkActions.mnemonic}
+                            className={`ml-auto px-2 py-1 text-xs rounded transition-colors ${
+                              appliedBulkActions.mnemonic
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700'
+                            }`}
                           >
-                            应用全部方法
+                            {appliedBulkActions.mnemonic ? '已应用全部方法' : '应用全部方法'}
                           </button>
                         )}
                       </h4>
@@ -826,10 +909,18 @@ function StickerDetailModal({
                         相关词汇
                         {showIndividualApply && (
                           <button
-                            onClick={() => applySingleField('relatedWords', aiSuggestions.relatedWords)}
-                            className="ml-auto px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded transition-colors"
+                            onClick={() => {
+                              applySingleField('relatedWords', aiSuggestions.relatedWords);
+                              markBulkActionAsApplied('relatedWords');
+                            }}
+                            disabled={appliedBulkActions.relatedWords}
+                            className={`ml-auto px-2 py-1 text-xs rounded transition-colors ${
+                              appliedBulkActions.relatedWords
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-red-100 hover:bg-red-200 text-red-700'
+                            }`}
                           >
-                            应用全部相关词
+                            {appliedBulkActions.relatedWords ? '已应用全部相关词' : '应用全部相关词'}
                           </button>
                         )}
                       </h4>
@@ -850,10 +941,16 @@ function StickerDetailModal({
                                     const currentRelatedWords = sticker.relatedWords || [];
                                     const newRelatedWords = [...currentRelatedWords, word];
                                     applySingleField('relatedWords', newRelatedWords);
+                                    markItemAsAdded('relatedWords', word);
                                   }}
-                                  className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded transition-colors"
+                                  disabled={isItemAdded('relatedWords', word)}
+                                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                                    isItemAdded('relatedWords', word)
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                      : 'bg-red-100 hover:bg-red-200 text-red-700'
+                                  }`}
                                 >
-                                  添加
+                                  {isItemAdded('relatedWords', word) ? '已添加' : '添加'}
                                 </button>
                               )}
                             </div>

@@ -114,7 +114,8 @@ function useStickerData(): UseStickerDataReturn {
     
     if (updatedSticker) {
       const newSticker = { ...updatedSticker, ...updates };
-      StickerDataUtils.updateSticker(newSticker);
+      const mockStickerIds = mockStickers.map(s => s.id);
+      StickerDataUtils.updateSticker(newSticker, mockStickerIds);
       
       // 重新加载所有贴纸数据
       const allStickers = StickerDataUtils.getAllAvailableStickers(mockStickers);
