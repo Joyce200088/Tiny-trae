@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import React, { useState, useMemo } from 'react'
-import { ConnectedComponent } from '@/lib/imageProcessing'
-import { Check, Square, Grid, Download, Sparkles, List } from 'lucide-react'
+import React, { useState, useMemo } from 'react';
+import { ConnectedComponent } from '@/lib/imageProcessing';
+import { Check, Square, Grid, Download, Sparkles, List } from 'lucide-react';
 
 interface StickerCandidatePanelProps {
   components: ConnectedComponent[]

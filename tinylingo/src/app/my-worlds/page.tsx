@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-react';
+import CreateWorldModal from '@/components/CreateWorldModal';
 
 // 模拟数据
 const mockWorlds = [
@@ -58,6 +59,7 @@ export default function MyWorlds() {
   const [undoTimer, setUndoTimer] = useState<NodeJS.Timeout | null>(null);
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // 客户端检测
   useEffect(() => {
@@ -346,20 +348,21 @@ export default function MyWorlds() {
           {/* Worlds Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Create New World Card */}
-            <Link href="/create-world">
-                <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400">
-                <div className="aspect-video flex items-center justify-center" style={{backgroundColor: '#FFFBF5'}}>
-                  <div className="text-center">
-                    <Plus className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600 font-medium">Create New World</p>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">Start Building</h3>
-                  <p className="text-sm text-gray-600">Create a new world and start adding your stickers</p>
+            <div 
+              onClick={() => setShowCreateModal(true)}
+              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400"
+            >
+              <div className="aspect-video flex items-center justify-center" style={{backgroundColor: '#FFFBF5'}}>
+                <div className="text-center">
+                  <Plus className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-600 font-medium">Create New World</p>
                 </div>
               </div>
-            </Link>
+              <div className="p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Start Building</h3>
+                <p className="text-sm text-gray-600">Create a new world and start adding your stickers</p>
+              </div>
+            </div>
 
             {/* World Cards */}
             {filteredWorlds.map((world) => (
@@ -492,6 +495,12 @@ export default function MyWorlds() {
               </button>
             </div>
           )}
+
+          {/* Create World Modal */}
+          <CreateWorldModal 
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+          />
 
           {filteredWorlds.length === 0 && searchQuery && (
             <div className="text-center py-12">

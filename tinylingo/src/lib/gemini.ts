@@ -1,10 +1,82 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // 初始化Gemini AI
-const genAI = new GoogleGenerativeAI('AIzaSyCjzpGqvGow52_QWVW8uw_2yVDAGf6H_Uw');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyCjzpGqvGow52_QWVW8uw_2yVDAGf6H_Uw');
 
 // 获取模型实例
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+// 重试配置接口
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+}
+
+// 默认重试配置 - 增强版本以应对持续的API过载
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 5,     // 增加到5次重试
+  baseDelay: 2000,   // 增加基础延迟到2秒
+  maxDelay: 30000    // 增加最大延迟到30秒
+};
+
+// 重试函数，支持指数退避
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  config: RetryConfig = DEFAULT_RETRY_CONFIG
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      // 检查是否是可重试的错误
+      const isRetryableError = isRetryable(error as Error);
+      
+      if (attempt === config.maxRetries || !isRetryableError) {
+        throw lastError;
+      }
+      
+      // 计算延迟时间（指数退避）
+      const delay = Math.min(
+        config.baseDelay * Math.pow(2, attempt),
+        config.maxDelay
+      );
+      
+      console.log(`API call failed (attempt ${attempt + 1}/${config.maxRetries + 1}), retrying in ${delay}ms...`, error);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError!;
+}
+
+// 判断错误是否可重试
+function isRetryable(error: Error): boolean {
+  const errorMessage = error.message.toLowerCase();
+  
+  // 可重试的错误类型
+  const retryableErrors = [
+    'overloaded',
+    'service unavailable',
+    'timeout',
+    'network error',
+    'connection refused',
+    'internal error',
+    '503',
+    '502',
+    '500',
+    '429' // Rate limit
+  ];
+  
+  return retryableErrors.some(retryableError => 
+    errorMessage.includes(retryableError)
+  );
+}
 
 export interface WordAnalysisRequest {
   word: string;
@@ -158,4 +230,351 @@ function createFallbackResponse(word: string): WordAnalysisResponse {
       { word: "related3", chinese: "相关词3", partOfSpeech: "adjective" }
     ]
   };
+}
+
+// ===== AI世界生成功能 =====
+
+// 生成场景描述
+export async function generateSceneDescription(userInput: string): Promise<string> {
+  return retryWithBackoff(async () => {
+    const prompt = `
+作为一个英语学习世界的创建助手，请根据用户输入生成一个详细的场景描述。
+
+用户输入：${userInput}
+
+请生成一个适合英语学习的场景描述，要求：
+1. 描述要生动具体，包含环境、物品、人物等元素
+2. 适合英语学习，包含常见的日常词汇
+3. 长度控制在100-200字
+4. 用中文描述
+
+请直接返回场景描述，不要包含其他解释文字。
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  });
+}
+
+// 生成场景相关词汇
+export async function generateVocabularyForScene(
+  scene: string,
+  count: number = 30
+): Promise<Array<{
+  word: string;
+  translation: string;
+  pronunciation: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+}>> {
+  return retryWithBackoff(async () => {
+    const prompt = `
+请为场景"${scene}"生成${count}个相关的英语名词词汇。
+
+要求：
+1. 词汇必须与场景高度相关
+2. 包含不同难度级别（初级、中级、高级）
+3. 提供准确的中文翻译
+4. 提供音标发音
+5. 按主题分类
+
+请以JSON格式返回：
+[
+  {
+    "word": "apple",
+    "translation": "苹果",
+    "pronunciation": "/ˈæpəl/",
+    "difficulty": "beginner",
+    "category": "水果"
+  }
+]
+
+只返回JSON数组，不要包含其他文字。确保生成${count}个词汇。
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // 清理响应文本，移除可能的markdown格式
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    try {
+      return JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('Error parsing vocabulary JSON:', parseError);
+      throw new Error('Failed to parse vocabulary response');
+    }
+  });
+}
+
+// 生成词汇列表
+export async function generateVocabulary(sceneDescription: string): Promise<Array<{
+  word: string;
+  translation: string;
+  pronunciation: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+}>> {
+  return retryWithBackoff(async () => {
+    const prompt = `
+基于以下场景描述，生成适合英语学习的名词词汇列表：
+
+场景描述：${sceneDescription}
+
+请生成15-20个相关的英语名词，这些名词应该是具体的、可视化的物体，方便AI生成图片。每个词汇包含：
+1. 英文单词（仅限名词）
+2. 中文翻译
+3. 音标发音
+4. 难度级别（beginner/intermediate/advanced）
+5. 词汇分类（固定为"noun"）
+
+要求：
+- 只生成名词（noun），不要动词、形容词等其他词性
+- 选择具体的、可视化的物体名词，避免抽象概念
+- 确保这些名词适合用于图片生成
+
+请以JSON格式返回，格式如下：
+[
+  {
+    "word": "apple",
+    "translation": "苹果",
+    "pronunciation": "/ˈæpəl/",
+    "difficulty": "beginner",
+    "category": "noun"
+  }
+]
+
+只返回JSON数组，不要包含其他文字。
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // 清理响应文本，移除可能的markdown格式
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    try {
+      return JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('Error parsing vocabulary JSON:', parseError);
+      throw new Error('Failed to parse vocabulary response');
+    }
+  });
+}
+
+// 生成贴纸信息
+export async function generateStickerInfo(
+  word: string,
+  translation: string,
+  style: string = 'cartoon',
+  perspective: string = 'front'
+): Promise<{
+  word: string;
+  translation: string;
+  description: string;
+  imagePrompt: string;
+  tags: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  pronunciation: string;
+  examples: Array<{
+    english: string;
+    chinese: string;
+  }>;
+}> {
+  return retryWithBackoff(async () => {
+    const prompt = `
+为英语单词"${word}"（中文：${translation}）生成详细的贴纸信息。
+
+风格：${style}
+视角：${perspective}
+
+请生成：
+1. 贴纸描述（中文，简洁明了）
+2. 图片生成提示（英文，详细描述）
+3. 相关标签（3-5个中文标签）
+4. 难度级别
+5. 音标发音
+6. 例句（2个，包含英文和中文）
+
+请以JSON格式返回：
+{
+  "word": "${word}",
+  "translation": "${translation}",
+  "description": "可爱的卡通苹果贴纸",
+  "imagePrompt": "A cute cartoon apple sticker, ${style} style, ${perspective} view, vibrant colors, simple design, white background, high quality",
+  "tags": ["水果", "食物", "健康"],
+  "difficulty": "beginner",
+  "pronunciation": "/ˈæpəl/",
+  "examples": [
+    {
+      "english": "I eat an apple every day.",
+      "chinese": "我每天吃一个苹果。"
+    },
+    {
+      "english": "The apple is red and sweet.",
+      "chinese": "这个苹果又红又甜。"
+    }
+  ]
+}
+
+只返回JSON对象，不要包含其他文字。
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // 清理响应文本，移除可能的markdown格式
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    try {
+      return JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('Error parsing sticker info JSON:', parseError);
+      throw new Error('Failed to parse sticker info response');
+    }
+  });
+}
+
+// 生成贴纸描述
+export async function generateStickerDescriptions(
+  approvedWords: Array<{ word: string; translation: string }>,
+  style: string,
+  viewpoint?: string
+): Promise<Array<{
+  word: string;
+  description: string;
+  imagePrompt: string;
+}>> {
+  try {
+    const wordsText = approvedWords.map(w => `${w.word} (${w.translation})`).join(', ');
+    
+    const prompt = `
+为以下英语词汇生成贴纸描述和图片生成提示：
+
+词汇列表：${wordsText}
+风格：${style}${viewpoint ? `\n视角：${viewpoint}` : ''}
+
+为每个词汇生成：
+1. 简短的贴纸描述（中文，20字以内）
+2. 详细的图片生成提示（英文，适合AI图片生成）${viewpoint ? `，使用${viewpoint}视角` : ''}
+
+请以JSON格式返回：
+[
+  {
+    "word": "apple",
+    "description": "红色苹果贴纸",
+    "imagePrompt": "A cute red apple sticker with ${style} style${viewpoint ? `, ${viewpoint} view` : ''}, simple design, white background, vibrant colors"
+  }
+]
+
+只返回JSON数组，不要包含其他文字。
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    try {
+      return JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('Error parsing sticker descriptions JSON:', parseError);
+      throw new Error('Failed to parse sticker descriptions response');
+    }
+  } catch (error) {
+    console.error('Error generating sticker descriptions:', error);
+    throw new Error('Failed to generate sticker descriptions');
+  }
+}
+
+// 生成世界草图描述
+export async function generateWorldSketch(
+  sceneDescription: string,
+  approvedStickers: Array<{ word: string; translation: string }>,
+  style: string,
+  layout: string
+): Promise<{
+  title: string;
+  description: string;
+  imagePrompt: string;
+}> {
+  try {
+    const stickersText = approvedStickers.map(s => s.word).join(', ');
+    
+    const prompt = `
+基于以下信息生成英语学习世界的草图描述：
+
+场景描述：${sceneDescription}
+包含贴纸：${stickersText}
+视觉风格：${style}
+布局方式：${layout}
+
+请生成：
+1. 世界标题（中文，10字以内）
+2. 世界描述（中文，50-100字）
+3. 图片生成提示（英文，详细描述整个场景的视觉效果）
+
+请以JSON格式返回：
+{
+  "title": "魔法厨房",
+  "description": "一个充满魔法的厨房世界，包含各种厨具和食材，适合学习日常英语词汇。",
+  "imagePrompt": "A magical kitchen scene with floating utensils, colorful ingredients, warm lighting, cartoon style, educational and friendly atmosphere"
+}
+
+只返回JSON对象，不要包含其他文字。
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    try {
+      return JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('Error parsing world sketch JSON:', parseError);
+      throw new Error('Failed to parse world sketch response');
+    }
+  } catch (error) {
+    console.error('Error generating world sketch:', error);
+    throw new Error('Failed to generate world sketch');
+  }
+}
+
+// 生成贴纸
+export async function generateStickers(vocabulary: Array<{
+  word: string;
+  translation: string;
+  pronunciation: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+}>): Promise<Array<{
+  id: string;
+  word: string;
+  translation: string;
+  pronunciation: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: string;
+  imageUrl: string;
+}>> {
+  return retryWithBackoff(async () => {
+    // 为每个词汇生成贴纸
+    const stickers = vocabulary.map((vocab, index) => ({
+      id: `sticker-${index + 1}`,
+      word: vocab.word,
+      translation: vocab.translation,
+      pronunciation: vocab.pronunciation,
+      difficulty: vocab.difficulty,
+      category: vocab.category,
+      imageUrl: `/api/placeholder/150/150?text=${encodeURIComponent(vocab.word)}`
+    }));
+
+    return stickers;
+  });
 }

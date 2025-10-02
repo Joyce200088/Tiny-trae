@@ -286,7 +286,7 @@ function mergeSmallRegionsIntoLarger(
     // 检查是否已被合并
     if (mergedMasks.has(region.id)) continue;
 
-    let currentMask = new Uint8Array(region.mask);
+    const currentMask = new Uint8Array(region.mask);
     let currentArea = region.area;
     let minX = region.bbox.x;
     let maxX = region.bbox.x + region.bbox.w - 1;

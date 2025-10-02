@@ -90,7 +90,7 @@ function MyStickers() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
-  const [generatedStickers, setGeneratedStickers] = useState<any[]>([]);
+  const [generatedStickers, setGeneratedStickers] = useState<Sticker[]>([]);
   const [showLearningDashboard, setShowLearningDashboard] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -939,7 +939,7 @@ function MyStickers() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Generate stickers </h2>
+                <h2 className="text-xl font-semibold text-gray-900">Generate stickers</h2>
                 <button
                   onClick={() => setShowBackgroundRemover(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -1142,7 +1142,7 @@ function MyStickers() {
                     ].map((style) => (
                       <button
                         key={style.value}
-                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, style: style.value as any }))}
+                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, style: style.value as 'realistic' | 'cartoon' | 'watercolor' | 'sketch' }))}
                         className={`p-3 rounded-lg border-2 text-center transition-colors ${
                           aiGenerationOptions.style === style.value
                             ? 'border-purple-500 bg-purple-50'
@@ -1170,7 +1170,7 @@ function MyStickers() {
                     ].map((viewpoint) => (
                       <button
                         key={viewpoint.value}
-                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as any }))}
+                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as 'front' | 'side' | 'top' | 'perspective' }))}
                         className={`p-3 rounded-lg border-2 text-center transition-colors ${
                           aiGenerationOptions.viewpoint === viewpoint.value
                             ? 'border-purple-500 bg-purple-50'
