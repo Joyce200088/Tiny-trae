@@ -154,13 +154,13 @@ function StickerDetailModal({
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
-      size="xl" 
-      className="bg-[#FFFBF5] max-h-[90vh] flex flex-col"
+      size="lg" 
+      className="bg-[#FFFBF5] max-h-[90vh] max-w-[80vw] flex flex-col"
       showCloseButton={false}
     >
       {/* 导航按钮 - 移动到顶部 */}
       {stickers.length > 1 && (
-        <div className="flex-shrink-0 flex items-center px-6 py-3 border-b border-gray-200" style={{ backgroundColor: '#FAF4ED' }}>
+        <div className="flex-shrink-0 flex items-center px-4 py-2 border-b border-gray-200" style={{ backgroundColor: '#FAF4ED' }}>
           <Button
             onClick={goToPrevious}
             variant="ghost"
@@ -171,11 +171,11 @@ function StickerDetailModal({
           </Button>
           
           <div className="flex-1 text-center">
-            <div className="text-sm text-gray-500 font-medium mb-1">
+            <div className="text-xs text-gray-500 font-medium">
               {currentIndex + 1} / {stickers.length}
             </div>
             <div className="text-xs text-gray-400">
-              使用 ← → 键导航，空格键播放发音，ESC 键关闭
+              ← → 导航 | 空格播放 | ESC关闭
             </div>
           </div>
           
@@ -202,8 +202,8 @@ function StickerDetailModal({
       
       {/* 主内容区域 - 覆盖Modal的overflow-y-auto */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full p-6">
-          <div className="flex gap-8 h-full">
+        <div className="h-full p-4">
+          <div className="flex gap-6 h-full">
             {/* 左侧 - 物品图、英文、中文、音标和发音 */}
             <div className="flex-shrink-0 w-80 h-120 border border-black rounded-lg relative flex flex-col">
               {/* 物品图片容器 - 包含图片和掌握状态 */}
@@ -290,7 +290,7 @@ function StickerDetailModal({
             </div>
 
             {/* 右侧 - 例句、备注、巧记方法、标签、相关词 */}
-            <div className="flex-1 min-w-0 overflow-y-auto">
+            <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-4">
             {/* 例句 */}
             <div className="space-y-2">
@@ -428,7 +428,7 @@ function StickerDetailModal({
                 <h3 className="text-lg font-semibold text-gray-900">相关词</h3>
               </div>
               <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[100px]" 
+                className="rounded-lg p-4 transition-all duration-300 min-h-[100px] max-h-[300px] overflow-y-auto" 
                 style={{ backgroundColor: '#FAF4ED' }}
               >
                 {sticker.relatedWords && sticker.relatedWords.length > 0 ? (
