@@ -96,7 +96,57 @@ const mockWorlds = [
     favorites: 32,
     isPublic: true,
     createdAt: '2024-01-15',
-    lastModified: '2024-01-20'
+    lastModified: '2024-01-20',
+    canvasObjects: [
+      {
+        id: 'sticker-1',
+        type: 'sticker',
+        x: 100,
+        y: 100,
+        width: 80,
+        height: 80,
+        src: '/Ceramic Mug.png',
+        name: 'Ceramic Mug',
+        stickerData: {
+          id: '4',
+          name: 'Ceramic Mug',
+          chinese: '陶瓷杯',
+          phonetic: '/sɪˈræmɪk mʌɡ/',
+          category: 'Kitchenware',
+          partOfSpeech: 'noun',
+          tags: ['Cartoon', 'Ai-generated'],
+          thumbnailUrl: '/Ceramic Mug.png',
+          createdAt: '2024-01-15',
+          sorted: true,
+          notes: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea.',
+          mnemonic: 'Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮品杯'
+        }
+      },
+      {
+        id: 'sticker-2',
+        type: 'sticker',
+        x: 200,
+        y: 150,
+        width: 80,
+        height: 80,
+        src: '/Calendar.png',
+        name: 'Calendar',
+        stickerData: {
+          id: '2',
+          name: 'Calendar',
+          chinese: '日历',
+          phonetic: '/ˈkælɪndər/',
+          category: 'Daily Items',
+          partOfSpeech: 'noun',
+          tags: ['Cartoon', 'Ai-generated'],
+          thumbnailUrl: '/Calendar.png',
+          createdAt: '2024-01-15',
+          sorted: true,
+          notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
+          mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+        }
+      }
+    ]
   },
   {
     id: '2',
@@ -108,7 +158,33 @@ const mockWorlds = [
     favorites: 21,
     isPublic: false,
     createdAt: '2024-01-10',
-    lastModified: '2024-01-18'
+    lastModified: '2024-01-18',
+    canvasObjects: [
+      {
+        id: 'sticker-3',
+        type: 'sticker',
+        x: 150,
+        y: 120,
+        width: 80,
+        height: 80,
+        src: '/Diving Mask.png',
+        name: 'Diving Mask',
+        stickerData: {
+          id: '1',
+          name: 'Diving Mask',
+          chinese: '潜水镜',
+          phonetic: '/ˈdaɪvɪŋ mæsk/',
+          category: 'Diving Equipment',
+          partOfSpeech: 'noun',
+          tags: ['Pixel', 'Ai-generated'],
+          thumbnailUrl: '/Diving Mask.png',
+          createdAt: '2024-01-15',
+          sorted: true,
+          notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
+          mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+        }
+      }
+    ]
   },
   {
     id: '3',
@@ -120,7 +196,33 @@ const mockWorlds = [
     favorites: 45,
     isPublic: true,
     createdAt: '2024-01-05',
-    lastModified: '2024-01-16'
+    lastModified: '2024-01-16',
+    canvasObjects: [
+      {
+        id: 'sticker-4',
+        type: 'sticker',
+        x: 180,
+        y: 100,
+        width: 80,
+        height: 80,
+        src: '/Industrial Shelving.png',
+        name: 'Industrial Shelving',
+        stickerData: {
+          id: '3',
+          name: 'Industrial Shelving',
+          chinese: '工业货架',
+          phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
+          category: 'Furniture',
+          partOfSpeech: 'noun',
+          tags: ['Cartoon', 'Ai-generated'],
+          thumbnailUrl: '/Industrial Shelving.png',
+          createdAt: '2024-01-15',
+          sorted: true,
+          notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
+          mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+        }
+      }
+    ]
   }
 ];
 
@@ -204,6 +306,10 @@ export default function DictationPage() {
   const [showSummary, setShowSummary] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
   const [incorrectAnswers, setIncorrectAnswers] = useState<{word: string, userAnswer: string}[]>([]);
+  const [answeredWords, setAnsweredWords] = useState<Set<string>>(new Set()); // 已作答单词集合
+  const [availableWords, setAvailableWords] = useState<WordData[]>([]); // 可用单词列表
+  const [wrongWords, setWrongWords] = useState<Set<string>>(new Set()); // 错词集合
+  const [isShaking, setIsShaking] = useState(false); // 输入框抖动状态
 
   // 音频相关的refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -229,17 +335,22 @@ export default function DictationPage() {
       // 检查多种可能的数据结构
       let stickerData = null;
       
-      // 方式1: 检查是否是贴纸对象（通常包含sticker或imageObj属性）
-      if (obj.sticker || obj.imageObj) {
+      // 方式1: 检查是否有完整的贴纸数据（新的数据结构）
+      if (obj.stickerData) {
+        stickerData = obj.stickerData;
+        console.log(`对象 ${index} 通过stickerData找到完整数据:`, stickerData);
+      }
+      // 方式2: 检查是否是贴纸对象（通常包含sticker或imageObj属性）
+      else if (obj.sticker || obj.imageObj) {
         stickerData = obj.sticker || obj.imageObj;
         console.log(`对象 ${index} 通过sticker/imageObj找到数据:`, stickerData);
       }
-      // 方式2: 检查对象本身是否直接包含单词信息
+      // 方式3: 检查对象本身是否直接包含单词信息
       else if (obj.name && (obj.chinese || obj.phonetic)) {
         stickerData = obj;
         console.log(`对象 ${index} 直接包含单词信息:`, stickerData);
       }
-      // 方式3: 检查是否有其他可能的属性结构
+      // 方式4: 检查是否有其他可能的属性结构
       else if (obj.src && obj.name) {
         // 可能是画布上的贴纸对象，尝试从名称推断
         stickerData = { name: obj.name };
@@ -285,12 +396,18 @@ export default function DictationPage() {
     // 图片文件名映射（作为后备）
     const imageMap: { [key: string]: string } = {
       'cup': 'Ceramic Mug.png',
+      'table': 'Calendar.png', // 临时映射，因为没有table的图片
+      'beautiful': 'Diving Mask.png', // 临时映射
+      'run': 'Industrial Shelving.png', // 临时映射
+      'happily': 'Ceramic Mug.png', // 临时映射
       'calendar': 'Calendar.png',
       'mask': 'Diving Mask.png',
       'shelf': 'Industrial Shelving.png'
     };
     
-    return imageMap[englishWord.toLowerCase()] || null;
+    const imageName = imageMap[englishWord.toLowerCase()];
+    console.log(`获取图片 - 单词: ${englishWord}, 映射结果: ${imageName}`);
+    return imageName || null;
   };
 
   // 初始化：从URL参数获取worldId并加载对应世界的单词数据
@@ -300,41 +417,56 @@ export default function DictationPage() {
     if (worldId) {
       const loadWorldData = () => {
         try {
-          // 从localStorage获取保存的世界数据
+          let targetWorld = null;
+          
+          // 首先尝试从localStorage获取保存的世界数据
           const savedWorlds = localStorage.getItem('savedWorlds');
           if (savedWorlds) {
             const worlds: WorldData[] = JSON.parse(savedWorlds);
-            const targetWorld = worlds.find(world => world.id === worldId);
+            targetWorld = worlds.find(world => world.id === worldId);
+          }
+          
+          // 如果在保存的世界中没找到，尝试从模拟世界数据中查找
+          if (!targetWorld) {
+            targetWorld = mockWorlds.find(world => world.id === worldId);
+          }
+          
+          if (targetWorld) {
+            setWorldName(targetWorld.name);
+            const extractedWords = extractWordsFromWorld(targetWorld);
             
-            if (targetWorld) {
-              setWorldName(targetWorld.name);
-              const extractedWords = extractWordsFromWorld(targetWorld);
-              setWords(extractedWords);
-              console.log(`从世界 "${targetWorld.name}" 中提取到 ${extractedWords.length} 个单词`);
-              
-              // 如果没有单词，显示警告提示
-              if (extractedWords.length === 0) {
-                console.warn(`世界 "${targetWorld.name}" 中没有找到任何单词贴纸`);
-                setShowNoWordsWarning(true);
+            // 过滤掉已作答的单词，确保不重复
+            const filteredWords = extractedWords.filter(word => 
+              !answeredWords.has(word.english.toLowerCase())
+            );
+            
+            setWords(filteredWords);
+            setAvailableWords(filteredWords);
+            console.log(`从世界 "${targetWorld.name}" 中提取到 ${extractedWords.length} 个单词，过滤后剩余 ${filteredWords.length} 个`);
+            
+            // 如果没有单词，显示警告提示
+            if (filteredWords.length === 0) {
+              if (extractedWords.length > 0) {
+                console.warn(`世界 "${targetWorld.name}" 中的所有单词都已作答完毕`);
               } else {
-                setShowNoWordsWarning(false);
+                console.warn(`世界 "${targetWorld.name}" 中没有找到任何单词贴纸`);
               }
-            } else {
-              console.warn(`未找到ID为 ${worldId} 的世界`);
-              setWorldName('未找到的世界');
-              setWords([]);
               setShowNoWordsWarning(true);
+            } else {
+              setShowNoWordsWarning(false);
             }
           } else {
-            console.warn('未找到保存的世界数据');
-            setWorldName('无数据');
+            console.warn(`未找到ID为 ${worldId} 的世界`);
+            setWorldName('未找到的世界');
             setWords([]);
+            setAvailableWords([]);
             setShowNoWordsWarning(true);
           }
         } catch (error) {
           console.error('加载世界数据时出错:', error);
           setWorldName('加载错误');
           setWords([]);
+          setAvailableWords([]);
           setShowNoWordsWarning(true);
         }
       };
@@ -366,13 +498,14 @@ export default function DictationPage() {
     } else {
       setWorldName('未指定世界');
       setWords([]);
+      setAvailableWords([]);
       setShowNoWordsWarning(true);
     }
-  }, [searchParams]);
+  }, [searchParams]); // 移除answeredWords依赖，避免答错后重新过滤导致索引不匹配
 
-  const currentWord = words[currentWordIndex];
-  const previousWord = currentWordIndex > 0 ? words[currentWordIndex - 1] : null;
-  const nextWord = currentWordIndex < words.length - 1 ? words[currentWordIndex + 1] : null;
+  const currentWord = availableWords[currentWordIndex];
+  const previousWord = currentWordIndex > 0 ? availableWords[currentWordIndex - 1] : null;
+  const nextWord = currentWordIndex < availableWords.length - 1 ? availableWords[currentWordIndex + 1] : null;
   const currentStickerImage = currentWord ? getStickerImage(currentWord.english) : '';
 
   // 生成音频URL - 使用多个音频源作为备选
@@ -394,11 +527,39 @@ export default function DictationPage() {
     return `https://fanyi.baidu.com/gettts?lan=${lang}&text=${encodeURIComponent(word)}&spd=3&source=web`;
   };
 
-  // 第三备用音频源
+  // 第三备用音频源 - 使用Web Speech API作为最后备选
   const getThirdBackupAudioUrl = (word: string, type: number = 0) => {
-    // 使用必应翻译的音频API
-    const lang = type === 0 ? 'en-US' : 'en-GB';
-    return `https://www.bing.com/ttranslatev3?isVertical=1&&IG=1234567890AB&IID=translator.5028.1&text=${encodeURIComponent(word)}&from=en&to=${lang}`;
+    // 使用本地TTS作为最后的备选方案
+    return `data:audio/wav;base64,`; // 占位符，实际会使用Web Speech API
+  };
+
+  // 使用Web Speech API播放音频（最可靠的方案）
+  const playWithSpeechAPI = (word: string, type: number = 0) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.lang = type === 0 ? 'en-US' : 'en-GB';
+      utterance.rate = 0.8;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      
+      utterance.onstart = () => {
+        setIsPlaying(true);
+        setIsLoading(false);
+      };
+      
+      utterance.onend = () => {
+        setIsPlaying(false);
+      };
+      
+      utterance.onerror = (e) => {
+        console.error('Speech API 错误:', e);
+        setIsPlaying(false);
+      };
+      
+      speechSynthesis.speak(utterance);
+      return true;
+    }
+    return false;
   };
 
   // 音频播放函数 - 优先使用Web Speech API，避免CORS问题
@@ -409,7 +570,7 @@ export default function DictationPage() {
       setIsLoading(true);
       setIsPlaying(true);
       
-      // 优先使用Web Speech API（本地语音合成，无网络依赖）
+      // 优先使用Web Speech API（本地语音合成，无网络依赖，无CORS问题）
       if ('speechSynthesis' in window) {
         // 停止之前的语音合成
         speechSynthesis.cancel();
@@ -427,15 +588,13 @@ export default function DictationPage() {
         };
         
         utterance.onerror = (event) => {
-          console.error('语音合成错误:', event);
+          // 如果语音合成失败，静默尝试外部音频源
           setIsPlaying(false);
           setIsLoading(false);
-          // 如果语音合成失败，尝试外部音频源
           tryExternalAudio();
         };
         
         speechSynthesis.speak(utterance);
-        console.log('使用Web Speech API播放音频');
         return;
       }
       
@@ -443,7 +602,7 @@ export default function DictationPage() {
       await tryExternalAudio();
       
     } catch (error) {
-      console.error('音频播放失败:', error);
+      // 静默处理播放错误
       setIsPlaying(false);
       setIsLoading(false);
     }
@@ -458,19 +617,21 @@ export default function DictationPage() {
       audioRef.current.src = getAudioUrl(currentWord.english, pronunciationType);
       audioRef.current.load();
       await audioRef.current.play();
-      console.log('使用有道词典音频播放成功');
+      // 静默处理成功，不输出日志
     } catch (error) {
-      console.error('有道词典音频播放失败:', error);
+      // 静默处理有道词典错误，不输出到控制台
       
       try {
         // 尝试备用音频源
         audioRef.current.src = getBackupAudioUrl(currentWord.english, pronunciationType);
         audioRef.current.load();
         await audioRef.current.play();
-        console.log('使用备用音频源播放成功');
+        // 静默处理成功，不输出日志
       } catch (backupError) {
-        console.error('所有外部音频源都失败:', backupError);
-        alert('音频播放失败，请检查网络连接或稍后重试');
+        // 静默处理备用音频源错误，直接使用Web Speech API
+        if (!playWithSpeechAPI(currentWord.english, pronunciationType)) {
+          console.warn('所有音频播放方案都不可用');
+        }
         setIsPlaying(false);
         setIsLoading(false);
       }
@@ -558,11 +719,41 @@ export default function DictationPage() {
         
         // 音频加载错误处理
         const handleError = (e: Event) => {
-          console.error('音频加载错误:', e);
+          // 静默处理CORS相关错误，避免控制台报错
+          const target = e.target as HTMLAudioElement;
+          const errorMessage = target?.error?.message || '';
+          const isBlockedByORB = errorMessage.includes('ERR_BLOCKED_BY_ORB') || 
+                                target?.src?.includes('dict.youdao.com') ||
+                                target?.src?.includes('fanyi.baidu.com');
+          
+          // 只有非CORS错误才输出到控制台
+          if (!isBlockedByORB) {
+            console.error('音频加载错误:', e);
+          }
+          
+          setIsPlaying(false);
+          
           // 尝试备用音频源
           if (audioRef.current && currentWord) {
-            audioRef.current.src = getBackupAudioUrl(currentWord.english, pronunciationType);
-            audioRef.current.load();
+            const currentSrc = audioRef.current.src;
+            
+            // 如果当前是主要音频源失败，尝试备用源
+            if (currentSrc.includes('dict.youdao.com')) {
+              // 静默切换到备用音频源
+              audioRef.current.src = getBackupAudioUrl(currentWord.english, pronunciationType);
+              audioRef.current.load();
+            } else if (currentSrc.includes('fanyi.baidu.com')) {
+              // 如果备用源也失败，使用Web Speech API
+              if (playWithSpeechAPI(currentWord.english, pronunciationType)) {
+                return; // 成功使用Speech API，直接返回
+              }
+            } else {
+              // 所有音频源都失败，使用Web Speech API作为最后备选
+              if (!playWithSpeechAPI(currentWord.english, pronunciationType)) {
+                // 只有在Web Speech API也不可用时才显示错误
+                console.warn('所有音频播放方案都不可用');
+              }
+            }
           }
         };
         
@@ -600,7 +791,7 @@ export default function DictationPage() {
   };
 
   const handleNextWord = () => {
-    if (currentWordIndex < words.length - 1) {
+    if (currentWordIndex < availableWords.length - 1) {
       // 停止当前音频
       if (audioRef.current) {
         audioRef.current.pause();
@@ -613,6 +804,55 @@ export default function DictationPage() {
     }
   };
 
+  // 计算Levenshtein距离（编辑距离）
+  const calculateLevenshteinDistance = (str1: string, str2: string): number => {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+    for (let i = 0; i <= str1.length; i += 1) {
+      matrix[0][i] = i;
+    }
+
+    for (let j = 0; j <= str2.length; j += 1) {
+      matrix[j][0] = j;
+    }
+
+    for (let j = 1; j <= str2.length; j += 1) {
+      for (let i = 1; i <= str1.length; i += 1) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1, // deletion
+          matrix[j - 1][i] + 1, // insertion
+          matrix[j - 1][i - 1] + indicator, // substitution
+        );
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  };
+
+  // 检查答案是否正确（包含容错）
+  const isAnswerCorrect = (userAnswer: string, correctAnswer: string): boolean => {
+    const userLower = userAnswer.toLowerCase().trim();
+    const correctLower = correctAnswer.toLowerCase().trim();
+    
+    // 完全匹配
+    if (userLower === correctLower) {
+      return true;
+    }
+    
+    // 计算编辑距离，允许1-2个字符的差异（根据单词长度调整）
+    const distance = calculateLevenshteinDistance(userLower, correctLower);
+    const threshold = correctLower.length <= 4 ? 1 : 2; // 短单词容错1个字符，长单词容错2个字符
+    
+    return distance <= threshold;
+  };
+
+  // 输入框抖动动画
+  const triggerShakeAnimation = () => {
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 500);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -623,14 +863,17 @@ export default function DictationPage() {
     }
     
     // 处理提交逻辑
-    const userAnswer = userInput.toLowerCase().trim();
-    const correctAnswer = currentWord.english.toLowerCase();
+    const userAnswer = userInput.trim();
+    const correctAnswer = currentWord.english;
     
-    if (userAnswer === correctAnswer) {
+    // 将当前单词标记为已作答
+    setAnsweredWords(prev => new Set([...prev, correctAnswer.toLowerCase()]));
+    
+    if (isAnswerCorrect(userAnswer, correctAnswer)) {
       // 正确答案
-      setCorrectAnswers(prev => [...prev, currentWord.english]);
+      setCorrectAnswers(prev => [...prev, correctAnswer]);
       
-      if (currentWordIndex < words.length - 1) {
+      if (currentWordIndex < availableWords.length - 1) {
         handleNextWord();
       } else {
         // 完成所有单词，显示总结界面
@@ -638,8 +881,21 @@ export default function DictationPage() {
       }
     } else {
       // 错误答案
-      setIncorrectAnswers(prev => [...prev, {word: currentWord.english, userAnswer: userInput.trim()}]);
-      alert('答案不正确，请再试一次');
+      setIncorrectAnswers(prev => [...prev, {word: correctAnswer, userAnswer: userAnswer}]);
+      setWrongWords(prev => new Set([...prev, correctAnswer.toLowerCase()]));
+      
+      // 触发抖动动画
+      triggerShakeAnimation();
+      
+      // 1.5秒后自动跳到下一题
+      setTimeout(() => {
+        if (currentWordIndex < availableWords.length - 1) {
+          handleNextWord();
+        } else {
+          // 完成所有单词，显示总结界面
+          setShowSummary(true);
+        }
+      }, 1500);
     }
   };
 
@@ -694,7 +950,7 @@ export default function DictationPage() {
       )}
 
       {/* 只有当有单词且currentWord存在时才显示主要内容 */}
-      {words.length > 0 && currentWord && !showNoWordsWarning && !showSummary && (
+      {availableWords.length > 0 && currentWord && !showNoWordsWarning && !showSummary && (
         <>
           {/* Top navigation bar */}
           <div className="flex items-center justify-between p-4" style={{ backgroundColor: '#FFFBF5' }}>
@@ -720,7 +976,7 @@ export default function DictationPage() {
                 {worldName} - 听写练习
               </h2>
               <div className="text-sm text-gray-600">
-                {currentWordIndex + 1} / {words.length}
+                {currentWordIndex + 1} / {availableWords.length}
               </div>
             </div>
 
@@ -758,10 +1014,21 @@ export default function DictationPage() {
             <div className="w-45 h-45 mb-3 flex items-center justify-center">
           {currentStickerImage && currentWord && (
             <img 
-              src={`/${currentStickerImage}`}
+              src={currentStickerImage.startsWith('/') ? currentStickerImage : `/${currentStickerImage}`}
               alt={currentWord.english}
               className="w-45 h-45 object-contain"
+              onError={(e) => {
+                console.error(`图片加载失败: ${currentStickerImage}`, e);
+              }}
+              onLoad={() => {
+                console.log(`图片加载成功: ${currentStickerImage}`);
+              }}
             />
+          )}
+          {!currentStickerImage && currentWord && (
+            <div className="w-45 h-45 bg-gray-200 flex items-center justify-center text-gray-500">
+              暂无图片
+            </div>
           )}
             </div>
 
@@ -837,50 +1104,55 @@ export default function DictationPage() {
 
             {/* Input section */}
             <div className="w-full max-w-md mb-6 flex justify-center">
-              <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-                <input
-                  type="text"
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="请输入英文单词..."
-                  className="px-2 py-3 text-lg border-0 border-b border-gray-400 bg-transparent focus:outline-none focus:border-gray-400 text-center w-130"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="p-3 text-gray-800 rounded-full hover:opacity-80 transition-colors flex items-center justify-center"
-                  style={{ backgroundColor: '#FAF4ED' }}
-                  title="提交答案"
-                >
-                  <Send size={20} />
-                </button>
+              <form onSubmit={handleSubmit} className="flex items-center space-x-3 w-full">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSubmit(e)}
+                    placeholder="请输入听到的单词..."
+                    className={`w-full px-4 py-3 text-lg text-center bg-transparent border-0 border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none transition-colors ${
+                      isShaking ? 'animate-shake border-red-500' : ''
+                    }`}
+                    autoFocus
+                  />
+                  {/* 回车符号 */}
+                  <button
+                    onClick={handleSubmit}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                    title="提交答案"
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      {/* 键盘回车键的形状 */}
+                      <path d="M9 10h6v4h-6z" fill="currentColor" opacity="0.2"/>
+                      <path d="M9 10h6"/>
+                      <path d="M15 10v4"/>
+                      <path d="M15 14H9"/>
+                      <path d="M9 14v-4"/>
+                      {/* 回车箭头 */}
+                      <path d="M19 12H9"/>
+                      <path d="M15 8l4 4-4 4"/>
+                    </svg>
+                  </button>
+                </div>
               </form>
             </div>
 
-            {/* Progress section */}
-            <div className="w-full max-w-md text-center">
-              {/* Progress bar */}
-              <div className="mb-3">
-                <div className="w-4/5 mx-auto">
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>进度</span>
-                    <span>{currentWordIndex + 1} / {mockWords.length}</span>
-                  </div>
-                  <div className="w-full rounded-full h-2" style={{ backgroundColor: '#FAF4ED' }}>
-                    <div 
-                      className="h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${progress}%`, backgroundColor: '#ece4da' }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hint text */}
-              <div className="text-sm text-gray-600">
-                <p>
-                  平板可手写输入，其他设备可利用输入法听写
-                </p>
-              </div>
+            {/* Hint text */}
+            <div className="text-sm text-gray-600 text-center">
+              <p>
+                平板可手写输入，其他设备可利用输入法听写
+              </p>
             </div>
           </div>
         </>
@@ -917,61 +1189,164 @@ export default function DictationPage() {
         </div>
       )}
       
-      {/* 总结界面 */}
+      {/* 总结界面 - 报纸样式 */}
       {showSummary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md mx-4 w-full">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">学习完成！</h3>
-              <p className="text-gray-600">恭喜你完成了所有单词的听写</p>
+        <div className="min-h-screen flex flex-col bg-white">
+          {/* 简化的头部 */}
+          <div className="bg-white border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => router.back()}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>返回</span>
+              </button>
+              <h1 className="text-xl font-semibold text-gray-800">
+                听写完成
+              </h1>
+              <div className="w-16"></div> {/* 占位符保持居中 */}
+            </div>
+          </div>
+
+          {/* 主要内容区域 */}
+          <div className="flex-1 flex flex-col p-6 bg-white">
+            {/* 简化的完成标题 */}
+            <div className="text-center mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                {worldName} 听写练习完成
+              </h2>
             </div>
 
-            {/* 正确率显示 */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600 mb-1">{calculateAccuracy()}%</div>
-                <div className="text-sm text-gray-600">正确率</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  正确 {correctAnswers.length} / 总计 {correctAnswers.length + incorrectAnswers.length}
+            {/* 简化的统计信息 */}
+            <div className="mb-8">
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-medium text-gray-700">
+                  学习成果统计
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-4 gap-4">
+                {/* 正确答题数 */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-green-600 mb-2">
+                      {correctAnswers.length}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      正确答题数
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 错误题目数 */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-red-600 mb-2">
+                      {incorrectAnswers.length}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      错误题目数
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 题目总数 */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-blue-600 mb-2">
+                      {words.length}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      题目总数
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 正确率 */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-purple-600 mb-2">
+                      {Math.round((correctAnswers.length / words.length) * 100)}%
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      正确率
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* 错词列表 */}
+            {/* 错题列表 - 简化样式 */}
             {incorrectAnswers.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold text-gray-900 mb-3">需要加强的单词</h4>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {incorrectAnswers.map((item, index) => (
-                    <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-red-800">{item.word}</span>
-                        <span className="text-sm text-red-600">你的答案: {item.userAnswer}</span>
+              <div className="mb-8">
+                <div className="text-center mb-6">
+                  <h4 className="text-lg font-medium text-gray-700">
+                    错题回顾
+                  </h4>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="space-y-3 max-h-40 overflow-y-auto">
+                    {incorrectAnswers.map((item, index) => (
+                      <div key={`incorrect-${item.word}-${index}`} className="border-b border-gray-200 pb-3 last:border-b-0">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs bg-gray-600 text-white px-2 py-1 rounded">
+                              {index + 1}
+                            </span>
+                            <span className="font-medium text-gray-800">{item.word}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-500 mb-1">你的答案</div>
+                            <span className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+                              {item.userAnswer}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* 操作按钮 */}
-            <div className="flex space-x-3">
+            {/* 操作按钮 - 简化样式 */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* 错题复练按钮 */}
+              {incorrectAnswers.length > 0 && (
+                <button
+                  onClick={() => {
+                    // 重置状态进入错题复练模式
+                    const wrongWordsToRetry = incorrectAnswers.map(item => 
+                      words.find(word => word.english === item.word)
+                    ).filter(Boolean) as WordData[];
+                    
+                    setWords(wrongWordsToRetry);
+                    setAvailableWords(wrongWordsToRetry);
+                    setCurrentWordIndex(0);
+                    setUserInput('');
+                    setCorrectAnswers([]);
+                    setIncorrectAnswers([]);
+                    setWrongWords(new Set());
+                    setShowSummary(false);
+                    setIsShaking(false);
+                    
+                    console.log(`开始错题复练，共 ${wrongWordsToRetry.length} 个单词`);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  错题强化训练 ({incorrectAnswers.length})
+                </button>
+              )}
+              
+              {/* 返回按钮 */}
               <button
-                onClick={handlePracticeAgain}
-                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                onClick={() => router.back()}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
               >
-                再练一遍
-              </button>
-              <button
-                onClick={handleReturn}
-                className="flex-1 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                返回
+                <ArrowLeft className="w-4 h-4" />
+                返回世界选择
               </button>
             </div>
           </div>

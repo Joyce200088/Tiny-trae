@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text, Circle } from 'react-konva';
 import useImage from 'use-image';
-import { Search, Sparkles, Image, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, Play, Settings, X } from 'lucide-react';
+import { Search, Sparkles, Image as ImageIcon, Palette, Layers, Save, Eye, Share2, Download, RotateCcw, Trash2, Undo, Redo, Play, Settings, X, Lock, Unlock } from 'lucide-react';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 import { useSearchParams } from 'next/navigation';
 import { StickerDataUtils } from '@/utils/stickerDataUtils';
@@ -69,9 +69,9 @@ const mockStickers: StickerData[] = [
   }
 ];
 
-// 模拟背景数据
+// 模拟背景数据 - 现在由 useBackgroundData Hook 管理
 const mockBackgrounds = [
-  { id: '1', name: 'Kitchen', url: '/api/placeholder/800/600', category: 'Ai-generated' },
+  { id: '1', name: 'Room', url: '/room-background.png', category: 'Custom' },
   { id: '2', name: 'Garden', url: '/api/placeholder/800/600', category: 'Ai-generated' },
   { id: '3', name: 'Bedroom', url: '/api/placeholder/800/600', category: 'Ai-generated' }
 ];
@@ -93,14 +93,15 @@ const DraggableImage = ({
   const shapeRef = useRef<any>(null);
   const trRef = useRef<any>(null);
   const [image] = useImage(imageObj.src);
+  const isLocked = imageObj.locked || false;
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      // 将transformer附加到选中的形状
+    if (isSelected && trRef.current && shapeRef.current && !isLocked) {
+      // 将transformer附加到选中的形状（仅当未锁定时）
       trRef.current.nodes([shapeRef.current]);
       trRef.current.getLayer().batchDraw();
     }
-  }, [isSelected]);
+  }, [isSelected, isLocked]);
 
   return (
     <>
@@ -108,7 +109,7 @@ const DraggableImage = ({
         ref={shapeRef}
         {...imageObj}
         image={image}
-        draggable={isSelected} // 只有选中时才可拖拽
+        draggable={isSelected && !isLocked} // 只有选中且未锁定时才可拖拽
         onClick={onSelect}
         onTap={onSelect}
         onContextMenu={(e) => {
@@ -125,7 +126,7 @@ const DraggableImage = ({
           }
         }}
         onDragEnd={(e) => {
-          if (isSelected) { // 只有选中时才处理拖拽结束事件
+          if (isSelected && !isLocked) { // 只有选中且未锁定时才处理拖拽结束事件
             onChange({
               ...imageObj,
               x: e.target.x(),
@@ -134,6 +135,8 @@ const DraggableImage = ({
           }
         }}
         onTransformEnd={(e) => {
+          if (isLocked) return; // 如果被锁定，不处理变换
+          
           const node = shapeRef.current;
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
@@ -152,7 +155,7 @@ const DraggableImage = ({
           });
         }}
       />
-      {isSelected && (
+      {isSelected && !isLocked && (
         <Transformer
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
@@ -175,6 +178,27 @@ const DraggableImage = ({
           anchorStrokeWidth={2}
           anchorSize={8}
         />
+      )}
+      
+      {/* 锁定指示器 - 完全隐藏 */}
+      {false && (
+        <Group>
+          <Circle
+            x={imageObj.x + imageObj.width - 15}
+            y={imageObj.y + 15}
+            radius={12}
+            fill="rgba(0, 0, 0, 0.7)"
+            stroke="#ffffff"
+            strokeWidth={2}
+          />
+          <Text
+            x={imageObj.x + imageObj.width - 20}
+            y={imageObj.y + 9}
+            text="🔒"
+            fontSize={12}
+            fill="#ffffff"
+          />
+        </Group>
       )}
     </>
   );
@@ -369,8 +393,54 @@ export default function CreateWorldPage() {
       // 生成预览图
       const previewImage = await generateCanvasPreview();
       
+      // 提取所有贴纸数据并保存到My Stickers
+      const stickerObjects = canvasObjects.filter(obj => obj.stickerData);
+      const stickersToSave: StickerData[] = [];
+      
+      for (const obj of stickerObjects) {
+        const stickerData = obj.stickerData;
+        if (stickerData) {
+          // 确保贴纸数据包含所有必要字段
+          const completeStickerData: StickerData = {
+            id: stickerData.id || `sticker_${Date.now()}_${Math.random()}`,
+            name: stickerData.name || obj.name || 'Unknown',
+            chinese: stickerData.chinese || '',
+            phonetic: stickerData.phonetic || '',
+            category: stickerData.category || 'Custom',
+            partOfSpeech: stickerData.partOfSpeech || 'noun',
+            tags: stickerData.tags || ['Custom'],
+            thumbnailUrl: stickerData.thumbnailUrl || stickerData.imageUrl || obj.src,
+            imageUrl: stickerData.imageUrl || stickerData.thumbnailUrl || obj.src,
+            audioUrl: stickerData.audioUrl || '',
+            createdAt: stickerData.createdAt || new Date().toISOString(),
+            sorted: stickerData.sorted || false,
+            notes: stickerData.notes || '',
+            mnemonic: stickerData.mnemonic || '',
+            examples: stickerData.examples || [],
+            relatedWords: stickerData.relatedWords || [],
+            masteryStatus: stickerData.masteryStatus || 'not_started'
+          };
+          stickersToSave.push(completeStickerData);
+        }
+      }
+      
+      // 使用去重功能批量保存贴纸到My Stickers
+      if (stickersToSave.length > 0) {
+        try {
+          const result = await StickerDataUtils.addStickersWithDeduplication(stickersToSave);
+          console.log(`保存贴纸到My Stickers: 新增${result.added.length}个，跳过${result.skipped.length}个重复项`);
+          
+          // 更新本地myStickers状态
+          if (result.added.length > 0) {
+            setMyStickers(prev => [...prev, ...result.added]);
+          }
+        } catch (error) {
+          console.error('保存贴纸到My Stickers失败:', error);
+        }
+      }
+      
       const worldData = {
-        id: Date.now().toString(), // 添加唯一ID
+        id: `saved-${Date.now()}-${Math.random()}`, // 使用与我的世界页面一致的ID格式
         name: canvasName,
         canvasObjects: canvasObjects,
         selectedBackground: selectedBackground,
@@ -601,6 +671,12 @@ export default function CreateWorldPage() {
       case 'delete':
         newObjects.splice(objIndex, 1);
         setSelectedObjectId(null);
+        break;
+      case 'lock':
+        newObjects[objIndex] = { ...obj, locked: true };
+        break;
+      case 'unlock':
+        newObjects[objIndex] = { ...obj, locked: false };
         break;
     }
     
@@ -1340,7 +1416,8 @@ export default function CreateWorldPage() {
                       name: dragData.name,
                       rotation: 0,
                       scaleX: 1,
-                      scaleY: 1
+                      scaleY: 1,
+                      locked: false
                     };
                     const newObjects = [...canvasObjects, newObject];
                     setCanvasObjects(newObjects);
@@ -1357,14 +1434,77 @@ export default function CreateWorldPage() {
                       name: dragData.name,
                       rotation: 0,
                       scaleX: 1,
-                      scaleY: 1
+                      scaleY: 1,
+                      locked: false,
+                      // 保存完整的贴纸数据，用于后续的单词提取
+                      stickerData: dragData.stickerData
                     };
                     const newObjects2 = [...canvasObjects, newObject];
                     setCanvasObjects(newObjects2);
                     saveToHistory(newObjects2);
                   } else if (dragData.type === 'background') {
-                    // 设置背景
-                    setSelectedBackground(dragData.id);
+                    // 添加背景图到画布作为可交互对象
+                    const createBackgroundObject = (width: number, height: number) => {
+                      return {
+                        id: `background_${Date.now()}`,
+                        x: Math.max(0, Math.min(x, rect.width - width)),
+                        y: Math.max(0, Math.min(y, rect.height - height)),
+                        width: width,
+                        height: height,
+                        src: dragData.url,
+                        name: dragData.name,
+                        rotation: 0,
+                        scaleX: 1,
+                        scaleY: 1,
+                        locked: false
+                      };
+                    };
+
+                    if (dragData.needsResize) {
+                      // 需要重新计算尺寸
+                      const img = new Image();
+                      img.crossOrigin = 'anonymous';
+                      img.onload = () => {
+                        const maxWidth = 400;
+                        const maxHeight = 300;
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        
+                        let width = img.naturalWidth;
+                        let height = img.naturalHeight;
+                        
+                        // 如果图片太大，按比例缩放
+                        if (width > maxWidth) {
+                          width = maxWidth;
+                          height = width / aspectRatio;
+                        }
+                        
+                        if (height > maxHeight) {
+                          height = maxHeight;
+                          width = height * aspectRatio;
+                        }
+                        
+                        const newObject = createBackgroundObject(Math.round(width), Math.round(height));
+                        const newObjects = [...canvasObjects, newObject];
+                        setCanvasObjects(newObjects);
+                        saveToHistory(newObjects);
+                      };
+                      
+                      img.onerror = () => {
+                        // 如果图片加载失败，使用默认尺寸
+                        const newObject = createBackgroundObject(dragData.width, dragData.height);
+                        const newObjects = [...canvasObjects, newObject];
+                        setCanvasObjects(newObjects);
+                        saveToHistory(newObjects);
+                      };
+                      
+                      img.src = dragData.url;
+                    } else {
+                      // 直接使用已计算的尺寸
+                      const newObject = createBackgroundObject(dragData.width, dragData.height);
+                      const newObjects = [...canvasObjects, newObject];
+                      setCanvasObjects(newObjects);
+                      saveToHistory(newObjects);
+                    }
                   }
                 } catch (error) {
                   console.error('Failed to parse drag data:', error);
@@ -1556,6 +1696,21 @@ export default function CreateWorldPage() {
                  <span>移到最下层</span>
                </button>
                <div className="border-t border-gray-200 my-1"></div>
+               {(() => {
+                 const selectedObj = canvasObjects.find(obj => obj.id === contextMenu.objectId);
+                 const isLocked = selectedObj?.locked || false;
+                 
+                 return (
+                   <button
+                     className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+                     onClick={() => handleContextMenuAction(isLocked ? 'unlock' : 'lock', contextMenu.objectId!)}
+                   >
+                     {isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                     <span>{isLocked ? '解锁' : '锁定'}</span>
+                   </button>
+                 );
+               })()}
+               <div className="border-t border-gray-200 my-1"></div>
                <button
                  className="w-full px-4 py-2 text-left hover:bg-gray-100 text-red-600 flex items-center gap-2"
                  onClick={() => handleContextMenuAction('delete', contextMenu.objectId!)}
@@ -1592,7 +1747,7 @@ export default function CreateWorldPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              <Image className="w-4 h-4 mx-auto mb-1" />
+              <ImageIcon className="w-4 h-4 mx-auto mb-1" />
               Background
             </button>
             <button
@@ -1638,7 +1793,9 @@ export default function CreateWorldPage() {
                         src: imageUrl,
                         name: sticker.name,
                         width: 80,
-                        height: 80
+                        height: 80,
+                        // 保存完整的贴纸数据，用于后续的单词提取
+                        stickerData: sticker
                       };
                       e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
                     }}
@@ -1654,7 +1811,9 @@ export default function CreateWorldPage() {
                         name: sticker.name,
                         rotation: 0,
                         scaleX: 1,
-                        scaleY: 1
+                        scaleY: 1,
+                        // 保存完整的贴纸数据，用于后续的单词提取
+                        stickerData: sticker
                       };
                       setCanvasObjects(prev => [...prev, newSticker]);
                     }}
@@ -1697,25 +1856,117 @@ export default function CreateWorldPage() {
                 {mockBackgrounds.map((bg) => (
                   <div
                     key={bg.id}
-                    className={`aspect-video rounded-lg flex items-center justify-center cursor-grab transition-all active:cursor-grabbing ${
+                    className={`aspect-video rounded-lg flex items-center justify-center cursor-grab transition-all active:cursor-grabbing overflow-hidden ${
                       selectedBackground === bg.id
                         ? 'ring-2 ring-blue-500'
-                        : 'hover:bg-gray-200'
-                    }`} style={{backgroundColor: '#FAF4ED'}}
+                        : 'hover:ring-1 hover:ring-gray-300'
+                    }`}
                     draggable
                     onDragStart={(e) => {
-                      const dragData = {
-                        type: 'background',
-                        id: bg.id,
-                        name: bg.name,
-                        width: 800,
-                        height: 600
+                      // 同步获取图片尺寸并保持比例
+                      const img = new Image();
+                      img.crossOrigin = 'anonymous';
+                      
+                      // 创建一个Promise来处理图片加载
+                      const getImageDimensions = () => {
+                        return new Promise<{width: number, height: number}>((resolve) => {
+                          img.onload = () => {
+                            const maxWidth = 400;
+                            const maxHeight = 300;
+                            const aspectRatio = img.naturalWidth / img.naturalHeight;
+                            
+                            let width = img.naturalWidth;
+                            let height = img.naturalHeight;
+                            
+                            // 如果图片太大，按比例缩放
+                            if (width > maxWidth) {
+                              width = maxWidth;
+                              height = width / aspectRatio;
+                            }
+                            
+                            if (height > maxHeight) {
+                              height = maxHeight;
+                              width = height * aspectRatio;
+                            }
+                            
+                            resolve({
+                              width: Math.round(width),
+                              height: Math.round(height)
+                            });
+                          };
+                          
+                          img.onerror = () => {
+                            // 如果图片加载失败，使用默认尺寸
+                            resolve({ width: 400, height: 300 });
+                          };
+                        });
                       };
-                      e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+                      
+                      img.src = bg.url;
+                      
+                      // 如果图片已经缓存，立即计算尺寸
+                      if (img.complete) {
+                        const maxWidth = 400;
+                        const maxHeight = 300;
+                        const aspectRatio = img.naturalWidth / img.naturalHeight;
+                        
+                        let width = img.naturalWidth;
+                        let height = img.naturalHeight;
+                        
+                        if (width > maxWidth) {
+                          width = maxWidth;
+                          height = width / aspectRatio;
+                        }
+                        
+                        if (height > maxHeight) {
+                          height = maxHeight;
+                          width = height * aspectRatio;
+                        }
+                        
+                        const dragData = {
+                          type: 'background',
+                          id: bg.id,
+                          name: bg.name,
+                          url: bg.url,
+                          width: Math.round(width),
+                          height: Math.round(height)
+                        };
+                        e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+                      } else {
+                        // 图片未缓存，使用默认尺寸但标记需要重新计算
+                        const dragData = {
+                          type: 'background',
+                          id: bg.id,
+                          name: bg.name,
+                          url: bg.url,
+                          width: 400,
+                          height: 300,
+                          needsResize: true // 标记需要重新计算尺寸
+                        };
+                        e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+                      }
                     }}
                     onClick={() => setSelectedBackground(bg.id)}
                   >
-                    <div className="text-sm text-gray-500">{bg.name}</div>
+                    <div className="relative w-full h-full">
+                      <img
+                        src={bg.url}
+                        alt={bg.name}
+                        className="w-full h-full object-cover rounded-lg"
+                        onError={(e) => {
+                          // 如果图片加载失败，显示占位符
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<div class="w-full h-full bg-gray-100 flex items-center justify-center rounded-lg"><span class="text-sm text-gray-500">${bg.name}</span></div>`;
+                          }
+                        }}
+                      />
+                      <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                        {bg.name}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -358,13 +358,10 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           const { analyzeWordWithGemini } = await import('@/lib/gemini');
           detailedWordInfo = await analyzeWordWithGemini({
             word: stickerInfo.word,
-            currentData: {
-              chinese: stickerInfo.translation,
-              pronunciation: stickerInfo.pronunciation,
-              examples: stickerInfo.examples,
-              mnemonic: stickerInfo.description,
-              partOfSpeech: 'noun'
-            }
+            currentChinese: stickerInfo.translation,
+            currentPartOfSpeech: 'noun',
+            currentExamples: stickerInfo.examples.map(ex => ex.english),
+            currentMnemonic: stickerInfo.description
           });
           console.log('单词详情信息生成成功');
         } catch (detailError) {
@@ -566,10 +563,14 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
     setGeneratedStickers(prev => prev.map(sticker => 
       sticker.id === updatedSticker.id ? {
         ...sticker,
-        word: updatedSticker.word,
-        chinese: updatedSticker.chinese,
-        examples: updatedSticker.examples,
-        mnemonic: updatedSticker.mnemonic,
+        word: updatedSticker.name, // 使用 name 属性而不是 word
+        chinese: updatedSticker.chinese || '', // 确保 chinese 不为 undefined
+        examples: updatedSticker.examples || [], // 确保 examples 不为 undefined，提供默认空数组
+        mnemonic: Array.isArray(updatedSticker.mnemonic) 
+          ? updatedSticker.mnemonic 
+          : updatedSticker.mnemonic 
+            ? [updatedSticker.mnemonic] 
+            : [], // 确保 mnemonic 是 string[] 类型
         tags: updatedSticker.tags
       } : sticker
     ));

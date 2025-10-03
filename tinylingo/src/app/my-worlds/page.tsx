@@ -427,12 +427,18 @@ export default function MyWorlds() {
                 {/* Action Buttons */}
                 <div className="flex space-x-2 px-4 pb-4">
                   <Link href={`/create-world?id=${world.id}`} className="flex-1">
-                    <button className="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors">
+                    <button 
+                      className="w-full text-black py-2 px-3 rounded text-sm transition-colors"
+                      style={{ backgroundColor: '#EAD5B6' }}
+                    >
                       Edit
                     </button>
                   </Link>
                   <Link href={`/dictation?worldId=${world.id}`} className="flex-1">
-                    <button className="w-full bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700 transition-colors">
+                    <button 
+                      className="w-full text-black py-2 px-3 rounded text-sm transition-colors"
+                      style={{ backgroundColor: '#EAD5B6' }}
+                    >
                       Learn
                     </button>
                   </Link>

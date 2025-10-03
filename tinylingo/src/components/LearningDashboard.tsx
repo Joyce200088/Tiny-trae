@@ -297,9 +297,9 @@ function LearningDashboard({ stickers, onClose }: LearningDashboardProps) {
           {/* 快速导航 */}
           <div className="flex justify-center">
             <div className="flex gap-2 bg-gray-100 rounded-lg p-2 max-w-full overflow-x-auto">
-              {stickers.map((_, index) => (
+              {stickers.map((sticker, index) => (
                 <button
-                  key={index}
+                  key={`nav-${sticker.id}-${index}`}
                   onClick={() => setCurrentIndex(index)}
                   className={`w-8 h-8 rounded-full text-sm font-medium transition-colors flex-shrink-0 ${
                     index === currentIndex

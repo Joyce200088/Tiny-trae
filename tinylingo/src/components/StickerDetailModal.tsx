@@ -181,7 +181,7 @@ function StickerDetailModal({
         word: sticker.name,
         currentChinese: sticker.chinese,
         currentPartOfSpeech: sticker.partOfSpeech,
-        currentExamples: sticker.examples,
+        currentExamples: sticker.examples?.map(ex => ex.english) || [],
         currentMnemonic: sticker.mnemonic,
         currentTags: sticker.tags,
         currentRelatedWords: sticker.relatedWords
@@ -611,7 +611,7 @@ function StickerDetailModal({
                           <div className="flex flex-wrap gap-2">
                             {wordsOfType.map((word, index) => (
                               <div
-                                key={index}
+                                key={`word-${word.word}-${index}`}
                                 className="inline-flex items-center space-x-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
                                 style={{
                                   backgroundColor: highlightedWords.has(word.word) ? '#FAF4ED' : '#f9fafb'
@@ -642,7 +642,7 @@ function StickerDetailModal({
                 {sticker.examples && sticker.examples.length > 0 ? (
                   <div className="space-y-4">
                     {sticker.examples.map((example, index) => (
-                      <div key={index} className="space-y-2 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                      <div key={`example-${example.english}-${index}`} className="space-y-2 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 space-y-2">
                             <div className="text-gray-800 italic">"{example.english}"</div>
@@ -873,7 +873,7 @@ function StickerDetailModal({
                       </h4>
                       <div className="space-y-3">
                         {aiSuggestions.examples.map((example: any, index: number) => (
-                          <div key={index} className="bg-white rounded-lg p-3 border">
+                          <div key={`ai-example-${example.english}-${index}`} className="bg-white rounded-lg p-3 border">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <p className="text-gray-800 mb-1">{example.english}</p>
@@ -954,7 +954,7 @@ function StickerDetailModal({
                       </h4>
                       <div className="grid grid-cols-1 gap-2">
                         {aiSuggestions.relatedWords.map((word: any, index: number) => (
-                          <div key={index} className="bg-white rounded-lg p-3 border flex justify-between items-center">
+                          <div key={`ai-related-${word.word}-${index}`} className="bg-white rounded-lg p-3 border flex justify-between items-center">
                             <div>
                               <span className="font-medium text-gray-800">{word.word}</span>
                               <span className="text-gray-600 ml-2">{word.chinese}</span>

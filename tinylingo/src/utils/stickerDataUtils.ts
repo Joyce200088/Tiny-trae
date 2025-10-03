@@ -94,6 +94,69 @@ export class StickerDataUtils {
   }
 
   /**
+   * 检查贴纸是否已存在（通过stickerId或word+style去重）
+   */
+  static isStickerExists(sticker: StickerData, existingStickers: StickerData[]): boolean {
+    // 方式1: 通过stickerId去重
+    if (sticker.id && existingStickers.some(s => s.id === sticker.id)) {
+      return true;
+    }
+    
+    // 方式2: 通过word+style组合去重
+    const stickerKey = this.getStickerKey(sticker);
+    return existingStickers.some(s => this.getStickerKey(s) === stickerKey);
+  }
+
+  /**
+   * 生成贴纸的唯一标识键（word+style）
+   */
+  private static getStickerKey(sticker: StickerData): string {
+    const word = sticker.name?.toLowerCase().trim() || '';
+    const style = sticker.tags?.find(tag => 
+      ['cartoon', 'pixel', 'realistic', 'ai-generated'].includes(tag.toLowerCase())
+    )?.toLowerCase() || 'default';
+    return `${word}_${style}`;
+  }
+
+  /**
+   * 批量添加贴纸到My Stickers（带去重功能）
+   * 用于保存世界时将贴纸数据写入My Stickers
+   */
+  static async addStickersWithDeduplication(newStickers: StickerData[]): Promise<{
+    added: StickerData[];
+    skipped: StickerData[];
+  }> {
+    try {
+      const currentData = this.loadStickerData();
+      const allExistingStickers = this.getAllAvailableStickers([]);
+      
+      const added: StickerData[] = [];
+      const skipped: StickerData[] = [];
+      
+      for (const sticker of newStickers) {
+        if (!this.isStickerExists(sticker, allExistingStickers)) {
+          // 处理图片URL的持久化
+          const processedSticker = await this.processStickerImages(sticker);
+          currentData.userStickers.push(processedSticker);
+          allExistingStickers.push(processedSticker); // 更新本地列表以避免重复
+          added.push(processedSticker);
+        } else {
+          skipped.push(sticker);
+        }
+      }
+      
+      if (added.length > 0) {
+        this.saveStickerData(currentData);
+      }
+      
+      return { added, skipped };
+    } catch (error) {
+      console.error('批量添加贴纸（带去重）失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 更新贴纸
    * 如果是用户贴纸，直接更新；如果是模拟贴纸，复制到用户贴纸中并标记原模拟贴纸为已删除
    */
@@ -169,7 +232,13 @@ export class StickerDataUtils {
       this.convertStickerImagesForDisplay(sticker)
     );
     
-    return [...availableMockStickers, ...processedUserStickers];
+    // 确保所有贴纸都有唯一的ID，为用户贴纸添加前缀以避免与模拟贴纸冲突
+    const uniqueUserStickers = processedUserStickers.map(sticker => ({
+      ...sticker,
+      id: sticker.id.startsWith('user_') ? sticker.id : `user_${sticker.id}`
+    }));
+    
+    return [...availableMockStickers, ...uniqueUserStickers];
   }
 
   /**

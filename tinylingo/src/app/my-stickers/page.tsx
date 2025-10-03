@@ -90,7 +90,7 @@ function MyStickers() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
-  const [generatedStickers, setGeneratedStickers] = useState<Sticker[]>([]);
+  const [generatedStickers, setGeneratedStickers] = useState<StickerData[]>([]);
   const [showLearningDashboard, setShowLearningDashboard] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -1007,7 +1007,7 @@ function MyStickers() {
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {uploadedFiles.map((fileData, index) => (
-                      <div key={index} className="relative group">
+                      <div key={`upload-${index}-${fileData.file.name}-${fileData.file.size}`} className="relative group">
                         <img
                           src={fileData.preview}
                           alt={`Upload ${index + 1}`}
@@ -1058,7 +1058,18 @@ function MyStickers() {
         {showLearningDashboard && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <LearningDashboard
-              stickers={generatedStickers}
+              stickers={generatedStickers.map((sticker, index) => ({
+                id: index,
+                dataUrl: sticker.imageUrl || sticker.thumbnailUrl || '',
+                area: 1000, // 默认面积
+                bbox: { x: 0, y: 0, width: 100, height: 100 }, // 默认边界框
+                learningContent: {
+                  english: sticker.name,
+                  chinese: sticker.chinese || '',
+                  example: sticker.example || `This is a ${sticker.name}.`,
+                  exampleChinese: sticker.exampleChinese || `这是一个${sticker.chinese || sticker.name}。`
+                }
+              }))}
               onClose={() => setShowLearningDashboard(false)}
             />
           </div>
@@ -1170,7 +1181,7 @@ function MyStickers() {
                     ].map((viewpoint) => (
                       <button
                         key={viewpoint.value}
-                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as 'front' | 'side' | 'top' | 'perspective' }))}
+                        onClick={() => setAiGenerationOptions(prev => ({ ...prev, viewpoint: viewpoint.value as 'front' | 'side' | 'top' | 'isometric' }))}
                         className={`p-3 rounded-lg border-2 text-center transition-colors ${
                           aiGenerationOptions.viewpoint === viewpoint.value
                             ? 'border-purple-500 bg-purple-50'

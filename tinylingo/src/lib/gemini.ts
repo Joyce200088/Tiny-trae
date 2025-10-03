@@ -133,7 +133,7 @@ export async function analyzeWordWithGemini(request: WordAnalysisRequest): Promi
     }
   ],
   "mnemonic": "一句简洁的记忆方法（基于词根词缀联想）",
-  "masteryStatus": "familiar",
+  "masteryStatus": "unfamiliar",
   "relatedWords": [
     {"word": "相关词1", "chinese": "中文1", "partOfSpeech": "词性1"},
     {"word": "相关词2", "chinese": "中文2", "partOfSpeech": "词性2"},
@@ -223,7 +223,7 @@ function createFallbackResponse(word: string): WordAnalysisResponse {
       }
     ],
     mnemonic: `${word} 可以联想记忆，建议结合发音和词义特点`,
-    masteryStatus: "familiar",
+    masteryStatus: "unfamiliar",
     relatedWords: [
       { word: "related1", chinese: "相关词1", partOfSpeech: "noun" },
       { word: "related2", chinese: "相关词2", partOfSpeech: "verb" },
