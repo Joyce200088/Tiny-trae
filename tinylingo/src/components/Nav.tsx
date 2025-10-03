@@ -58,12 +58,12 @@ export default function Nav() {
         </div>
 
         {/* User Info */}
-        <div className="flex items-center space-x-3">
+        <Link href={`/u/${username.toLowerCase()}`} className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
           <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
             <User className="w-5 h-5 text-gray-600" />
           </div>
           <span className="text-gray-700 font-medium">Hi, {username}</span>
-        </div>
+        </Link>
       </div>
     </nav>
   );

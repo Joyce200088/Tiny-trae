@@ -1,0 +1,56 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景渐变 -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0f9ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" fill="url(#bgGradient)"/>
+  
+  <!-- 左侧绿色箭头 -->
+  <path d="M50 80 L120 50 L120 80 L150 80 L150 130 L120 130 L120 160 Z" fill="#10B981"/>
+  
+  <!-- 黄色太阳形状 -->
+  <circle cx="180" cy="200" r="40" fill="#F59E0B"/>
+  <path d="M180 140 L190 160 L210 150 L200 170 L220 180 L200 190 L210 210 L190 200 L180 220 L170 200 L150 210 L160 190 L140 180 L160 170 L150 150 L170 160 Z" fill="#F59E0B"/>
+  
+  <!-- 红色苹果 -->
+  <ellipse cx="320" cy="120" rx="35" ry="40" fill="#EF4444"/>
+  <path d="M310 85 Q315 80 325 85 Q330 75 340 80 Q345 85 340 95" fill="#059669"/>
+  
+  <!-- 粉色花朵 -->
+  <g transform="translate(450, 80)">
+    <circle cx="0" cy="-20" r="15" fill="#EC4899"/>
+    <circle cx="17" cy="-10" r="15" fill="#EC4899"/>
+    <circle cx="17" cy="10" r="15" fill="#EC4899"/>
+    <circle cx="0" cy="20" r="15" fill="#EC4899"/>
+    <circle cx="-17" cy="10" r="15" fill="#EC4899"/>
+    <circle cx="-17" cy="-10" r="15" fill="#EC4899"/>
+    <circle cx="0" cy="0" r="12" fill="#1F2937"/>
+    <circle cx="-3" cy="-3" r="2" fill="white"/>
+    <circle cx="3" cy="-3" r="2" fill="white"/>
+  </g>
+  
+  <!-- 青色圆形 -->
+  <circle cx="550" cy="180" r="35" fill="#06B6D4"/>
+  
+  <!-- 橙色圆形 -->
+  <circle cx="650" cy="200" r="40" fill="#F97316"/>
+  
+  <!-- 粉色多边形 -->
+  <path d="M750 60 L800 80 L820 130 L780 170 L720 160 L700 110 Z" fill="#F472B6"/>
+  
+  <!-- 青色多边形 -->
+  <path d="M850 140 L900 120 L930 160 L910 200 L860 210 L830 170 Z" fill="#22D3EE"/>
+  
+  <!-- 底部青色矩形 -->
+  <rect x="200" y="250" width="600" height="50" fill="#0891B2"/>
+  
+  <!-- 文字 PROMOTE GRAPHIC -->
+  <text x="600" y="50" text-anchor="middle" fill="#1F2937" font-family="Arial, sans-serif" font-size="32" font-weight="bold">
+    PROMOTE
+    <tspan x="600" dy="40" font-size="14" fill="#6B7280">(Illustration)</tspan>
+    <tspan x="600" dy="25" font-size="32" fill="#1F2937">GRAPHIC</tspan>
+  </text>
+</svg>

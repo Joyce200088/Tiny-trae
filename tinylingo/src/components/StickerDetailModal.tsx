@@ -5,6 +5,7 @@ import { Volume2, ChevronLeft, ChevronRight, Tag, ChevronDown, ChevronUp, X, Spa
 import { StickerData, MasteryStatus } from '@/types/sticker';
 import { Modal, Button } from '@/components/ui';
 import { analyzeWordWithGemini, WordAnalysisRequest } from '@/lib/gemini';
+import { StatusIcon } from '@/components/StatusIcon';
 
 interface StickerDetailModalProps {
   sticker: StickerData | null;
@@ -505,11 +506,22 @@ function StickerDetailModal({
               {/* 掌握状态 */}
               <div className="flex justify-center">
                 {isMasteryEditing ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-center">
                     <button
                       onClick={() => {
                         if (sticker && onSave) {
-                          onSave({ ...sticker, masteryStatus: 'unfamiliar' });
+                          onSave({ ...sticker, masteryStatus: undefined });
+                        }
+                        setIsMasteryEditing(false);
+                      }}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 transition-colors"
+                    >
+                      取消选择
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (sticker && onSave) {
+                          onSave({ ...sticker, masteryStatus: 'unknown' });
                         }
                         setIsMasteryEditing(false);
                       }}
@@ -543,16 +555,14 @@ function StickerDetailModal({
                 ) : (
                   <button
                     onClick={() => setIsMasteryEditing(true)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity ${
-                      sticker.masteryStatus === 'mastered' ? 'bg-green-100 text-green-800 border border-green-200' :
-                      sticker.masteryStatus === 'vague' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                      sticker.masteryStatus === 'unfamiliar' ? 'bg-red-100 text-red-800 border border-red-200' :
-                      'bg-gray-100 text-gray-600 border border-gray-200'
-                    }`}
+                    className="flex items-center gap-2 px-3 py-1 rounded-full hover:opacity-80 transition-opacity"
                   >
-                    {sticker.masteryStatus === 'mastered' ? '掌握' :
-                     sticker.masteryStatus === 'vague' ? '模糊' :
-                     sticker.masteryStatus === 'unfamiliar' ? '陌生' : '设置掌握状态'}
+                    <StatusIcon status={sticker.masteryStatus} size={16} />
+                    <span className="text-xs font-medium">
+                      {sticker.masteryStatus === 'mastered' ? '掌握' :
+                       sticker.masteryStatus === 'vague' ? '模糊' :
+                       sticker.masteryStatus === 'unknown' ? '陌生' : '设置掌握状态'}
+                    </span>
                   </button>
                 )}
               </div>
@@ -852,7 +862,7 @@ function StickerDetailModal({
                    {/* 例句 */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <StatusIcon status="mastered" size={8} className="w-2 h-2" />
                         例句建议
                         {showIndividualApply && (
                           <button
@@ -906,7 +916,7 @@ function StickerDetailModal({
                     {/* 巧记方法 */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                        <StatusIcon status="vague" size={8} className="w-2 h-2" />
                         巧记方法
                         {showIndividualApply && (
                           <button
@@ -933,7 +943,7 @@ function StickerDetailModal({
                     {/* 相关词 */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                        <StatusIcon status="unknown" size={8} className="w-2 h-2" />
                         相关词汇
                         {showIndividualApply && (
                           <button

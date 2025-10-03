@@ -67,7 +67,7 @@ interface GeneratedSticker {
   isSelected: boolean;
   generationStatus: 'pending' | 'generating' | 'completed' | 'error';
   // 添加AI智能建议相关字段
-  masteryStatus?: 'unfamiliar' | 'vague' | 'mastered';
+  masteryStatus?: MasteryStatus;
   relatedWords?: Array<{
     word: string;
     chinese: string;
@@ -385,7 +385,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           isSelected: true,
           generationStatus: 'completed',
           // 掌握状态不自动生成，保持默认值让用户选择
-          masteryStatus: 'unfamiliar', // 固定为初始状态
+          masteryStatus: 'unknown', // 固定为初始状态
           relatedWords: detailedWordInfo?.relatedWords || [] // 自动生成相关词汇
         };
 
@@ -434,7 +434,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           isSelected: true,
           generationStatus: 'completed',
           // 添加AI智能建议的默认字段
-          masteryStatus: 'unfamiliar',
+          masteryStatus: 'unknown',
           relatedWords: []
         };
 
@@ -535,7 +535,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
       examples: sticker.examples,
       mnemonic: sticker.mnemonic,
       tags: sticker.tags,
-      masteryStatus: 'unfamiliar', // 固定为初始状态，让用户选择
+      masteryStatus: 'unknown', // 固定为初始状态，让用户选择
       relatedWords: sticker.relatedWords || [], // 使用AI生成的相关词汇
       createdAt: new Date().toISOString(),
       sorted: false,
@@ -1179,7 +1179,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           examples: s.examples,
           mnemonic: s.mnemonic,
           tags: s.tags,
-          masteryStatus: 'unfamiliar', // 固定为初始状态，让用户选择
+          masteryStatus: 'unknown', // 固定为初始状态，让用户选择
           relatedWords: s.relatedWords || [], // 使用AI生成的相关词汇
           createdAt: new Date().toISOString(),
           sorted: false,

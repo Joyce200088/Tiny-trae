@@ -1,7 +1,7 @@
 // 统一的贴纸数据类型定义
 
-// 掌握状态枚举
-export type MasteryStatus = 'unfamiliar' | 'vague' | 'mastered';
+// 掌握状态枚举 - 统一所有可能的状态值
+export type MasteryStatus = 'unknown' | 'unfamiliar' | 'new' | 'vague' | 'fuzzy' | 'mastered';
 
 // 例句接口
 export interface Example {
