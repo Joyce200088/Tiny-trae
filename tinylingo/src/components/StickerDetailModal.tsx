@@ -521,85 +521,13 @@ function StickerDetailModal({
             </div>
             </div>
 
-            {/* 右侧 - 例句、备注、巧记方法、标签、相关词 */}
+            {/* 右侧 - 巧记方法、相关词、例句、备注、标签 */}
             <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(82vh-20px)]">
               <div className="space-y-4">
-            {/* 例句 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">例句</h3>
-              </div>
-              <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[120px]" 
-                style={{ backgroundColor: '#FAF4ED' }}
-              >
-                {sticker.examples && sticker.examples.length > 0 ? (
-                  <div className="space-y-4">
-                    {sticker.examples.map((example, index) => (
-                      <div key={index} className="space-y-2 pb-3 border-b border-gray-200 last:border-b-0 last:pb-0">
-                        <div className="text-gray-800 italic">"{example.english}"</div>
-                        <div className="text-gray-600 text-sm">"{example.chinese}"</div>
-                        <div className="flex justify-end">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playAudio(example.english);
-                            }}
-                            disabled={isPlaying}
-                            className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm px-2 py-1 rounded-md hover:bg-white/50 transition-colors disabled:opacity-50"
-                          >
-                            <Volume2 className="w-4 h-4" />
-                            <span>播放</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-gray-400 italic">暂无例句</div>
-                )}
-              </div>
-            </div>
-
-            {/* 备注 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">备注</h3>
-              </div>
-              <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[60px]" 
-                style={{ backgroundColor: '#FAF4ED' }}
-              >
-                {isEditingNotes ? (
-                  <textarea
-                    value={editedNotes}
-                    onChange={handleNotesChange}
-                    onBlur={handleNotesBlur}
-                    autoFocus
-                    className="w-full bg-transparent border-none outline-none resize-none text-gray-700 placeholder-gray-400 min-h-[20px] overflow-hidden"
-                    placeholder="添加备注..."
-                    style={{ height: 'auto', minHeight: '32px' }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      target.style.height = target.scrollHeight + 'px';
-                    }}
-                  />
-                ) : (
-                  <div 
-                    onClick={handleNotesClick}
-                    className="cursor-text text-gray-700 min-h-[32px] flex items-start"
-                  >
-                    {editedNotes || <span className="text-gray-400 italic">点击添加备注...</span>}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* 巧记方法 */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">巧记方法</h3>
+                <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>巧记方法</h3>
               </div>
               <div 
                 className="rounded-lg p-4 transition-all duration-300 min-h-[60px]" 
@@ -625,37 +553,10 @@ function StickerDetailModal({
               </div>
             </div>
 
-            {/* 标签 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">标签</h3>
-              </div>
-              <div className="transition-all duration-300 min-h-[50px]">
-                {sticker.tags && sticker.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {sticker.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center space-x-1 px-3 py-1 text-gray-700 text-sm rounded-full"
-                        style={{ backgroundColor: '#FAF4ED' }}
-                      >
-                        <Tag className="w-3 h-3" />
-                        <span>{tag}</span>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-gray-400 italic p-4 rounded-lg" style={{ backgroundColor: '#FAF4ED' }}>
-                    暂无标签
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* 相关词 */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">相关词</h3>
+                <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>相关词</h3>
               </div>
               <div 
                 className="rounded-lg p-4 transition-all duration-300 min-h-[100px] max-h-[300px] overflow-y-auto" 
@@ -692,6 +593,105 @@ function StickerDetailModal({
                   </div>
                 ) : (
                   <div className="text-gray-400 italic">暂无相关词</div>
+                )}
+              </div>
+            </div>
+
+            {/* 例句 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>例句</h3>
+              </div>
+              <div 
+                className="rounded-lg p-4 transition-all duration-300 min-h-[120px]" 
+                style={{ backgroundColor: '#FAF4ED' }}
+              >
+                {sticker.examples && sticker.examples.length > 0 ? (
+                  <div className="space-y-4">
+                    {sticker.examples.map((example, index) => (
+                      <div key={index} className="space-y-2 pb-3 border-b border-gray-200 last:border-b-0 last:pb-0">
+                        <div className="text-gray-800 italic">"{example.english}"</div>
+                        <div className="text-gray-600 text-sm">"{example.chinese}"</div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playAudio(example.english);
+                            }}
+                            disabled={isPlaying}
+                            className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm px-2 py-1 rounded-md hover:bg-white/50 transition-colors disabled:opacity-50"
+                          >
+                            <Volume2 className="w-4 h-4" />
+                            <span>播放</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 italic">暂无例句</div>
+                )}
+              </div>
+            </div>
+
+            {/* 备注 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>备注</h3>
+              </div>
+              <div 
+                className="rounded-lg p-4 transition-all duration-300 min-h-[60px]" 
+                style={{ backgroundColor: '#FAF4ED' }}
+              >
+                {isEditingNotes ? (
+                  <textarea
+                    value={editedNotes}
+                    onChange={handleNotesChange}
+                    onBlur={handleNotesBlur}
+                    autoFocus
+                    className="w-full bg-transparent border-none outline-none resize-none text-gray-700 placeholder-gray-400 min-h-[20px] overflow-hidden"
+                    placeholder="添加备注..."
+                    style={{ height: 'auto', minHeight: '32px' }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = target.scrollHeight + 'px';
+                    }}
+                  />
+                ) : (
+                  <div 
+                    onClick={handleNotesClick}
+                    className="cursor-text text-gray-700 min-h-[32px] flex items-start"
+                  >
+                    {editedNotes || <span className="text-gray-400 italic">点击添加备注...</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 标签 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>标签</h3>
+              </div>
+              <div className="transition-all duration-300 min-h-[50px]">
+                {sticker.tags && sticker.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {sticker.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center space-x-1 px-3 py-1 text-gray-700 text-sm rounded-full"
+                        style={{ backgroundColor: '#FAF4ED' }}
+                      >
+                        <Tag className="w-3 h-3" />
+                        <span>{tag}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 italic p-4 rounded-lg" style={{ backgroundColor: '#FAF4ED' }}>
+                    暂无标签
+                  </div>
                 )}
               </div>
             </div>
