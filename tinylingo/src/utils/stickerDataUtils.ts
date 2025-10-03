@@ -1,6 +1,7 @@
 // 贴纸数据工具类 - 统一处理localStorage操作，避免重复代码
 
 import { StickerData, StickerStorageData } from '@/types/sticker';
+import { ImageUtils } from './imageUtils';
 
 /**
  * 贴纸数据工具类
@@ -57,21 +58,39 @@ export class StickerDataUtils {
   }
 
   /**
-   * 添加新贴纸
+   * 添加新贴纸（支持图片持久化）
    */
-  static addSticker(newSticker: StickerData): void {
-    const currentData = this.loadStickerData();
-    currentData.userStickers.push(newSticker);
-    this.saveStickerData(currentData);
+  static async addSticker(newSticker: StickerData): Promise<void> {
+    try {
+      // 处理图片URL的持久化
+      const processedSticker = await this.processStickerImages(newSticker);
+      
+      const currentData = this.loadStickerData();
+      currentData.userStickers.push(processedSticker);
+      this.saveStickerData(currentData);
+    } catch (error) {
+      console.error('添加贴纸失败:', error);
+      throw error;
+    }
   }
 
   /**
-   * 批量添加贴纸
+   * 批量添加贴纸（支持图片持久化）
    */
-  static addStickers(newStickers: StickerData[]): void {
-    const currentData = this.loadStickerData();
-    currentData.userStickers.push(...newStickers);
-    this.saveStickerData(currentData);
+  static async addStickers(newStickers: StickerData[]): Promise<void> {
+    try {
+      // 处理所有贴纸的图片URL
+      const processedStickers = await Promise.all(
+        newStickers.map(sticker => this.processStickerImages(sticker))
+      );
+      
+      const currentData = this.loadStickerData();
+      currentData.userStickers.push(...processedStickers);
+      this.saveStickerData(currentData);
+    } catch (error) {
+      console.error('批量添加贴纸失败:', error);
+      throw error;
+    }
   }
 
   /**
@@ -131,6 +150,7 @@ export class StickerDataUtils {
 
   /**
    * 获取所有可用的贴纸（合并模拟数据和用户数据，排除已删除的模拟数据）
+   * 自动处理图片URL的转换
    */
   static getAllAvailableStickers(mockStickers: StickerData[]): StickerData[] {
     const currentData = this.loadStickerData();
@@ -144,7 +164,12 @@ export class StickerDataUtils {
     const existingIds = new Set(availableMockStickers.map(s => s.id));
     const newUserStickers = currentData.userStickers.filter(s => !existingIds.has(s.id));
     
-    return [...availableMockStickers, ...newUserStickers];
+    // 处理用户贴纸的图片URL转换（从Base64转为Blob URL）
+    const processedUserStickers = newUserStickers.map(sticker => 
+      this.convertStickerImagesForDisplay(sticker)
+    );
+    
+    return [...availableMockStickers, ...processedUserStickers];
   }
 
   /**
@@ -177,5 +202,54 @@ export class StickerDataUtils {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('myStickersUpdated', handleCustomEvent);
     };
+  }
+
+  /**
+   * 处理贴纸图片的持久化存储
+   * 将Blob URL转换为Base64存储到localStorage
+   */
+  private static async processStickerImages(sticker: StickerData): Promise<StickerData> {
+    const processedSticker = { ...sticker };
+
+    try {
+      // 处理主图片URL
+      if (sticker.imageUrl && ImageUtils.isBlobUrl(sticker.imageUrl)) {
+        processedSticker.imageUrl = await ImageUtils.blobUrlToBase64(sticker.imageUrl);
+      }
+
+      // 处理缩略图URL
+      if (sticker.thumbnailUrl && ImageUtils.isBlobUrl(sticker.thumbnailUrl)) {
+        processedSticker.thumbnailUrl = await ImageUtils.blobUrlToBase64(sticker.thumbnailUrl);
+      }
+    } catch (error) {
+      console.error('处理贴纸图片失败:', error);
+      // 如果转换失败，保持原URL（可能会在刷新后丢失，但不会阻止保存）
+    }
+
+    return processedSticker;
+  }
+
+  /**
+   * 将存储的Base64图片转换为Blob URL用于显示
+   */
+  private static convertStickerImagesForDisplay(sticker: StickerData): StickerData {
+    const displaySticker = { ...sticker };
+
+    try {
+      // 转换主图片URL
+      if (sticker.imageUrl && ImageUtils.isBase64(sticker.imageUrl)) {
+        displaySticker.imageUrl = ImageUtils.base64ToBlobUrl(sticker.imageUrl);
+      }
+
+      // 转换缩略图URL
+      if (sticker.thumbnailUrl && ImageUtils.isBase64(sticker.thumbnailUrl)) {
+        displaySticker.thumbnailUrl = ImageUtils.base64ToBlobUrl(sticker.thumbnailUrl);
+      }
+    } catch (error) {
+      console.error('转换贴纸图片显示失败:', error);
+      // 如果转换失败，保持原URL
+    }
+
+    return displaySticker;
   }
 }

@@ -22,8 +22,9 @@ export interface GeminiResponse {
 export interface ImageGenerationOptions {
   word: string;           // 要生成的单词
   description?: string;   // 详细描述（可选）
-  style?: 'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch'; // 风格
+  style?: 'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch' | 'custom'; // 风格
   viewpoint?: 'front' | 'top' | 'isometric' | 'side'; // 视角
+  customStyle?: string;   // 自定义风格描述（当style为'custom'时使用）
 }
 
 // AI生成图片的响应接口
@@ -361,7 +362,7 @@ async function retryApiCall<T>(
  * 使用Gemini AI生成图片
  */
 export async function generateImageWithGemini(options: ImageGenerationOptions): Promise<string> {
-  const { word, description, style = 'cartoon', viewpoint = 'front' } = options;
+  const { word, description, style = 'cartoon', viewpoint = 'front', customStyle } = options;
   
   if (!word.trim()) {
     throw new Error('Word is required for image generation');
@@ -379,11 +380,13 @@ export async function generateImageWithGemini(options: ImageGenerationOptions): 
   
   // 添加风格描述
   const styleDescriptions = {
-    cartoon: 'in a cartoon style, colorful and playful',
+    cartoon: 'in a refined cartoon style with elegant colors, sophisticated illustration, clean lines, and subtle shading. Not childish or overly bright, but polished and professional cartoon art',
+    Cartoon: 'in a refined cartoon style with elegant colors, sophisticated illustration, clean lines, and subtle shading. Not childish or overly bright, but polished and professional cartoon art',
     realistic: 'in a realistic photographic style, high detail',
     pixel: 'in pixel art style, 8-bit retro gaming aesthetic',
     watercolor: 'in watercolor painting style, soft and artistic',
-    sketch: 'in pencil sketch style, black and white line art'
+    sketch: 'in pencil sketch style, black and white line art',
+    custom: customStyle || 'in a unique artistic style'
   };
   
   if (style && styleDescriptions[style]) {

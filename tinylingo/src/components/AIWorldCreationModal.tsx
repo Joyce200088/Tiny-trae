@@ -7,6 +7,7 @@ import { generateVocabularyForScene, generateStickerInfo } from '@/lib/gemini';
 import { generateImageWithGemini } from '@/lib/geminiService';
 import StickerDetailModal from './StickerDetailModal';
 import { StickerData, MasteryStatus } from '@/types/sticker';
+import { StickerDataUtils } from '@/utils/stickerDataUtils';
 
 // SVG贴纸生成函数
 const generateSVGSticker = (word: string, chinese: string): string => {
@@ -127,7 +128,9 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedScene, setSelectedScene] = useState<string>('');
-  const [selectedStyle, setSelectedStyle] = useState<'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch'>('cartoon');
+  const [selectedStyle, setSelectedStyle] = useState<'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch' | 'custom'>('cartoon');
+  const [customStyle, setCustomStyle] = useState<string>('');
+  const [showCustomStyleInput, setShowCustomStyleInput] = useState(false);
   const [selectedViewpoint, setSelectedViewpoint] = useState<'front' | 'top' | 'isometric' | 'side'>('front');
   const [customScene, setCustomScene] = useState<string>('');
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
@@ -143,12 +146,20 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
   
   // 透明图片处理相关状态
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+  
+  // 自定义风格输入框状态
+  const [isCustomInputFocused, setIsCustomInputFocused] = useState(false);
+  const [isCustomInputClicked, setIsCustomInputClicked] = useState(false);
 
   // 重置状态
   const resetModal = () => {
     setCurrentStep(1);
     setSelectedScene('');
     setCustomScene('');
+    setCustomStyle('');
+    setShowCustomStyleInput(false);
+    setIsCustomInputFocused(false);
+    setIsCustomInputClicked(false);
     setVocabulary([]);
     setGeneratedStickers([]);
     setIsGenerating(false);
@@ -158,6 +169,13 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
     setSelectedSticker(null);
     setIsModalOpen(false);
     setIsRemovingBackground(false);
+  };
+
+  // 处理步骤切换
+  const handleStepChange = (newStep: number) => {
+    setCurrentStep(newStep);
+    // 当从step2返回step1时，不清空已生成的词汇
+    // 只有在完全重置模态框时才清空
   };
 
   const handleClose = () => {
@@ -304,7 +322,8 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
             word: word.word,
             description: word.chinese,
             style: selectedStyle,
-            viewpoint: selectedViewpoint
+            viewpoint: selectedViewpoint,
+            customStyle: selectedStyle === 'custom' ? customStyle : undefined
           });
           
           console.log('AI图片生成成功');
@@ -451,18 +470,57 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
     ));
   };
 
-  const saveToLibrary = () => {
+  const selectAllStickers = () => {
+    setGeneratedStickers(prev => prev.map(sticker => ({ ...sticker, isSelected: true })));
+  };
+
+  const deselectAllStickers = () => {
+    setGeneratedStickers(prev => prev.map(sticker => ({ ...sticker, isSelected: false })));
+  };
+
+  const saveToLibrary = async () => {
     const selectedStickers = generatedStickers.filter(sticker => sticker.isSelected);
     
-    // 这里应该调用实际的保存API
-    console.log('保存贴纸到库:', selectedStickers);
-    
-    // 模拟保存成功
-    alert(`成功保存 ${selectedStickers.length} 个贴纸到个人贴纸库！`);
-    
-    // 跳转到创建世界页面
-    router.push('/create-world');
-    handleClose();
+    if (selectedStickers.length === 0) {
+      alert('请先选择要保存的贴纸！');
+      return;
+    }
+
+    try {
+      // 将GeneratedSticker转换为StickerData格式并保存到localStorage
+      const stickersToSave: StickerData[] = selectedStickers.map(sticker => ({
+        id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: sticker.word,
+        chinese: sticker.chinese,
+        phonetic: sticker.pronunciation,
+        imageUrl: sticker.imageUrl,
+        thumbnailUrl: sticker.thumbnailUrl,
+        category: sticker.category,
+        partOfSpeech: sticker.partOfSpeech,
+        tags: ['Ai-generated', ...sticker.tags],
+        createdAt: new Date().toISOString().split('T')[0],
+        sorted: false,
+        masteryStatus: sticker.masteryStatus,
+        examples: sticker.examples,
+        mnemonic: Array.isArray(sticker.mnemonic) ? sticker.mnemonic : [sticker.mnemonic],
+        relatedWords: sticker.relatedWords
+      }));
+
+      // 使用StickerDataUtils批量保存贴纸（现在是异步的）
+      await StickerDataUtils.addStickers(stickersToSave);
+      
+      console.log('保存贴纸到库:', stickersToSave);
+      
+      // 显示成功消息
+      alert(`成功保存 ${selectedStickers.length} 个贴纸到MY STICKERS！`);
+      
+      // 跳转到MY STICKERS页面查看保存的贴纸
+      router.push('/my-stickers');
+      handleClose();
+    } catch (error) {
+      console.error('保存贴纸失败:', error);
+      alert('保存贴纸失败，请重试！');
+    }
   };
 
   // 单词详情窗口处理函数 - 与MY STICKERS页面完全一致
@@ -616,14 +674,24 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 pl-4 pr-4 py-4">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200" style={{ backgroundColor: '#FFFBF5' }}>
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#161616' }}>
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">AI生成世界</h2>
-              <p className="text-sm text-gray-600">智能生成场景与单词贴纸</p>
+              {/* 生成进度提示 */}
+              {isGenerating && (
+                <div className="mt-2 text-center">
+                  <p className="text-sm text-gray-600">正在生成贴纸 ({generationProgress}%)</p>
+                </div>
+              )}
+              {!isGenerating && generatedStickers.length > 0 && (
+                <div className="mt-2 text-center">
+                  <p className="text-sm text-gray-600">贴纸生成完成</p>
+                </div>
+              )}
             </div>
           </div>
           <button
@@ -634,31 +702,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           </button>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {[1, 2].map((step) => (
-              <div key={step} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  currentStep >= step 
-                    ? 'bg-purple-500 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {currentStep > step ? <Check className="w-4 h-4" /> : step}
-                </div>
-                <div className="ml-3 text-sm">
-                  <div className={`font-medium ${currentStep >= step ? 'text-purple-600' : 'text-gray-500'}`}>
-                    {step === 1 && '场景与单词选择'}
-                    {step === 2 && '生成与保存贴纸'}
-                  </div>
-                </div>
-                {step < 2 && (
-                  <ArrowRight className="w-4 h-4 text-gray-400 mx-4" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto min-h-0 p-6">
@@ -671,22 +715,27 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
             </div>
           )}
 
+          {/* 保存按钮 - 仅在有已完成的贴纸时显示 */}
+          {generatedStickers.some(s => s.generationStatus === 'completed') && (
+            <div className="flex justify-center mb-6">
+              <button
+                onClick={saveToLibrary}
+                disabled={generatedStickers.filter(s => s.isSelected && s.generationStatus === 'completed').length === 0}
+                className="px-6 py-3 text-white rounded-lg border border-gray-300 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                style={{ backgroundColor: '#161616' }}
+              >
+                <Download className="w-4 h-4" />
+                <span>保存到MY STICKERS ({generatedStickers.filter(s => s.isSelected && s.generationStatus === 'completed').length}个)</span>
+              </button>
+            </div>
+          )}
+
           {/* Step 1: 场景与单词选择 */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">输入学习场景</h3>
                 
-                {/* 加载状态 */}
-                {isLoadingVocabulary && (
-                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
-                      <div className="text-blue-600 text-sm">正在生成相关词汇...</div>
-                    </div>
-                  </div>
-                )}
-
                 {/* 自定义场景输入 - 置顶 */}
                 <div className="mb-6">
                   <div className="flex space-x-3 mb-4">
@@ -695,12 +744,13 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                       placeholder="例如：超市、图书馆、健身房..."
                       value={customScene}
                       onChange={(e) => setCustomScene(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:border-[#EAD5B6] focus:border-black focus:outline-none transition-colors text-lg"
                     />
                     <button
                       onClick={handleCustomSceneSubmit}
                       disabled={!customScene.trim() || isLoadingVocabulary}
-                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      className="px-6 py-3 text-white rounded-lg border border-gray-300 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      style={{ backgroundColor: '#161616' }}
                     >
                       {isLoadingVocabulary ? (
                         <>
@@ -723,26 +773,58 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                           { value: 'realistic', label: 'Realistic / 写实', emoji: '📸' },
                           { value: 'pixel', label: 'Pixel Art / 像素', emoji: '🎮' },
                           { value: 'watercolor', label: 'Watercolor / 水彩', emoji: '🖌️' },
-                          { value: 'sketch', label: 'Sketch / 素描', emoji: '✏️' }
+                          { value: 'sketch', label: 'Sketch / 素描', emoji: '✏️' },
+                          { value: 'custom', label: 'Custom / 自定义', emoji: '🎭' }
                         ].map((style) => (
                           <button
                             key={style.value}
-                            onClick={() => setSelectedStyle(style.value as 'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch')}
-                            className={`p-3 rounded-lg border-2 text-center transition-colors ${
+                            onClick={() => {
+                              setSelectedStyle(style.value as 'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch' | 'custom');
+                              if (style.value === 'custom') {
+                                setShowCustomStyleInput(true);
+                              } else {
+                                setShowCustomStyleInput(false);
+                                setCustomStyle('');
+                                setIsCustomInputFocused(false);
+                                setIsCustomInputClicked(false);
+                              }
+                            }}
+                            className={`p-3 rounded-lg border transition-colors ${
                               selectedStyle === style.value
-                                ? 'border-purple-500 bg-purple-50'
-                                : 'border-gray-200 hover:border-purple-300'
+                                ? 'border-black bg-[#FFFBF5]'
+                                : 'border-gray-300 bg-white hover:border-[#EAD5B6]'
                             }`}
                           >
                             <div className="text-lg mb-1">{style.emoji}</div>
-                            <div className="text-xs font-medium">{style.label}</div>
+                            <div className="text-xs font-medium text-center">{style.label}</div>
                           </button>
                         ))}
                       </div>
+                      {/* 自定义风格输入框 */}
+                      {showCustomStyleInput && (
+                        <div className="mt-3">
+                          <input
+                            type="text"
+                            value={customStyle}
+                            onChange={(e) => setCustomStyle(e.target.value)}
+                            onFocus={() => setIsCustomInputFocused(true)}
+                            onBlur={() => setIsCustomInputFocused(false)}
+                            onClick={() => setIsCustomInputClicked(!isCustomInputClicked)}
+                            placeholder="请输入您想要的风格描述..."
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-all ${
+                              isCustomInputClicked 
+                                ? 'border-black' 
+                                : isCustomInputFocused 
+                                  ? 'border-[#EAD5B6]' 
+                                  : 'border-gray-300'
+                            }`}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-3">选择视角</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         {[
                           { value: 'front', label: 'Front View / 正面视角', emoji: '👁️' },
                           { value: 'top', label: 'Top View / 俯视视角', emoji: '🔝' },
@@ -752,14 +834,14 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                           <button
                             key={viewpoint.value}
                             onClick={() => setSelectedViewpoint(viewpoint.value as 'front' | 'top' | 'isometric' | 'side')}
-                            className={`p-3 rounded-lg border-2 text-center transition-colors ${
+                            className={`p-3 rounded-lg border transition-colors ${
                               selectedViewpoint === viewpoint.value
-                                ? 'border-purple-500 bg-purple-50'
-                                : 'border-gray-200 hover:border-purple-300'
+                                ? 'border-black bg-[#FFFBF5]'
+                                : 'border-gray-300 bg-white hover:border-[#EAD5B6]'
                             }`}
                           >
                             <div className="text-lg mb-1">{viewpoint.emoji}</div>
-                            <div className="text-xs font-medium">{viewpoint.label}</div>
+                            <div className="text-xs font-medium text-center">{viewpoint.label}</div>
                           </button>
                         ))}
                       </div>
@@ -778,42 +860,38 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                     <div className="flex space-x-2">
                       <button
                         onClick={selectAllWords}
-                        className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                        className="px-3 py-1 text-sm border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-lg"
                       >
                         全选
                       </button>
                       <button
                         onClick={deselectAllWords}
-                        className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                        className="px-3 py-1 text-sm border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-lg"
                       >
                         取消全选
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                  <div className="grid grid-cols-6 gap-3 mb-6">
                     {vocabulary.map((word) => (
                       <div
                         key={word.id}
                         onClick={() => toggleWordSelection(word.id)}
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`p-3 rounded-lg border transition-all ${
                           word.isSelected
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-purple-300'
+                            ? 'border-black bg-[#FFFBF5]'
+                            : 'border-gray-300 hover:border-[#EAD5B6]'
                         }`}
+                        style={{ minHeight: '80px' }}
                       >
                         <div className="font-medium text-gray-900">{word.word}</div>
                         <div className="text-sm text-gray-600">{word.chinese}</div>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            word.difficulty === 'A1' ? 'bg-green-100 text-green-800' :
-                            word.difficulty === 'A2' ? 'bg-blue-100 text-blue-800' :
-                            'bg-orange-100 text-orange-800'
-                          }`}>
-                            {word.difficulty}
-                          </span>
-                          {word.isSelected && (
-                            <Check className="w-4 h-4 text-purple-500" />
+                        <div className="flex items-center justify-end mt-2 h-4">
+                          {word.isSelected ? (
+                            <Check className="w-4 h-4 text-black" />
+                          ) : (
+                            <div className="w-4 h-4"></div>
                           )}
                         </div>
                       </div>
@@ -824,7 +902,8 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                     <button
                       onClick={generateStickers}
                       disabled={vocabulary.filter(w => w.isSelected).length === 0}
-                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      className="px-6 py-3 text-white rounded-lg border border-gray-300 hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      style={{ backgroundColor: '#161616' }}
                     >
                       <Wand2 className="w-4 h-4" />
                       <span>开始生成贴纸 ({vocabulary.filter(w => w.isSelected).length}个)</span>
@@ -838,58 +917,44 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
           {/* Step 2: 生成与保存贴纸 */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {isGenerating ? '正在生成贴纸' : '选择贴纸并保存'}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {isGenerating ? 'AI正在为您生成高质量的学习贴纸...' : '选择要保存到个人贴纸库的贴纸'}
-                </p>
-                
-                {/* 进度条 */}
-                {isGenerating && (
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-                    <div 
-                      className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${generationProgress}%` }}
-                    ></div>
+              {/* 贴纸生成完成后显示全选功能 */}
+              {!isGenerating && generatedStickers.length > 0 && generatedStickers.every(s => s.generationStatus === 'completed') && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      贴纸总览 ({generatedStickers.filter(s => s.isSelected).length}/{generatedStickers.length})
+                    </h3>
                   </div>
-                )}
-              </div>
-
-              {/* 保存操作栏 - 仅在生成完成后显示 */}
-              {!isGenerating && generationProgress === 100 && (
-                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <span className="text-sm text-gray-600">
-                      已选择 {generatedStickers.filter(s => s.isSelected).length}/{generatedStickers.length} 个贴纸
+                      已选择 {generatedStickers.filter(s => s.isSelected).length}/{generatedStickers.length}
                     </span>
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => setGeneratedStickers(prev => prev.map(s => ({ ...s, isSelected: true })))}
-                        className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                        onClick={selectAllStickers}
+                        className="px-3 py-1 text-sm border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-lg"
                       >
                         全选
                       </button>
                       <button
-                        onClick={() => setGeneratedStickers(prev => prev.map(s => ({ ...s, isSelected: false })))}
-                        className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                        onClick={deselectAllStickers}
+                        className="px-3 py-1 text-sm border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-lg"
                       >
                         取消全选
                       </button>
                     </div>
+                    <button
+                      onClick={saveToLibrary}
+                      disabled={generatedStickers.filter(s => s.isSelected).length === 0}
+                      className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>保存到贴纸库</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={saveToLibrary}
-                    disabled={generatedStickers.filter(s => s.isSelected).length === 0}
-                    className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>保存到MY STICKERS</span>
-                  </button>
                 </div>
               )}
-  
+
               {/* 生成状态网格 */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {generatedStickers.map((sticker) => (
@@ -970,22 +1035,12 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                         </p>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          sticker.difficulty === 'A1' ? 'bg-green-100 text-green-800' :
-                          sticker.difficulty === 'A2' ? 'bg-blue-100 text-blue-800' :
-                          'bg-orange-100 text-orange-800'
-                        }`}>
-                          {sticker.difficulty}
-                        </span>
                         <div className="text-xs">
                           {sticker.generationStatus === 'pending' && (
                             <span className="text-gray-500">等待中...</span>
                           )}
                           {sticker.generationStatus === 'generating' && (
                             <span className="text-purple-600">生成中...</span>
-                          )}
-                          {sticker.generationStatus === 'completed' && (
-                            <span className="text-green-600">✓ 完成</span>
                           )}
                         </div>
                       </div>
@@ -1002,12 +1057,25 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">贴纸总览</h3>
-                  <p className="text-gray-600">选择要保存到个人贴纸库的贴纸</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600">
                     已选择 {generatedStickers.filter(s => s.isSelected).length}/{generatedStickers.length}
                   </span>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={selectAllStickers}
+                      className="px-3 py-1 text-sm border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    >
+                      全选
+                    </button>
+                    <button
+                      onClick={deselectAllStickers}
+                      className="px-3 py-1 text-sm border border-gray-300 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    >
+                      取消全选
+                    </button>
+                  </div>
                   <button
                     onClick={saveToLibrary}
                     disabled={generatedStickers.filter(s => s.isSelected).length === 0}
@@ -1079,7 +1147,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
             <div className="flex items-center space-x-2">
               {currentStep > 1 && (
                 <button
-                  onClick={() => setCurrentStep(currentStep - 1)}
+                  onClick={() => handleStepChange(currentStep - 1)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center space-x-1"
                 >
                   <ArrowLeft className="w-4 h-4" />

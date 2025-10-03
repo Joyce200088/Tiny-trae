@@ -70,7 +70,7 @@ interface UseStickerDataReturn {
   stickers: StickerData[];
   loading: boolean;
   error: string | null;
-  addSticker: (sticker: StickerData) => void;
+  addSticker: (sticker: StickerData) => Promise<void>;
   updateSticker: (id: string, updates: Partial<StickerData>) => void;
   deleteSticker: (id: string) => void;
   deleteStickers: (ids: string[]) => void;
@@ -99,12 +99,17 @@ function useStickerData(): UseStickerDataReturn {
   }, []);
 
   // 添加贴纸
-  const addSticker = useCallback((sticker: StickerData) => {
-    StickerDataUtils.addSticker(sticker);
-    
-    // 重新加载所有贴纸数据以保持一致性
-    const allStickers = StickerDataUtils.getAllAvailableStickers(mockStickers);
-    setStickers(allStickers);
+  const addSticker = useCallback(async (sticker: StickerData) => {
+    try {
+      await StickerDataUtils.addSticker(sticker);
+      
+      // 重新加载所有贴纸数据以保持一致性
+      const allStickers = StickerDataUtils.getAllAvailableStickers(mockStickers);
+      setStickers(allStickers);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '添加贴纸失败');
+      throw err;
+    }
   }, []);
 
   // 更新贴纸
