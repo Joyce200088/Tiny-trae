@@ -895,42 +895,62 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                 {generatedStickers.map((sticker) => (
                   <div
                     key={sticker.id}
-                    className={`bg-white border-2 rounded-lg overflow-hidden transition-all ${
+                    className={`group relative rounded-lg overflow-hidden transition-shadow cursor-pointer border border-black ${
                       sticker.generationStatus === 'completed' 
-                        ? sticker.isSelected 
-                          ? 'border-purple-500 cursor-pointer hover:shadow-md' 
-                          : 'border-gray-200 cursor-pointer hover:border-purple-300 hover:shadow-md'
-                        : 'border-gray-200'
+                        ? 'hover:shadow-lg' 
+                        : ''
                     }`}
+                    style={{backgroundColor: '#FFFBF5'}}
                   >
                     {/* 贴纸选择按钮 - 仅在生成完成后显示 */}
                     {sticker.generationStatus === 'completed' && (
-                      <div className="relative">
-                        <img
-                          src={sticker.imageUrl}
-                          alt={sticker.word}
-                          className="w-full h-32 object-cover cursor-pointer"
+                      <>
+                        {/* Selection Checkbox */}
+                        <div className="absolute top-2 left-2 z-10">
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            sticker.isSelected
+                              ? 'bg-blue-600 border-blue-600'
+                              : 'border-gray-300 bg-white group-hover:border-blue-400'
+                          }`}>
+                            {sticker.isSelected && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Thumbnail */}
+                        <div 
+                          className="aspect-square flex items-center justify-center overflow-hidden cursor-pointer border-b border-black"
+                          style={{backgroundColor: '#FFFBF5'}}
                           onClick={() => openStickerModal(sticker)}
-                        />
+                        >
+                          <img
+                            src={sticker.imageUrl}
+                            alt={sticker.word}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+
+                        {/* Selection toggle button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleStickerSelection(sticker.id);
                           }}
-                          className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center ${
-                            sticker.isSelected 
-                              ? 'bg-purple-500 text-white' 
-                              : 'bg-white text-gray-400 border border-gray-300'
-                          }`}
+                          className="absolute top-2 right-2 p-1 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600"
+                          title="Toggle selection"
                         >
-                          {sticker.isSelected && <Check className="w-4 h-4" />}
+                          <Check className="w-3 h-3" />
                         </button>
-                      </div>
+                      </>
                     )}
                     
                     {/* 生成中状态 */}
                     {sticker.generationStatus !== 'completed' && (
-                      <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                      <div 
+                        className="aspect-square flex items-center justify-center border-b border-black"
+                        style={{backgroundColor: '#FFFBF5'}}
+                      >
                         {sticker.generationStatus === 'pending' && (
                           <div className="w-8 h-8 border-2 border-gray-300 rounded-full"></div>
                         )}
@@ -940,9 +960,16 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                       </div>
                     )}
                     
-                    <div className="p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-gray-900 text-sm">{sticker.word}</h4>
+                    {/* Info */}
+                    <div className="p-2 space-y-1">
+                      <h3 className="text-lg font-bold text-gray-900">{sticker.word}</h3>
+                      {sticker.chinese && (
+                        <p className="text-sm text-gray-700">
+                          {sticker.pronunciation && <span className="text-gray-900 mr-2">{sticker.pronunciation}</span>}
+                          {sticker.chinese}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between">
                         <span className={`text-xs px-2 py-1 rounded ${
                           sticker.difficulty === 'A1' ? 'bg-green-100 text-green-800' :
                           sticker.difficulty === 'A2' ? 'bg-blue-100 text-blue-800' :
@@ -950,18 +977,17 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                         }`}>
                           {sticker.difficulty}
                         </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">{sticker.chinese}</p>
-                      <div className="text-xs">
-                        {sticker.generationStatus === 'pending' && (
-                          <span className="text-gray-500">等待中...</span>
-                        )}
-                        {sticker.generationStatus === 'generating' && (
-                          <span className="text-purple-600">生成中...</span>
-                        )}
-                        {sticker.generationStatus === 'completed' && (
-                          <span className="text-green-600">✓ 完成</span>
-                        )}
+                        <div className="text-xs">
+                          {sticker.generationStatus === 'pending' && (
+                            <span className="text-gray-500">等待中...</span>
+                          )}
+                          {sticker.generationStatus === 'generating' && (
+                            <span className="text-purple-600">生成中...</span>
+                          )}
+                          {sticker.generationStatus === 'completed' && (
+                            <span className="text-green-600">✓ 完成</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

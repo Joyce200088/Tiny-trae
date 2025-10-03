@@ -46,6 +46,44 @@ function StickerDetailModal({
     relatedWords: new Set()
   }); // 跟踪已添加的项目
 
+  // 高亮相关词状态
+  const [highlightedWords, setHighlightedWords] = useState<Set<string>>(new Set());
+
+  // 从本地存储加载高亮状态
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedHighlights = localStorage.getItem('highlightedWords');
+      if (savedHighlights) {
+        try {
+          const parsedHighlights = JSON.parse(savedHighlights);
+          setHighlightedWords(new Set(parsedHighlights));
+        } catch (error) {
+          console.error('Failed to parse highlighted words from localStorage:', error);
+        }
+      }
+    }
+  }, []);
+
+  // 保存高亮状态到本地存储
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('highlightedWords', JSON.stringify(Array.from(highlightedWords)));
+    }
+  }, [highlightedWords]);
+
+  // 切换相关词高亮状态
+  const toggleWordHighlight = useCallback((word: string) => {
+    setHighlightedWords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(word)) {
+        newSet.delete(word);
+      } else {
+        newSet.add(word);
+      }
+      return newSet;
+    });
+  }, []);
+
   // 跟踪"应用全部"按钮的状态
   const [appliedBulkActions, setAppliedBulkActions] = useState<{
     examples: boolean;
@@ -425,14 +463,14 @@ function StickerDetailModal({
               {/* 中文翻译 */}
               <div className="text-center">
                 {sticker.chinese && (
-                  <div className="text-lg text-gray-700 font-medium">{sticker.chinese}</div>
+                  <div className="text-base text-gray-700 font-medium">{sticker.chinese}</div>
                 )}
               </div>
 
               {/* 音标 */}
               <div className="text-center">
                 {sticker.phonetic && (
-                  <div className="text-base text-black font-mono">/{sticker.phonetic}/</div>
+                  <div className="text-sm text-black font-mono">/{sticker.phonetic}/</div>
                 )}
               </div>
 
@@ -525,14 +563,11 @@ function StickerDetailModal({
             <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(82vh-20px)]">
               <div className="space-y-4">
             {/* 巧记方法 */}
-            <div className="space-y-2">
+            <div className="space-y-2 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>巧记方法</h3>
               </div>
-              <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[60px]" 
-                style={{ backgroundColor: '#FAF4ED' }}
-              >
+              <div className="pt-2">
                 {sticker.mnemonic ? (
                   Array.isArray(sticker.mnemonic) ? (
                     <div className="space-y-2 text-gray-700">
@@ -554,14 +589,11 @@ function StickerDetailModal({
             </div>
 
             {/* 相关词 */}
-            <div className="space-y-2">
+            <div className="space-y-2 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>相关词</h3>
               </div>
-              <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[100px] max-h-[300px] overflow-y-auto" 
-                style={{ backgroundColor: '#FAF4ED' }}
-              >
+              <div className="pt-2 max-h-[300px] overflow-y-auto">
                 {sticker.relatedWords && sticker.relatedWords.length > 0 ? (
                   <div className="space-y-4">
                     {/* 按词性分组显示 */}
@@ -575,15 +607,19 @@ function StickerDetailModal({
                       
                       return (
                         <div key={partOfSpeech} className="space-y-2">
-                          <h4 className="text-sm font-medium text-gray-600">{typeLabel}区</h4>
+                          <h4 className="text-xs font-normal" style={{ color: '#8F8F8F' }}>{typeLabel}区</h4>
                           <div className="flex flex-wrap gap-2">
                             {wordsOfType.map((word, index) => (
                               <div
                                 key={index}
-                                className="inline-flex items-center space-x-2 px-3 py-2 bg-white/70 rounded-md border border-gray-200 hover:bg-white transition-colors"
+                                className="inline-flex items-center space-x-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                                style={{
+                                  backgroundColor: highlightedWords.has(word.word) ? '#FAF4ED' : '#f9fafb'
+                                }}
+                                onClick={() => toggleWordHighlight(word.word)}
                               >
-                                <span className="text-gray-800 font-medium">{word.word}</span>
-                                <span className="text-gray-500 text-sm">{word.chinese}</span>
+                                <span className="text-gray-800 font-medium text-sm">{word.word}</span>
+                                <span className="text-gray-500 text-xs">{word.chinese}</span>
                               </div>
                             ))}
                           </div>
@@ -598,30 +634,30 @@ function StickerDetailModal({
             </div>
 
             {/* 例句 */}
-            <div className="space-y-2">
+            <div className="space-y-2 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>例句</h3>
               </div>
-              <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[120px]" 
-                style={{ backgroundColor: '#FAF4ED' }}
-              >
+              <div className="pt-2">
                 {sticker.examples && sticker.examples.length > 0 ? (
                   <div className="space-y-4">
                     {sticker.examples.map((example, index) => (
-                      <div key={index} className="space-y-2 pb-3 border-b border-gray-200 last:border-b-0 last:pb-0">
-                        <div className="text-gray-800 italic">"{example.english}"</div>
-                        <div className="text-gray-600 text-sm">"{example.chinese}"</div>
-                        <div className="flex justify-end">
+                      <div key={index} className="space-y-2 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 space-y-2">
+                            <div className="text-gray-800 italic">"{example.english}"</div>
+                            <div className="text-gray-600 text-sm">"{example.chinese}"</div>
+                          </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               playAudio(example.english);
                             }}
                             disabled={isPlaying}
-                            className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm px-2 py-1 rounded-md hover:bg-white/50 transition-colors disabled:opacity-50"
+                            className="flex items-center space-x-1 text-sm px-2 py-1 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 ml-4 flex-shrink-0"
+                            style={{ color: '#8F8F8F' }}
                           >
-                            <Volume2 className="w-4 h-4" />
+                            <Volume2 className="w-4 h-4" style={{ color: '#8F8F8F' }} />
                             <span>播放</span>
                           </button>
                         </div>
@@ -635,23 +671,19 @@ function StickerDetailModal({
             </div>
 
             {/* 备注 */}
-            <div className="space-y-2">
+            <div className="space-y-2 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>备注</h3>
               </div>
-              <div 
-                className="rounded-lg p-4 transition-all duration-300 min-h-[60px]" 
-                style={{ backgroundColor: '#FAF4ED' }}
-              >
+              <div className="pt-2">
                 {isEditingNotes ? (
                   <textarea
                     value={editedNotes}
                     onChange={handleNotesChange}
                     onBlur={handleNotesBlur}
                     autoFocus
-                    className="w-full bg-transparent border-none outline-none resize-none text-gray-700 placeholder-gray-400 min-h-[20px] overflow-hidden"
+                    className="w-full bg-transparent border border-gray-200 rounded-md p-2 outline-none resize-none text-gray-700 placeholder-gray-400 min-h-[60px] focus:border-blue-300 focus:ring-1 focus:ring-blue-200"
                     placeholder="添加备注..."
-                    style={{ height: 'auto', minHeight: '32px' }}
                     onInput={(e) => {
                       const target = e.target as HTMLTextAreaElement;
                       target.style.height = 'auto';
@@ -661,7 +693,7 @@ function StickerDetailModal({
                 ) : (
                   <div 
                     onClick={handleNotesClick}
-                    className="cursor-text text-gray-700 min-h-[32px] flex items-start"
+                    className="cursor-text text-gray-700 min-h-[60px] p-2 border border-gray-200 rounded-md hover:border-gray-300 transition-colors"
                   >
                     {editedNotes || <span className="text-gray-400 italic">点击添加备注...</span>}
                   </div>
@@ -674,14 +706,13 @@ function StickerDetailModal({
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold" style={{ color: '#8F8F8F' }}>标签</h3>
               </div>
-              <div className="transition-all duration-300 min-h-[50px]">
+              <div className="pt-2">
                 {sticker.tags && sticker.tags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {sticker.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="inline-flex items-center space-x-1 px-3 py-1 text-gray-700 text-sm rounded-full"
-                        style={{ backgroundColor: '#FAF4ED' }}
+                        className="inline-flex items-center space-x-1 px-3 py-1 text-gray-700 text-sm rounded-full bg-gray-100 border border-gray-200"
                       >
                         <Tag className="w-3 h-3" />
                         <span>{tag}</span>
@@ -689,9 +720,7 @@ function StickerDetailModal({
                     ))}
                   </div>
                 ) : (
-                  <div className="text-gray-400 italic p-4 rounded-lg" style={{ backgroundColor: '#FAF4ED' }}>
-                    暂无标签
-                  </div>
+                  <div className="text-gray-400 italic">暂无标签</div>
                 )}
               </div>
             </div>
