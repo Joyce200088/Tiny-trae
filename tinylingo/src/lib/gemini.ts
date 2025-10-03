@@ -97,7 +97,7 @@ export interface WordAnalysisResponse {
   cn: string;
   pos: string;
   image: string;
-  audio: string;
+  phonetic: string; // 修改为phonetic音标字段
   examples: Array<{
     english: string;
     chinese: string;
@@ -121,7 +121,7 @@ export async function analyzeWordWithGemini(request: WordAnalysisRequest): Promi
   "cn": "中文释义（简洁准确）",
   "pos": "词性（noun/verb/adjective/adverb等）",
   "image": "图片建议描述",
-  "audio": "音频建议描述",
+  "phonetic": "国际音标（如/ˈæpəl/）",
   "examples": [
     {
       "english": "英文例句1",
@@ -132,7 +132,7 @@ export async function analyzeWordWithGemini(request: WordAnalysisRequest): Promi
       "chinese": "中文翻译2"
     }
   ],
-  "mnemonic": "一句简洁的记忆方法（基于发音、词根或联想）",
+  "mnemonic": "一句简洁的记忆方法（基于词根词缀联想）",
   "masteryStatus": "familiar",
   "relatedWords": [
     {"word": "相关词1", "chinese": "中文1", "partOfSpeech": "词性1"},
@@ -150,8 +150,8 @@ export async function analyzeWordWithGemini(request: WordAnalysisRequest): Promi
 
 要求：
 1. 中文释义要准确简洁，符合中国学习者习惯
-2. 例句要实用，体现单词的常见用法
-3. 记忆方法要有创意，帮助中文使用者记忆
+2. 例句要地道实用，体现单词的常见用法
+3. 记忆方法用词根/词缀联想，或场景联想
 4. 相关词要与核心词强相关，包含不同词性，按相关性排序
 5. **重要：相关词的前3个必须是动词，描述与该物品的交互动作**
    - 如果是物品/名词，前3个相关词必须是与该物品交互的动词（如：grab抓取, cut切割, wash清洗, use使用, hold握住, open打开, close关闭, clean清洁, fix修理, move移动等）
@@ -211,7 +211,7 @@ function createFallbackResponse(word: string): WordAnalysisResponse {
     cn: `${word}的中文释义`,
     pos: "noun",
     image: `建议使用更清晰的${word}图片`,
-    audio: "建议添加标准美式发音",
+    phonetic: `/${word}/`, // 修改为phonetic字段
     examples: [
       {
         english: `This is an example sentence with ${word}.`,
@@ -273,11 +273,10 @@ export async function generateVocabularyForScene(
 请为场景"${scene}"生成${count}个相关的英语名词词汇。
 
 要求：
-1. 词汇必须与场景高度相关
-2. 包含不同难度级别（初级、中级、高级）
-3. 提供准确的中文翻译
-4. 提供音标发音
-5. 按主题分类
+1. 词汇是必须与场景高度相关的物品名词
+2. 提供准确的中文翻译
+3. 提供准确的音标发音
+4. 按主题分类
 
 请以JSON格式返回：
 [
@@ -323,12 +322,11 @@ export async function generateVocabulary(sceneDescription: string): Promise<Arra
 
 场景描述：${sceneDescription}
 
-请生成15-20个相关的英语名词，这些名词应该是具体的、可视化的物体，方便AI生成图片。每个词汇包含：
+请生成20-40个相关的英语名词，这些名词应该是具体的、可视化的物体，方便AI生成图片。每个词汇包含：
 1. 英文单词（仅限名词）
 2. 中文翻译
 3. 音标发音
-4. 难度级别（beginner/intermediate/advanced）
-5. 词汇分类（固定为"noun"）
+4. 词汇分类（固定为"noun"）
 
 要求：
 - 只生成名词（noun），不要动词、形容词等其他词性
@@ -394,10 +392,8 @@ export async function generateStickerInfo(
 请生成：
 1. 贴纸描述（中文，简洁明了）
 2. 图片生成提示（英文，详细描述）
-3. 相关标签（3-5个中文标签）
-4. 难度级别
-5. 音标发音
-6. 例句（2个，包含英文和中文）
+3. 准确的单词音标发音
+4. 例句（2个，包含英文和中文）
 
 请以JSON格式返回：
 {
@@ -552,14 +548,12 @@ export async function generateStickers(vocabulary: Array<{
   word: string;
   translation: string;
   pronunciation: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
   category: string;
 }>): Promise<Array<{
   id: string;
   word: string;
   translation: string;
   pronunciation: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
   category: string;
   imageUrl: string;
 }>> {
@@ -570,7 +564,6 @@ export async function generateStickers(vocabulary: Array<{
       word: vocab.word,
       translation: vocab.translation,
       pronunciation: vocab.pronunciation,
-      difficulty: vocab.difficulty,
       category: vocab.category,
       imageUrl: `/api/placeholder/150/150?text=${encodeURIComponent(vocab.word)}`
     }));

@@ -379,9 +379,9 @@ function StickerDetailModal({
         <div className="h-full p-4">
           <div className="flex gap-6 h-full">
             {/* 左侧 - 物品图、英文、中文、音标和发音 */}
-            <div className="flex-shrink-0 w-80 h-120 border border-black rounded-lg relative flex flex-col">
+            <div className="flex-shrink-0 w-80 h-130 border border-black rounded-lg relative flex flex-col">
               {/* 物品图片容器 - 包含图片 */}
-              <div className="w-full h-60 rounded-t-lg flex flex-col overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
+              <div className="w-full h-62 rounded-t-lg flex flex-col overflow-hidden border-b border-black" style={{ backgroundColor: '#FAF4ED' }}>
               
               {/* 图片区域 */}
               <div className="flex-1 flex items-center justify-center p-4 relative">

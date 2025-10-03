@@ -362,10 +362,10 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                      stickerInfo.difficulty === 'intermediate' ? 'B1' : 'B2',
           category: word.category,
           partOfSpeech: detailedWordInfo?.pos || 'noun',
-          pronunciation: detailedWordInfo?.audio || stickerInfo.pronunciation,
+          pronunciation: detailedWordInfo?.phonetic || stickerInfo.pronunciation,
           examples: detailedWordInfo?.examples || stickerInfo.examples,
           mnemonic: detailedWordInfo?.mnemonic ? [detailedWordInfo.mnemonic] : [stickerInfo.description],
-          tags: stickerInfo.tags, // 保持原有标签，不自动生成
+          tags: ['AI-generated', selectedStyle], // 默认只有AI生成标签和风格标签
           isSelected: true,
           generationStatus: 'completed',
           // 掌握状态不自动生成，保持默认值让用户选择
@@ -414,7 +414,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
             }
           ],
           mnemonic: [`${word.word} 记忆方法：联想${word.chinese}的特点`],
-          tags: ['AI-generated', word.category],
+          tags: ['AI-generated', selectedStyle], // 默认只有AI生成标签和风格标签
           isSelected: true,
           generationStatus: 'completed',
           // 添加AI智能建议的默认字段
@@ -444,7 +444,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
     setIsGenerating(false);
   };
 
-  // Step 3: 贴纸选择和保存
+  // Step 2: 贴纸选择和保存 (合并原step3功能)
   const toggleStickerSelection = (stickerId: string) => {
     setGeneratedStickers(prev => prev.map(sticker => 
       sticker.id === stickerId ? { ...sticker, isSelected: !sticker.isSelected } : sticker
@@ -637,7 +637,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
         {/* Progress Steps */}
         <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            {[1, 2, 3].map((step) => (
+            {[1, 2].map((step) => (
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   currentStep >= step 
@@ -649,11 +649,10 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
                 <div className="ml-3 text-sm">
                   <div className={`font-medium ${currentStep >= step ? 'text-purple-600' : 'text-gray-500'}`}>
                     {step === 1 && '场景与单词选择'}
-                    {step === 2 && '生成贴纸'}
-                    {step === 3 && '总览与入库'}
+                    {step === 2 && '生成与保存贴纸'}
                   </div>
                 </div>
-                {step < 3 && (
+                {step < 2 && (
                   <ArrowRight className="w-4 h-4 text-gray-400 mx-4" />
                 )}
               </div>
@@ -836,75 +835,138 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
             </div>
           )}
 
-          {/* Step 2: 生成贴纸 */}
+          {/* Step 2: 生成与保存贴纸 */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">正在生成贴纸</h3>
-                <p className="text-gray-600 mb-4">AI正在为您生成高质量的学习贴纸...</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {isGenerating ? '正在生成贴纸' : '选择贴纸并保存'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {isGenerating ? 'AI正在为您生成高质量的学习贴纸...' : '选择要保存到个人贴纸库的贴纸'}
+                </p>
                 
                 {/* 进度条 */}
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-                  <div 
-                    className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${generationProgress}%` }}
-                  ></div>
-                </div>
+                {isGenerating && (
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+                    <div 
+                      className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${generationProgress}%` }}
+                    ></div>
+                  </div>
+                )}
               </div>
 
+              {/* 保存操作栏 - 仅在生成完成后显示 */}
+              {!isGenerating && generationProgress === 100 && (
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm text-gray-600">
+                      已选择 {generatedStickers.filter(s => s.isSelected).length}/{generatedStickers.length} 个贴纸
+                    </span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setGeneratedStickers(prev => prev.map(s => ({ ...s, isSelected: true })))}
+                        className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                      >
+                        全选
+                      </button>
+                      <button
+                        onClick={() => setGeneratedStickers(prev => prev.map(s => ({ ...s, isSelected: false })))}
+                        className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                      >
+                        取消全选
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={saveToLibrary}
+                    disabled={generatedStickers.filter(s => s.isSelected).length === 0}
+                    className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>保存到MY STICKERS</span>
+                  </button>
+                </div>
+              )}
+  
               {/* 生成状态网格 */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {generatedStickers.map((sticker) => (
                   <div
                     key={sticker.id}
-                    className={`bg-white border border-gray-200 rounded-lg p-4 text-center ${
-                      sticker.generationStatus === 'completed' ? 'cursor-pointer hover:border-purple-300 hover:shadow-md transition-all' : ''
+                    className={`bg-white border-2 rounded-lg overflow-hidden transition-all ${
+                      sticker.generationStatus === 'completed' 
+                        ? sticker.isSelected 
+                          ? 'border-purple-500 cursor-pointer hover:shadow-md' 
+                          : 'border-gray-200 cursor-pointer hover:border-purple-300 hover:shadow-md'
+                        : 'border-gray-200'
                     }`}
-                    onClick={() => sticker.generationStatus === 'completed' && openStickerModal(sticker)}
                   >
-                    <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-lg flex items-center justify-center">
-                      {sticker.generationStatus === 'pending' && (
-                        <div className="w-6 h-6 border-2 border-gray-300 rounded-full"></div>
-                      )}
-                      {sticker.generationStatus === 'generating' && (
-                        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                      )}
-                      {sticker.generationStatus === 'completed' && (
+                    {/* 贴纸选择按钮 - 仅在生成完成后显示 */}
+                    {sticker.generationStatus === 'completed' && (
+                      <div className="relative">
                         <img
-                          src={sticker.thumbnailUrl}
+                          src={sticker.imageUrl}
                           alt={sticker.word}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-32 object-cover cursor-pointer"
+                          onClick={() => openStickerModal(sticker)}
                         />
-                      )}
-                    </div>
-                    <div className="font-medium text-gray-900">{sticker.word}</div>
-                    <div className="text-sm text-gray-600">{sticker.chinese}</div>
-                    <div className="mt-2">
-                      {sticker.generationStatus === 'pending' && (
-                        <span className="text-xs text-gray-500">等待中...</span>
-                      )}
-                      {sticker.generationStatus === 'generating' && (
-                        <span className="text-xs text-purple-600">生成中...</span>
-                      )}
-                      {sticker.generationStatus === 'completed' && (
-                        <span className="text-xs text-green-600">✓ 完成</span>
-                      )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStickerSelection(sticker.id);
+                          }}
+                          className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center ${
+                            sticker.isSelected 
+                              ? 'bg-purple-500 text-white' 
+                              : 'bg-white text-gray-400 border border-gray-300'
+                          }`}
+                        >
+                          {sticker.isSelected && <Check className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* 生成中状态 */}
+                    {sticker.generationStatus !== 'completed' && (
+                      <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                        {sticker.generationStatus === 'pending' && (
+                          <div className="w-8 h-8 border-2 border-gray-300 rounded-full"></div>
+                        )}
+                        {sticker.generationStatus === 'generating' && (
+                          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium text-gray-900 text-sm">{sticker.word}</h4>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          sticker.difficulty === 'A1' ? 'bg-green-100 text-green-800' :
+                          sticker.difficulty === 'A2' ? 'bg-blue-100 text-blue-800' :
+                          'bg-orange-100 text-orange-800'
+                        }`}>
+                          {sticker.difficulty}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">{sticker.chinese}</p>
+                      <div className="text-xs">
+                        {sticker.generationStatus === 'pending' && (
+                          <span className="text-gray-500">等待中...</span>
+                        )}
+                        {sticker.generationStatus === 'generating' && (
+                          <span className="text-purple-600">生成中...</span>
+                        )}
+                        {sticker.generationStatus === 'completed' && (
+                          <span className="text-green-600">✓ 完成</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {!isGenerating && generationProgress === 100 && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setCurrentStep(3)}
-                    className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center space-x-2"
-                  >
-                    <span>查看贴纸总览</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -1001,7 +1063,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
             </div>
             
             <div className="text-sm text-gray-500">
-              步骤 {currentStep} / 3
+              步骤 {currentStep} / 2
             </div>
           </div>
         </div>
