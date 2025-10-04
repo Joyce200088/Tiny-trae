@@ -107,10 +107,8 @@ const ContextMenu = ({
     { id: 'lock', label: '锁定/解锁', shortcut: 'Ctrl+L' },
     { id: 'separator2', type: 'separator' },
     { id: 'front', label: '置于顶层', shortcut: 'Ctrl+]' },
-    { id: 'back', label: '置于底层', shortcut: 'Ctrl+[' },
-    { id: 'separator3', type: 'separator' },
-    { id: 'group', label: '成组', shortcut: 'Ctrl+G' },
-    { id: 'ungroup', label: '解组', shortcut: 'Ctrl+Shift+G' }
+    { id: 'back', label: '置于底层', shortcut: 'Ctrl+[' }
+    // 分组和解组功能已删除
   ];
 
   return (
@@ -305,8 +303,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   const [alignmentGuides, setAlignmentGuides] = useState<any[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [showGrid, setShowGrid] = useState(false);
-  const [snapToGrid, setSnapToGrid] = useState(false);
+
   const [spacePressed, setSpacePressed] = useState(false);
   const [backgroundImg] = useImage(backgroundImage);
   
@@ -957,11 +954,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
             )}
             
             {/* 网格 */}
-            <Grid
-              width={canvasSize.width}
-              height={canvasSize.height}
-              visible={showGrid}
-            />
+            {/* 网格功能已删除 */}
             
             {/* 画布对象 */}
             {canvasObjects.map((obj) => (
@@ -972,7 +965,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
                 onSelect={() => onObjectSelect(obj.id)}
                 onChange={(newAttrs) => onObjectChange(obj.id, newAttrs)}
                 onContextMenu={handleContextMenu}
-                snapToGrid={snapToGrid}
+                snapToGrid={false}
                 gridSize={20}
               />
             ))}
@@ -993,34 +986,8 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
         onClose={() => setContextMenu({ visible: false, x: 0, y: 0, objectId: null })}
       />
       
-      {/* 画布提示 */}
-      <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg text-sm">
-        {spacePressed ? '按住空格键拖拽平移画布' : '滚轮缩放 | 空格键+拖拽平移'}
-      </div>
-      
-      {/* 网格和吸附控制 */}
-      <div className="absolute top-4 right-4 bg-white border border-gray-200 rounded-lg p-2 shadow-lg">
-        <div className="flex items-center space-x-2 text-sm">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={showGrid}
-              onChange={(e) => setShowGrid(e.target.checked)}
-              className="mr-1"
-            />
-            显示网格
-          </label>
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={snapToGrid}
-              onChange={(e) => setSnapToGrid(e.target.checked)}
-              className="mr-1"
-            />
-            吸附网格
-          </label>
-        </div>
-      </div>
+
+
     </div>
   );
 });

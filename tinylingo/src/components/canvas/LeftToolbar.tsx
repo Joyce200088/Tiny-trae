@@ -11,8 +11,6 @@ import {
   Minus, 
   ArrowRight, 
   MoreHorizontal,
-  Group,
-  Ungroup,
   Circle,
   Triangle,
   Diamond,
@@ -37,12 +35,7 @@ interface LeftToolbarProps {
   // AI生成相关
   onOpenAIGenerator: () => void;
   
-  // 分组相关
-  selectedObjectsCount: number;
-  onGroup: () => void;
-  onUngroup: () => void;
-  canGroup: boolean;
-  canUngroup: boolean;
+  // 分组相关功能已删除
 }
 
 interface ToolItem {
@@ -60,12 +53,7 @@ export default function LeftToolbar({
   onToolChange,
   onOpenStickers,
   onOpenBackgrounds,
-  onOpenAIGenerator,
-  selectedObjectsCount,
-  onGroup,
-  onUngroup,
-  canGroup,
-  canUngroup
+  onOpenAIGenerator
 }: LeftToolbarProps) {
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const [showLineMenu, setShowLineMenu] = useState(false);
@@ -251,24 +239,9 @@ export default function LeftToolbar({
     }
   ];
 
-  // 快捷操作
+  // 快捷操作（已删除分组功能）
   const quickActions: ToolItem[] = [
-    {
-      id: 'group',
-      name: '分组',
-      icon: Group,
-      tooltip: `分组选中对象 (Ctrl+G)${selectedObjectsCount > 1 ? ` (${selectedObjectsCount}个对象)` : ''}`,
-      onClick: onGroup,
-      disabled: !canGroup || selectedObjectsCount < 2
-    },
-    {
-      id: 'ungroup',
-      name: '解组',
-      icon: Ungroup,
-      tooltip: '解组选中对象 (Ctrl+Shift+G)',
-      onClick: onUngroup,
-      disabled: !canUngroup
-    }
+    // 分组和解组功能已删除
   ];
 
   // 渲染工具按钮
@@ -379,13 +352,18 @@ export default function LeftToolbar({
         )}
       </div>
 
-      {/* 分隔线 */}
-      <div className="mx-3 mb-4 border-t border-gray-200"></div>
-
-      {/* 快捷操作 */}
-      <div className="px-3 space-y-2">
-        {quickActions.map(tool => renderToolButton(tool))}
-      </div>
+      {/* 快捷操作区域已删除 */}
+      {quickActions.length > 0 && (
+        <>
+          {/* 分隔线 */}
+          <div className="mx-3 mb-4 border-t border-gray-200"></div>
+          
+          {/* 快捷操作 */}
+          <div className="px-3 space-y-2">
+            {quickActions.map(tool => renderToolButton(tool))}
+          </div>
+        </>
+      )}
 
       {/* 底部占位 */}
       <div className="flex-1"></div>

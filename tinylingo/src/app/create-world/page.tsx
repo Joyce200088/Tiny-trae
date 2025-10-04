@@ -498,22 +498,6 @@ export default function CreateWorldPage() {
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: '#FFFBF5' }}>
-      {/* 顶部栏 */}
-      <TopBar
-        documentName={documentName}
-        onDocumentNameChange={setDocumentName}
-        saveStatus={saveStatus}
-        onSave={saveWorldData}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onExport={() => {}}
-        onSearch={() => {}}
-        notifications={[]}
-        onNotificationDismiss={() => {}}
-        shareMode="private"
-        onShareModeChange={() => {}}
-        onShare={() => {}}
-      />
-
       {/* 主要内容区域 */}
       <div className="flex-1 flex">
         {/* 左侧工具栏 */}
@@ -541,17 +525,6 @@ export default function CreateWorldPage() {
             }
             setInspectorActiveTab('ai-generate');
           }}
-          selectedObjectsCount={selectedObjects.length}
-          onGroup={() => {
-            // 组合选中对象的逻辑
-            console.log('Group objects');
-          }}
-          onUngroup={() => {
-            // 取消组合的逻辑
-            console.log('Ungroup objects');
-          }}
-          canGroup={selectedObjects.length > 1}
-          canUngroup={selectedObjects.some(obj => obj.type === 'group')}
         />
 
         {/* 画布区域 */}
@@ -612,9 +585,9 @@ export default function CreateWorldPage() {
             onUpdateBackgroundMode={(id, mode) => {
               // 找到背景对象并更新其模式
               const backgroundObj = canvasObjects.find(obj => obj.id === id && obj.type === 'background');
-              if (backgroundObj && canvasAreaRef.current) {
-                // 调用CanvasArea的updateBackgroundMode函数
-                canvasAreaRef.current.updateBackgroundMode(id, mode);
+              if (backgroundObj) {
+                // 更新背景对象的模式
+                handleObjectChange(id, { mode });
               }
             }}
             // 状态机模式管理
