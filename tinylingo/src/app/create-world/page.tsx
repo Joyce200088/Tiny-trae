@@ -194,6 +194,8 @@ export default function CreateWorldPage() {
   const [selectedBackground, setSelectedBackground] = useState<any>(null);
   // Inspector标签页状态
   const [inspectorActiveTab, setInspectorActiveTab] = useState<'properties' | 'stickers' | 'backgrounds' | 'ai-generate'>('properties');
+  // 记录上一个功能页面，用于从Properties返回
+  const [previousFunctionTab, setPreviousFunctionTab] = useState<'stickers' | 'backgrounds' | 'ai-generate' | null>(null);
   const [canvasObjects, setCanvasObjects] = useState<any[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
@@ -214,6 +216,10 @@ export default function CreateWorldPage() {
   
   // 保存状态
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // 工具状态管理
+  const [activeTool, setActiveTool] = useState<string>('select');
   
   // AI 生成相关状态
   const [aiWord, setAiWord] = useState('');
@@ -221,7 +227,9 @@ export default function CreateWorldPage() {
   const [aiStyle, setAiStyle] = useState<'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch'>('cartoon');
   const [aiViewpoint, setAiViewpoint] = useState<'front' | 'top' | 'isometric' | 'side'>('front');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [transparentImage, setTransparentImage] = useState<string | null>(null);
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [aiError, setAiError] = useState('');
   
 
@@ -236,7 +244,70 @@ export default function CreateWorldPage() {
   const selectedObject = canvasObjects.find(obj => obj.id === selectedObjectId);
   const selectedObjects = canvasObjects.filter(obj => obj.selected);
 
-  // 画布操作函数
+  // 右侧面板显示逻辑
+  const shouldShowRightPanel = selectedObjects.length > 0 || ['stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab);
+  
+  // 当选中对象时，优先显示Properties面板
+  // 同时处理AI生成面板的模式映射
+  const effectiveActiveTab = selectedObjects.length > 0 ? 'properties' : 
+    inspectorActiveTab === 'ai-generate' ? 'ai' : inspectorActiveTab;
+
+  // 保存功能
+  const saveWorldData = async () => {
+    try {
+      setSaveStatus('saving');
+      
+      // 构建世界数据
+      const worldData = {
+        id: Date.now().toString(),
+        name: documentName,
+        canvasObjects,
+        selectedBackground,
+        canvasSize,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // 保存到localStorage（后续可替换为Supabase）
+      const existingWorlds = JSON.parse(localStorage.getItem('userWorlds') || '[]');
+      const worldIndex = existingWorlds.findIndex((w: any) => w.name === documentName);
+      
+      if (worldIndex >= 0) {
+        existingWorlds[worldIndex] = worldData;
+      } else {
+        existingWorlds.push(worldData);
+      }
+      
+      localStorage.setItem('userWorlds', JSON.stringify(existingWorlds));
+      
+      setSaveStatus('saved');
+      setHasUnsavedChanges(false);
+      
+      console.log('世界已保存:', worldData);
+    } catch (error) {
+      console.error('保存失败:', error);
+      setSaveStatus('error');
+    }
+  };
+
+  // 监听数据变化，标记为未保存
+  useEffect(() => {
+    setHasUnsavedChanges(true);
+    setSaveStatus('saved'); // 重置保存状态，等待用户手动保存
+  }, [canvasObjects, selectedBackground, documentName]);
+
+  // 自动保存（可选）
+  useEffect(() => {
+    if (hasUnsavedChanges) {
+      const autoSaveTimer = setTimeout(() => {
+        saveWorldData();
+      }, 5000); // 5秒后自动保存
+
+      return () => clearTimeout(autoSaveTimer);
+    }
+  }, [hasUnsavedChanges]);
+
+  // 处理对象变化
   const handleObjectChange = (id: string, newAttrs: any) => {
     setCanvasObjects(prev => 
       prev.map(obj => obj.id === id ? { ...obj, ...newAttrs } : obj)
@@ -274,18 +345,155 @@ export default function CreateWorldPage() {
   };
 
   // AI生成处理函数
-  const handleGenerateAI = () => {
+  const handleGenerateAI = async () => {
     if (!aiWord) return;
     
     setIsGenerating(true);
-    // 这里应该调用实际的AI生成逻辑
-    console.log('生成 AI 贴纸', { aiWord, aiDescription, aiStyle });
+    setAiError('');
+    setGeneratedImage(null);
+    setTransparentImage(null);
     
-    // 模拟生成过程
-    setTimeout(() => {
+    try {
+      // 构建生成选项
+      const options: ImageGenerationOptions = {
+        word: aiWord,
+        description: aiDescription || `A ${aiWord} sticker`,
+        style: aiStyle as any,
+        viewpoint: aiViewpoint as any
+      };
+      
+      // 调用AI生成图片
+      const imageUrl = await generateImageWithGemini(options);
+      setGeneratedImage(imageUrl);
+      
+    } catch (error) {
+      console.error('AI生成失败:', error);
+      setAiError(error instanceof Error ? error.message : '生成失败，请重试');
+    } finally {
       setIsGenerating(false);
-      // 这里应该处理生成的结果
-    }, 2000);
+    }
+  };
+
+  // 移除背景处理函数
+  const handleRemoveBackground = async () => {
+    if (!generatedImage) return;
+    
+    setIsRemovingBackground(true);
+    try {
+      // 将base64图片转换为Blob
+      const response = await fetch(generatedImage);
+      const blob = await response.blob();
+      
+      // 创建FormData
+      const formData = new FormData();
+      formData.append('file', blob, 'generated-image.png');
+      
+      // 调用背景移除API
+      const bgRemoveResponse = await fetch('/api/bg/remove', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!bgRemoveResponse.ok) {
+        throw new Error('背景移除失败');
+      }
+      
+      // 获取处理后的图片
+      const processedBlob = await bgRemoveResponse.blob();
+      const transparentImageUrl = URL.createObjectURL(processedBlob);
+      setTransparentImage(transparentImageUrl);
+      
+    } catch (error) {
+      console.error('背景移除失败:', error);
+      setAiError('背景移除失败，请重试');
+      // 如果背景移除失败，使用原图
+      setTransparentImage(generatedImage);
+    } finally {
+      setIsRemovingBackground(false);
+    }
+  };
+
+  // 保存到贴纸库
+  const handleSaveToLibrary = async () => {
+    if (!transparentImage && !generatedImage) return;
+    
+    try {
+      // 使用AI识别生成贴纸内容
+      const content = await identifyImageAndGenerateContent(transparentImage || generatedImage!);
+      
+      // 创建贴纸数据
+      const stickerData: StickerData = {
+        id: Date.now().toString(),
+        name: content.word,
+        chinese: content.cn,
+        phonetic: content.phonetic || '',
+        category: content.tags?.[0] || 'AI Generated',
+        partOfSpeech: content.pos,
+        tags: [...(content.tags || []), 'Ai-generated'],
+        thumbnailUrl: transparentImage || generatedImage!,
+        createdAt: new Date().toISOString().split('T')[0],
+        sorted: false,
+        notes: content.examples?.[0]?.en || '',
+        mnemonic: content.mnemonic?.[0] || ''
+      };
+      
+      // 使用StickerDataUtils保存到localStorage（支持图片持久化）
+      await StickerDataUtils.addSticker(stickerData);
+      
+      // 重置生成状态
+      setGeneratedImage(null);
+      setTransparentImage(null);
+      setAiWord('');
+      setAiDescription('');
+      
+      alert('贴纸已保存到库中！');
+      
+    } catch (error) {
+      console.error('保存失败:', error);
+      setAiError('保存失败，请重试');
+    }
+  };
+
+  // 拖拽到画布
+  const handleDragToCanvas = () => {
+    if (!transparentImage && !generatedImage) return;
+    
+    const imageUrl = transparentImage || generatedImage!;
+    
+    // 创建新的画布对象
+    const newObject = {
+      id: Date.now().toString(),
+      type: 'image',
+      src: imageUrl,
+      x: canvasSize.width / 2 - 50,
+      y: canvasSize.height / 2 - 50,
+      width: 100,
+      height: 100,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      selected: false
+    };
+    
+    // 添加到画布
+    setCanvasObjects(prev => [...prev, newObject]);
+    
+    // 重置生成状态
+    setGeneratedImage(null);
+    setTransparentImage(null);
+    setAiWord('');
+    setAiDescription('');
+    
+    // 切换回选择工具
+    setActiveTool('select');
+    setInspectorActiveTab('properties');
+  };
+
+  // 重新生成
+  const handleRegenerateAI = () => {
+    setGeneratedImage(null);
+    setTransparentImage(null);
+    handleGenerateAI();
   };
 
   return (
@@ -295,6 +503,8 @@ export default function CreateWorldPage() {
         documentName={documentName}
         onDocumentNameChange={setDocumentName}
         saveStatus={saveStatus}
+        onSave={saveWorldData}
+        hasUnsavedChanges={hasUnsavedChanges}
         onExport={() => {}}
         onSearch={() => {}}
         notifications={[]}
@@ -308,21 +518,27 @@ export default function CreateWorldPage() {
       <div className="flex-1 flex">
         {/* 左侧工具栏 */}
         <LeftToolbar
-          activeTool="select"
-          onToolChange={(tool) => {
-            // 处理工具切换逻辑
-            console.log('Tool changed:', tool);
-          }}
+          activeTool={activeTool}
+          onToolChange={setActiveTool}
           onOpenStickers={() => {
-            // 切换到右侧Inspector的贴纸标签页
+            // 记录当前功能页面，然后切换到右侧Inspector的贴纸标签页
+            if (inspectorActiveTab !== 'stickers') {
+              setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+            }
             setInspectorActiveTab('stickers');
           }}
           onOpenBackgrounds={() => {
-            // 切换到右侧Inspector的背景标签页
+            // 记录当前功能页面，然后切换到右侧Inspector的背景标签页
+            if (inspectorActiveTab !== 'backgrounds') {
+              setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+            }
             setInspectorActiveTab('backgrounds');
           }}
           onOpenAIGenerator={() => {
-            // 切换到右侧Inspector的AI生成标签页
+            // 记录当前功能页面，然后切换到右侧Inspector的AI生成标签页
+            if (inspectorActiveTab !== 'ai-generate') {
+              setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+            }
             setInspectorActiveTab('ai-generate');
           }}
           selectedObjectsCount={selectedObjects.length}
@@ -346,41 +562,104 @@ export default function CreateWorldPage() {
           canvasScale={canvasScale}
           canvasPosition={canvasPosition}
           backgroundImage={selectedBackground?.url}
+          activeTool={activeTool}
           onObjectSelect={setSelectedObjectId}
           onObjectChange={handleObjectChange}
           onObjectsChange={setCanvasObjects}
           onCanvasPositionChange={setCanvasPosition}
           onCanvasScaleChange={setCanvasScale}
+          onCreateObject={(newObject) => {
+            // 创建新对象并添加到画布
+            setCanvasObjects(prev => [...prev, newObject]);
+            // 选中新创建的对象
+            setSelectedObjectId(newObject.id);
+            // 切换回选择工具
+            setActiveTool('select');
+          }}
         />
 
-        {/* 右侧属性面板 */}
-        <RightInspector
-          selectedObject={selectedObject}
-          selectedObjects={selectedObjects}
-          onObjectChange={(changes) => {
-            if (selectedObjectId) {
-              handleObjectChange(selectedObjectId, changes);
-            }
-          }}
-          // 标签页管理
-          activeTab={inspectorActiveTab}
-          onTabChange={setInspectorActiveTab}
-          // 贴纸相关
-          userStickers={userStickers}
-          onAddSticker={handleAddSticker}
-          // 背景相关
-          backgrounds={mockBackgrounds}
-          onSelectBackground={handleSelectBackground}
-          // AI生成相关
-          aiWord={aiWord}
-          aiDescription={aiDescription}
-          aiStyle={aiStyle}
-          isGenerating={isGenerating}
-          onAiWordChange={setAiWord}
-          onAiDescriptionChange={setAiDescription}
-          onAiStyleChange={setAiStyle}
-          onGenerateAI={handleGenerateAI}
-        />
+        {/* 右侧属性面板 - 按需显示 */}
+        {shouldShowRightPanel && (
+          <RightInspector
+            selectedObjects={selectedObjects}
+            onUpdateObject={(id, updates) => {
+              handleObjectChange(id, updates);
+            }}
+            onUpdateMultipleObjects={(updates) => {
+              selectedObjects.forEach(obj => {
+                handleObjectChange(obj.id, updates);
+              });
+            }}
+            onDeleteObjects={(ids) => {
+              ids.forEach(id => {
+                setCanvasObjects(prev => prev.filter(obj => obj.id !== id));
+              });
+              setSelectedObjectId(null);
+            }}
+            onDuplicateObjects={(ids) => {
+              // 复制对象逻辑
+              console.log('Duplicate objects:', ids);
+            }}
+            onGroupObjects={(ids) => {
+              // 组合对象逻辑
+              console.log('Group objects:', ids);
+            }}
+            onUngroupObject={(id) => {
+              // 取消组合逻辑
+              console.log('Ungroup object:', id);
+            }}
+            // 背景模式更新函数
+            onUpdateBackgroundMode={(id, mode) => {
+              // 找到背景对象并更新其模式
+              const backgroundObj = canvasObjects.find(obj => obj.id === id && obj.type === 'background');
+              if (backgroundObj && canvasAreaRef.current) {
+                // 调用CanvasArea的updateBackgroundMode函数
+                canvasAreaRef.current.updateBackgroundMode(id, mode);
+              }
+            }}
+            // 状态机模式管理
+            mode={effectiveActiveTab as 'properties' | 'stickers' | 'backgrounds' | 'ai'}
+            onModeChange={(mode) => {
+              if (mode === 'properties') {
+                // 如果切换到properties但没有选中对象，则隐藏面板
+                if (selectedObjects.length === 0) {
+                  setInspectorActiveTab('properties');
+                }
+              } else {
+                // 记录当前功能页面状态
+                if (mode !== 'properties' && inspectorActiveTab !== mode) {
+                  setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+                }
+                setInspectorActiveTab(mode === 'ai' ? 'ai-generate' : mode);
+              }
+            }}
+            // 贴纸相关
+            userStickers={userStickers}
+            onAddSticker={handleAddSticker}
+            // 背景相关
+            backgrounds={mockBackgrounds}
+            onSelectBackground={handleSelectBackground}
+            // AI生成相关
+            aiWord={aiWord}
+            aiDescription={aiDescription}
+            aiStyle={aiStyle}
+            aiViewpoint={aiViewpoint}
+            isGenerating={isGenerating}
+            generatedImage={generatedImage}
+            transparentImage={transparentImage}
+            isRemovingBackground={isRemovingBackground}
+            generationError={aiError}
+            onAiWordChange={setAiWord}
+            onAiDescriptionChange={setAiDescription}
+            onAiStyleChange={setAiStyle}
+            onAiViewpointChange={setAiViewpoint}
+            onGenerateAI={handleGenerateAI}
+            onRemoveBackground={handleRemoveBackground}
+            onSaveToLibrary={handleSaveToLibrary}
+            onDragToCanvas={handleDragToCanvas}
+            onRegenerateAI={handleRegenerateAI}
+          />
+        )}
       </div>
 
       {/* 右下角底部工具 */}

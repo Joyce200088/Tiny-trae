@@ -25,6 +25,8 @@ interface TopBarProps {
   
   // 保存状态
   saveStatus: 'saved' | 'saving' | 'offline' | 'error';
+  onSave?: () => void; // 手动保存回调
+  hasUnsavedChanges?: boolean; // 是否有未保存的更改
   
   // 导出功能
   onExport: (format: 'png' | 'svg' | 'webp', options: ExportOptions) => void;
@@ -39,7 +41,7 @@ interface TopBarProps {
   // 分享
   shareMode: 'private' | 'readonly' | 'editable';
   onShareModeChange: (mode: 'private' | 'readonly' | 'editable') => void;
-  shareUrl?: string;
+  onShare: () => void;
 }
 
 interface ExportOptions {
@@ -62,13 +64,15 @@ export default function TopBar({
   documentName,
   onDocumentNameChange,
   saveStatus,
+  onSave,
+  hasUnsavedChanges = false,
   onExport,
   onSearch,
   notifications,
   onNotificationDismiss,
   shareMode,
   onShareModeChange,
-  shareUrl
+  onShare
 }: TopBarProps) {
   // 文档名编辑状态
   const [isEditingName, setIsEditingName] = useState(false);
@@ -205,13 +209,32 @@ export default function TopBar({
           )}
         </div>
 
-        {/* 保存状态 */}
-        <div className={`flex items-center space-x-1 text-xs ${saveStatusDisplay.color}`}>
-          {saveStatusDisplay.icon && <saveStatusDisplay.icon className="w-3 h-3" />}
-          {saveStatus === 'saving' && (
-            <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        {/* 保存状态和保存按钮 */}
+        <div className="flex items-center space-x-3">
+          {/* 保存按钮 */}
+          {onSave && (
+            <button
+              onClick={onSave}
+              disabled={saveStatus === 'saving' || (!hasUnsavedChanges && saveStatus === 'saved')}
+              className={`flex items-center space-x-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
+                hasUnsavedChanges && saveStatus !== 'saving'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <Save className="w-3 h-3" />
+              <span>{saveStatus === 'saving' ? '保存中...' : '保存'}</span>
+            </button>
           )}
-          <span>{saveStatusDisplay.text}</span>
+          
+          {/* 保存状态显示 */}
+          <div className={`flex items-center space-x-1 text-xs ${saveStatusDisplay.color}`}>
+            {saveStatusDisplay.icon && <saveStatusDisplay.icon className="w-3 h-3" />}
+            {saveStatus === 'saving' && (
+              <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            )}
+            <span>{saveStatusDisplay.text}</span>
+          </div>
         </div>
       </div>
 

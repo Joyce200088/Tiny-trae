@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text, Line } from 'react-konva';
 import useImage from 'use-image';
 import { StickerData } from '@/types/sticker';
+import CanvasObject from './CanvasObject';
 
 // 智能对齐线组件
 const AlignmentGuides = ({ guides }: { guides: any[] }) => {
@@ -212,6 +213,17 @@ const DraggableImage = ({
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
 
+          // 如果启用了宽高比锁定，保持比例
+          let finalScaleX = scaleX;
+          let finalScaleY = scaleY;
+          
+          if (imageObj.aspectRatioLocked) {
+            // 使用较大的缩放值来保持比例
+            const maxScale = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+            finalScaleX = scaleX >= 0 ? maxScale : -maxScale;
+            finalScaleY = scaleY >= 0 ? maxScale : -maxScale;
+          }
+
           node.scaleX(1);
           node.scaleY(1);
           
@@ -222,8 +234,8 @@ const DraggableImage = ({
             ...imageObj,
             x: newX,
             y: newY,
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
+            width: Math.max(5, node.width() * finalScaleX),
+            height: Math.max(5, node.height() * finalScaleY),
             rotation: node.rotation(),
           });
         }}
@@ -263,26 +275,30 @@ interface CanvasAreaProps {
   canvasScale: number;
   canvasPosition: { x: number; y: number };
   backgroundImage?: string;
+  activeTool: string; // 新增：当前激活的工具
   onObjectSelect: (id: string | null) => void;
   onObjectChange: (id: string, newAttrs: any) => void;
   onObjectsChange: (objects: any[]) => void;
   onCanvasPositionChange: (position: { x: number; y: number }) => void;
   onCanvasScaleChange: (scale: number) => void;
+  onCreateObject: (object: any) => void; // 新增：创建对象的回调
 }
 
-const CanvasArea: React.FC<CanvasAreaProps> = ({
+const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void }, CanvasAreaProps>(({
   canvasObjects,
   selectedObjectId,
   canvasSize,
   canvasScale,
   canvasPosition,
   backgroundImage,
+  activeTool,
   onObjectSelect,
   onObjectChange,
   onObjectsChange,
   onCanvasPositionChange,
-  onCanvasScaleChange
-}) => {
+  onCanvasScaleChange,
+  onCreateObject
+}, ref) => {
   const stageRef = useRef<any>(null);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, objectId: null });
   const [selectionBox, setSelectionBox] = useState({ visible: false, x: 0, y: 0, width: 0, height: 0 });
@@ -296,6 +312,67 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
   
   // 窗口尺寸状态
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
+
+  // 背景模式切换函数
+  const updateBackgroundMode = useCallback((backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => {
+    const backgroundObj = canvasObjects.find(obj => obj.id === backgroundId && obj.type === 'background');
+    if (!backgroundObj || !backgroundObj.backgroundData) return;
+
+    // 创建临时图片元素来获取原始尺寸
+    const img = new Image();
+    img.onload = () => {
+      const imageAspectRatio = img.naturalWidth / img.naturalHeight;
+      const canvasAspectRatio = canvasSize.width / canvasSize.height;
+      
+      let width, height, x = 0, y = 0;
+      
+      // 根据不同模式计算尺寸和位置
+      if (newMode === 'cover') {
+        // Cover模式：保持图片比例，填满画布，可能会裁剪
+        if (imageAspectRatio > canvasAspectRatio) {
+          height = canvasSize.height;
+          width = height * imageAspectRatio;
+          x = (canvasSize.width - width) / 2;
+        } else {
+          width = canvasSize.width;
+          height = width / imageAspectRatio;
+          y = (canvasSize.height - height) / 2;
+        }
+      } else if (newMode === 'contain') {
+        // Contain模式：保持图片比例，完整显示图片，可能有空白
+        if (imageAspectRatio > canvasAspectRatio) {
+          width = canvasSize.width;
+          height = width / imageAspectRatio;
+          y = (canvasSize.height - height) / 2;
+        } else {
+          height = canvasSize.height;
+          width = height * imageAspectRatio;
+          x = (canvasSize.width - width) / 2;
+        }
+      } else if (newMode === 'tile') {
+        // Tile模式：使用图片原始尺寸，可以平铺
+        width = img.naturalWidth;
+        height = img.naturalHeight;
+        x = 0;
+        y = 0;
+      }
+      
+      // 更新背景对象
+      onObjectChange(backgroundId, {
+        x,
+        y,
+        width,
+        height,
+        backgroundMode: newMode
+      });
+    };
+    img.src = backgroundObj.src || backgroundObj.backgroundData.url;
+  }, [canvasObjects, canvasSize, onObjectChange]);
+
+  // 暴露updateBackgroundMode函数给父组件
+  useImperativeHandle(ref, () => ({
+    updateBackgroundMode
+  }), [updateBackgroundMode]);
 
   // 监听窗口尺寸变化
   useEffect(() => {
@@ -389,38 +466,156 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
     };
   }, [selectedObjectId]);
 
-  // 鼠标滚轮缩放
+  // 鼠标滚轮缩放（无需按键）
   const handleWheel = useCallback((e: any) => {
     e.evt.preventDefault();
     
-    if (e.evt.ctrlKey || e.evt.metaKey) {
-      const scaleBy = 1.1;
-      const stage = e.target.getStage();
-      const oldScale = stage.scaleX();
-      const pointer = stage.getPointerPosition();
-      
-      const mousePointTo = {
-        x: (pointer.x - stage.x()) / oldScale,
-        y: (pointer.y - stage.y()) / oldScale,
-      };
-      
-      const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-      const clampedScale = Math.max(0.1, Math.min(5, newScale));
-      
-      onCanvasScaleChange(clampedScale);
-      
-      const newPos = {
-        x: pointer.x - mousePointTo.x * clampedScale,
-        y: pointer.y - mousePointTo.y * clampedScale,
-      };
-      
-      onCanvasPositionChange(newPos);
-    }
+    // 移除Ctrl键限制，直接支持滚轮缩放
+    const scaleBy = 1.1;
+    const stage = e.target.getStage();
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+    
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+    
+    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+    const clampedScale = Math.max(0.1, Math.min(5, newScale));
+    
+    onCanvasScaleChange(clampedScale);
+    
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clampedScale,
+      y: pointer.y - mousePointTo.y * clampedScale,
+    };
+    
+    onCanvasPositionChange(newPos);
   }, [onCanvasScaleChange, onCanvasPositionChange]);
 
   // 画布点击处理
   const handleStageClick = (e: any) => {
+    // 如果点击的是空白画布区域
     if (e.target === e.target.getStage()) {
+      // 获取点击位置的画布坐标
+      const stage = e.target.getStage();
+      const pointerPosition = stage?.getPointerPosition();
+      
+      if (pointerPosition) {
+        // 转换为画布坐标系
+        const canvasX = (pointerPosition.x - canvasPosition.x) / canvasScale;
+        const canvasY = (pointerPosition.y - canvasPosition.y) / canvasScale;
+        
+        // 根据当前工具创建对象
+        if (activeTool === 'text') {
+          const newText = {
+            id: `text-${Date.now()}`,
+            type: 'text',
+            x: canvasX,
+            y: canvasY,
+            text: '双击编辑文本',
+            fontSize: 24,
+            fontFamily: 'Arial',
+            fill: '#000000',
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newText);
+        } else if (activeTool === 'rectangle') {
+          const newRect = {
+            id: `rect-${Date.now()}`,
+            type: 'rectangle',
+            x: canvasX,
+            y: canvasY,
+            width: 100,
+            height: 60,
+            fill: '#3B82F6',
+            stroke: '#1E40AF',
+            strokeWidth: 2,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newRect);
+        } else if (activeTool === 'circle') {
+          const newCircle = {
+            id: `circle-${Date.now()}`,
+            type: 'circle',
+            x: canvasX,
+            y: canvasY,
+            radius: 50,
+            fill: '#10B981',
+            stroke: '#059669',
+            strokeWidth: 2,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newCircle);
+        } else if (activeTool === 'line') {
+          const newLine = {
+            id: `line-${Date.now()}`,
+            type: 'line',
+            points: [canvasX, canvasY, canvasX + 100, canvasY],
+            stroke: '#EF4444',
+            strokeWidth: 3,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newLine);
+        } else if (activeTool === 'arrow') {
+          const newArrow = {
+            id: `arrow-${Date.now()}`,
+            type: 'arrow',
+            points: [canvasX, canvasY, canvasX + 100, canvasY],
+            stroke: '#8B5CF6',
+            strokeWidth: 3,
+            pointerLength: 10,
+            pointerWidth: 10,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newArrow);
+        } else if (activeTool === 'curved-line') {
+          const newCurvedLine = {
+            id: `curved-line-${Date.now()}`,
+            type: 'curved-line',
+            points: [canvasX, canvasY, canvasX + 50, canvasY - 30, canvasX + 100, canvasY],
+            stroke: '#F59E0B',
+            strokeWidth: 3,
+            tension: 0.5,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newCurvedLine);
+        } else if (activeTool === 'elbow-line') {
+          const newElbowLine = {
+            id: `elbow-line-${Date.now()}`,
+            type: 'elbow-line',
+            points: [canvasX, canvasY, canvasX + 50, canvasY, canvasX + 50, canvasY + 50, canvasX + 100, canvasY + 50],
+            stroke: '#06B6D4',
+            strokeWidth: 3,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newElbowLine);
+        }
+      }
+      
+      // 取消选择和右键菜单
       onObjectSelect(null);
       setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
     }
@@ -552,45 +747,115 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
         const y = (e.clientY - rect.top - canvasPosition.y) / canvasScale;
         
         if (data.type === 'sticker') {
-          // 处理贴纸拖拽 - 使用统一的数据结构
-          const newSticker = {
-            id: `sticker-${Date.now()}`,
-            type: 'sticker',
-            src: data.data.image, // 使用 data.data.image 获取图片路径
-            x: x,
-            y: y,
-            width: 100,
-            height: 100,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false,
-            word: data.data.word,
-            cn: data.data.cn,
-            stickerData: data.data // 保存完整的贴纸数据
+          // 处理贴纸拖拽 - 保持宽高比，默认锁定比例
+          // 创建临时图片元素来获取原始尺寸
+          const img = new Image();
+          img.onload = () => {
+            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            const defaultSize = 100; // 默认尺寸
+            let width, height;
+            
+            // 根据宽高比计算尺寸，保持比例
+            if (aspectRatio >= 1) {
+              // 宽图或正方形
+              width = defaultSize;
+              height = defaultSize / aspectRatio;
+            } else {
+              // 高图
+              width = defaultSize * aspectRatio;
+              height = defaultSize;
+            }
+            
+            const newSticker = {
+              id: `sticker-${Date.now()}`,
+              type: 'sticker',
+              src: data.data.image, // 使用 data.data.image 获取图片路径
+              x: x,
+              y: y,
+              width: width,
+              height: height,
+              rotation: 0,
+              scaleX: 1,
+              scaleY: 1,
+              locked: false,
+              aspectRatioLocked: true, // 默认锁定宽高比
+              word: data.data.word,
+              cn: data.data.cn,
+              stickerData: data.data // 保存完整的贴纸数据
+            };
+            
+            onObjectsChange([...canvasObjects, newSticker]);
           };
-          
-          onObjectsChange([...canvasObjects, newSticker]);
+          img.src = data.data.image;
         } else if (data.type === 'background') {
-          // 处理背景图片拖拽 - 使用统一的数据结构
-          console.log('设置背景图片:', data.data.url);
-          // 如果需要将背景作为对象添加到画布，可以这样做：
-          const newBackground = {
-            id: `background-${Date.now()}`,
-            type: 'background',
-            src: data.data.url, // 使用 data.data.url 获取图片路径
-            x: 0,
-            y: 0,
-            width: canvasSize.width,
-            height: canvasSize.height,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false,
-            backgroundData: data.data // 保存完整的背景数据
+          // 处理背景图片拖拽 - 支持Cover/Contain/Tile模式，保持比例不变形
+          // 创建临时图片元素来获取原始尺寸
+          const img = new Image();
+          img.onload = () => {
+            const imageAspectRatio = img.naturalWidth / img.naturalHeight;
+            const canvasAspectRatio = canvasSize.width / canvasSize.height;
+            
+            let width, height, x = 0, y = 0;
+            const backgroundMode = 'cover'; // 默认使用Cover模式
+            
+            // 根据不同模式计算尺寸和位置
+            if (backgroundMode === 'cover') {
+              // Cover模式：保持图片比例，填满画布，可能会裁剪
+              if (imageAspectRatio > canvasAspectRatio) {
+                // 图片更宽，以高度为准
+                height = canvasSize.height;
+                width = height * imageAspectRatio;
+                x = (canvasSize.width - width) / 2; // 居中
+              } else {
+                // 图片更高或比例相同，以宽度为准
+                width = canvasSize.width;
+                height = width / imageAspectRatio;
+                y = (canvasSize.height - height) / 2; // 居中
+              }
+            } else if (backgroundMode === 'contain') {
+              // Contain模式：保持图片比例，完整显示图片，可能有空白
+              if (imageAspectRatio > canvasAspectRatio) {
+                // 图片更宽，以宽度为准
+                width = canvasSize.width;
+                height = width / imageAspectRatio;
+                y = (canvasSize.height - height) / 2; // 居中
+              } else {
+                // 图片更高或比例相同，以高度为准
+                height = canvasSize.height;
+                width = height * imageAspectRatio;
+                x = (canvasSize.width - width) / 2; // 居中
+              }
+            } else if (backgroundMode === 'tile') {
+              // Tile模式：使用图片原始尺寸，可以平铺
+              width = img.naturalWidth;
+              height = img.naturalHeight;
+              x = 0;
+              y = 0;
+            }
+            
+            const newBackground = {
+              id: `background-${Date.now()}`,
+              type: 'background',
+              src: data.data.url, // 使用 data.data.url 获取图片路径
+              x: x,
+              y: y,
+              width: width,
+              height: height,
+              rotation: 0,
+              scaleX: 1,
+              scaleY: 1,
+              opacity: 1,
+              visible: true,
+              locked: false,
+              zIndex: -1, // 背景应该在最底层
+              aspectRatioLocked: true, // 锁定宽高比防止变形
+              backgroundData: data.data, // 保存完整的背景数据
+              backgroundMode: backgroundMode // 保存显示模式
+            };
+            
+            onObjectsChange([...canvasObjects, newBackground]);
           };
-          
-          onObjectsChange([...canvasObjects, newBackground]);
+          img.src = data.data.url;
         }
         return;
       }
@@ -700,14 +965,15 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
             
             {/* 画布对象 */}
             {canvasObjects.map((obj) => (
-              <DraggableImage
+              <CanvasObject
                 key={obj.id}
-                imageObj={obj}
+                object={obj}
                 isSelected={obj.id === selectedObjectId}
                 onSelect={() => onObjectSelect(obj.id)}
                 onChange={(newAttrs) => onObjectChange(obj.id, newAttrs)}
                 onContextMenu={handleContextMenu}
                 snapToGrid={snapToGrid}
+                gridSize={20}
               />
             ))}
             
@@ -729,7 +995,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
       
       {/* 画布提示 */}
       <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg text-sm">
-        {spacePressed ? '按住空格键拖拽平移画布' : '滚轮+Ctrl缩放 | 空格键+拖拽平移'}
+        {spacePressed ? '按住空格键拖拽平移画布' : '滚轮缩放 | 空格键+拖拽平移'}
       </div>
       
       {/* 网格和吸附控制 */}
@@ -757,6 +1023,6 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default CanvasArea;
