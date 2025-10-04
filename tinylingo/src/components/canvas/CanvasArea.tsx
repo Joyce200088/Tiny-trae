@@ -280,6 +280,7 @@ interface CanvasAreaProps {
   onCanvasPositionChange: (position: { x: number; y: number }) => void;
   onCanvasScaleChange: (scale: number) => void;
   onCreateObject: (object: any) => void; // 新增：创建对象的回调
+  onCanvasClick?: () => void; // 新增：画布空白区域点击回调
 }
 
 const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void }, CanvasAreaProps>(({
@@ -295,7 +296,8 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   onObjectsChange,
   onCanvasPositionChange,
   onCanvasScaleChange,
-  onCreateObject
+  onCreateObject,
+  onCanvasClick
 }, ref) => {
   const stageRef = useRef<any>(null);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, objectId: null });
@@ -615,6 +617,11 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       // 取消选择和右键菜单
       onObjectSelect(null);
       setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+      
+      // 调用画布点击回调，用于收起右侧面板
+      if (onCanvasClick) {
+        onCanvasClick();
+      }
     }
   };
 
@@ -784,6 +791,47 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
             onObjectsChange([...canvasObjects, newSticker]);
           };
           img.src = data.data.image;
+        } else if (data.type === 'ai-generated-sticker') {
+          // 处理AI生成的贴纸拖拽
+          // 创建临时图片元素来获取原始尺寸
+          const img = new Image();
+          img.onload = () => {
+            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            const defaultSize = 100; // 默认尺寸
+            let width, height;
+            
+            // 根据宽高比计算尺寸，保持比例
+            if (aspectRatio >= 1) {
+              // 宽图或正方形
+              width = defaultSize;
+              height = defaultSize / aspectRatio;
+            } else {
+              // 高图
+              width = defaultSize * aspectRatio;
+              height = defaultSize;
+            }
+            
+            const newSticker = {
+              id: `sticker-${Date.now()}`,
+              type: 'sticker',
+              src: data.imageUrl, // 使用 data.imageUrl 获取图片路径
+              x: x,
+              y: y,
+              width: width,
+              height: height,
+              rotation: 0,
+              scaleX: 1,
+              scaleY: 1,
+              locked: false,
+              aspectRatioLocked: true, // 默认锁定宽高比
+              word: data.word,
+              cn: '', // AI生成的贴纸可能没有中文翻译
+              isAIGenerated: true // 标记为AI生成的贴纸
+            };
+            
+            onObjectsChange([...canvasObjects, newSticker]);
+          };
+          img.src = data.imageUrl;
         } else if (data.type === 'background') {
           // 处理背景图片拖拽 - 支持Cover/Contain/Tile模式，保持比例不变形
           // 创建临时图片元素来获取原始尺寸
@@ -932,7 +980,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       <div className="w-full h-full overflow-hidden">
         <Stage
           ref={stageRef}
-          width={windowSize.width - 224} // 减去左右侧边栏宽度
+          width={windowSize.width - 288} // 减去左右侧边栏宽度
           height={windowSize.height - 60} // 减去顶部栏高度
           scaleX={canvasScale}
           scaleY={canvasScale}

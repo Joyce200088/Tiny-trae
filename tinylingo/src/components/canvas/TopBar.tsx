@@ -15,7 +15,8 @@ import {
   X,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  ArrowLeft
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -42,6 +43,9 @@ interface TopBarProps {
   shareMode: 'private' | 'readonly' | 'editable';
   onShareModeChange: (mode: 'private' | 'readonly' | 'editable') => void;
   onShare: () => void;
+  
+  // 返回功能
+  onBack?: () => void;
 }
 
 interface ExportOptions {
@@ -72,7 +76,8 @@ export default function TopBar({
   onNotificationDismiss,
   shareMode,
   onShareModeChange,
-  onShare
+  onShare,
+  onBack
 }: TopBarProps) {
   // 文档名编辑状态
   const [isEditingName, setIsEditingName] = useState(false);
@@ -183,8 +188,19 @@ export default function TopBar({
 
   return (
     <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4" style={{backgroundColor: '#FFFBF5'}}>
-      {/* 左侧：文档名和保存状态 */}
+      {/* 左侧：返回按钮、文档名和保存状态 */}
       <div className="flex items-center space-x-4">
+        {/* 返回按钮 */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            title="返回"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
+        
         {/* 文档名 */}
         <div className="flex items-center space-x-2">
           <FileText className="w-5 h-5 text-gray-500" />

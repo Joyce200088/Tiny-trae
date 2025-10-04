@@ -295,9 +295,9 @@ export default function RightInspector({
 
   // 根据状态机模式渲染不同面板
   return (
-    <div className="w-56 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+    <div className="w-72 bg-[#FFFBF5] border-l border-gray-200 flex flex-col h-screen overflow-hidden">
       {/* 统一的头部标签栏 - 吸顶固定 */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="flex-shrink-0 bg-[#FFFBF5] border-b border-gray-200 sticky top-0 z-10">
         {/* 标签切换区域 */}
         <div className="flex items-center border-b border-gray-100">
           {/* 只有在有选中对象时才显示属性按钮 */}
@@ -343,16 +343,6 @@ export default function RightInspector({
           >
             AI
           </button>
-        </div>
-        
-        {/* 面板标题 */}
-        <div className="px-4 py-3 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-900">
-            {mode === 'properties' && '对象属性'}
-            {mode === 'stickers' && '我的贴纸库'}
-            {mode === 'backgrounds' && '背景图片'}
-            {mode === 'ai' && 'AI生成贴纸'}
-          </h3>
         </div>
       </div>
 

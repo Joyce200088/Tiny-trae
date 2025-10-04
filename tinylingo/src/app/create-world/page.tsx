@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { StickerDataUtils } from '@/utils/stickerDataUtils';
 import { StickerData } from '@/types/sticker';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
@@ -202,6 +202,9 @@ export default function CreateWorldPage() {
   const [userStickers, setUserStickers] = useState<StickerData[]>(mockStickers);
   const [isClient, setIsClient] = useState(false);
   
+  // 路由
+  const router = useRouter();
+  
   // 历史记录管理
   const [history, setHistory] = useState<any[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -232,6 +235,9 @@ export default function CreateWorldPage() {
   const [isRemovingBackground, setIsRemovingBackground] = useState(false);
   const [aiError, setAiError] = useState('');
   
+  // 右侧面板显示状态
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
+  
 
   
   const searchParams = useSearchParams();
@@ -245,7 +251,7 @@ export default function CreateWorldPage() {
   const selectedObjects = canvasObjects.filter(obj => obj.selected);
 
   // 右侧面板显示逻辑
-  const shouldShowRightPanel = selectedObjects.length > 0 || ['stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab);
+  const shouldShowRightPanel = isRightPanelVisible && (selectedObjects.length > 0 || ['stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab));
   
   // 当选中对象时，优先显示Properties面板
   // 同时处理AI生成面板的模式映射
@@ -365,6 +371,36 @@ export default function CreateWorldPage() {
       // 调用AI生成图片
       const imageUrl = await generateImageWithGemini(options);
       setGeneratedImage(imageUrl);
+      
+      // 自动进行背景去除
+      try {
+        // 将base64图片转换为Blob
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('file', blob, 'generated-image.png');
+        
+        // 调用背景移除API
+        const bgRemoveResponse = await fetch('/api/bg/remove', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (bgRemoveResponse.ok) {
+          // 获取处理后的图片
+          const processedBlob = await bgRemoveResponse.blob();
+          const transparentImageUrl = URL.createObjectURL(processedBlob);
+          setTransparentImage(transparentImageUrl);
+        } else {
+          console.warn('背景移除失败，使用原图');
+          setTransparentImage(imageUrl);
+        }
+      } catch (bgError) {
+        console.warn('自动背景移除失败，使用原图:', bgError);
+        setTransparentImage(imageUrl);
+      }
       
     } catch (error) {
       console.error('AI生成失败:', error);
@@ -513,6 +549,7 @@ export default function CreateWorldPage() {
           shareMode="private"
           onShareModeChange={(mode) => console.log('Share mode changed:', mode)}
           onShare={() => console.log('Share clicked')}
+          onBack={() => router.back()}
         />
       </div>
       
@@ -529,6 +566,8 @@ export default function CreateWorldPage() {
                 setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
               }
               setInspectorActiveTab('stickers');
+              // 显示右侧面板
+              setIsRightPanelVisible(true);
             }}
             onOpenBackgrounds={() => {
               // 记录当前功能页面，然后切换到右侧Inspector的背景标签页
@@ -536,6 +575,8 @@ export default function CreateWorldPage() {
                 setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
               }
               setInspectorActiveTab('backgrounds');
+              // 显示右侧面板
+              setIsRightPanelVisible(true);
             }}
             onOpenAIGenerator={() => {
               // 记录当前功能页面，然后切换到右侧Inspector的AI生成标签页
@@ -543,6 +584,8 @@ export default function CreateWorldPage() {
                 setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
               }
               setInspectorActiveTab('ai-generate');
+              // 显示右侧面板
+              setIsRightPanelVisible(true);
             }}
           />
         </div>
@@ -557,7 +600,13 @@ export default function CreateWorldPage() {
             canvasPosition={canvasPosition}
             backgroundImage={selectedBackground?.url}
             activeTool={activeTool}
-            onObjectSelect={setSelectedObjectId}
+            onObjectSelect={(id) => {
+              setSelectedObjectId(id);
+              // 选中对象时显示右侧面板
+              if (id) {
+                setIsRightPanelVisible(true);
+              }
+            }}
             onObjectChange={handleObjectChange}
             onObjectsChange={setCanvasObjects}
             onCanvasPositionChange={setCanvasPosition}
@@ -567,15 +616,21 @@ export default function CreateWorldPage() {
               setCanvasObjects(prev => [...prev, newObject]);
               // 选中新创建的对象
               setSelectedObjectId(newObject.id);
+              // 显示右侧面板
+              setIsRightPanelVisible(true);
               // 切换回选择工具
               setActiveTool('select');
+            }}
+            onCanvasClick={() => {
+              // 点击画布空白区域时收起右侧面板
+              setIsRightPanelVisible(false);
             }}
           />
         </div>
 
         {/* 右侧属性面板 - 固定宽度，内部滚动 */}
         {shouldShowRightPanel && (
-          <div className="flex-shrink-0 w-56">
+          <div className="flex-shrink-0 w-72">
             <RightInspector
               selectedObjects={selectedObjects}
               onUpdateObject={(id, updates) => {
