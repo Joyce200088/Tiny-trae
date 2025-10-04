@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Image as KonvaImage, Rect, Circle, Text, Line, Arrow, Transformer } from 'react-konva';
 import useImage from 'use-image';
 
@@ -70,8 +70,17 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
     };
   };
 
-  // 处理变换进行中事件 - 实时更新尺寸
+  // 处理变换进行中事件 - 简化处理，避免频繁更新
   const handleTransform = () => {
+    const node = shapeRef.current;
+    if (!node || !initialStateRef.current) return;
+
+    // 在变换过程中不更新状态，只让Konva处理视觉变换
+    // 这样可以避免状态更新和视觉变换之间的冲突
+  };
+
+  // 处理变换结束事件 - 最终确认更新
+  const handleTransformEnd = () => {
     const node = shapeRef.current;
     if (!node || !initialStateRef.current) return;
 
@@ -84,28 +93,40 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
       rotation: node.rotation()
     };
 
-    // 基于初始尺寸计算新尺寸，避免累积误差
+    // 基于初始尺寸计算最终尺寸
     if (object.type === 'rectangle' || object.type === 'sticker' || object.type === 'background') {
-      newAttrs.width = Math.max(5, initialStateRef.current.width * scaleX);
-      newAttrs.height = Math.max(5, initialStateRef.current.height * scaleY);
+      newAttrs.width = Math.max(5, initialStateRef.current.width * Math.abs(scaleX));
+      newAttrs.height = Math.max(5, initialStateRef.current.height * Math.abs(scaleY));
+      
+      // 如果启用了宽高比锁定，保持比例
+      if (object.aspectRatioLocked) {
+        const maxScale = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+        newAttrs.width = Math.max(5, initialStateRef.current.width * maxScale);
+        newAttrs.height = Math.max(5, initialStateRef.current.height * maxScale);
+      }
     } else if (object.type === 'circle') {
-      newAttrs.radius = Math.max(5, (initialStateRef.current.radius || 0) * Math.max(scaleX, scaleY));
+      newAttrs.radius = Math.max(5, (initialStateRef.current.radius || 0) * Math.max(Math.abs(scaleX), Math.abs(scaleY)));
     } else if (object.type === 'text') {
-      newAttrs.fontSize = Math.max(8, (initialStateRef.current.fontSize || 12) * Math.max(scaleX, scaleY));
+      newAttrs.fontSize = Math.max(8, (initialStateRef.current.fontSize || 12) * Math.max(Math.abs(scaleX), Math.abs(scaleY)));
     }
 
-    // 重置节点的缩放，因为我们已经将缩放应用到实际尺寸上
+    // 重置节点的缩放，避免累积
     node.scaleX(1);
     node.scaleY(1);
 
-    // 实时更新对象属性
+    // 最终更新状态
     onChange(newAttrs);
-  };
-
-  // 处理变换结束事件 - 清理状态
-  const handleTransformEnd = () => {
+    
+    // 清理初始状态
     initialStateRef.current = null;
   };
+
+  // 清理防抖定时器
+  useEffect(() => {
+    return () => {
+      // 组件卸载时清理
+    };
+  }, []);
 
   // 渲染不同类型的对象
   const renderObject = () => {
@@ -253,31 +274,45 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(oldBox, newBox) => {
-            // 限制最小尺寸
-            if (newBox.width < 5 || newBox.height < 5) {
+            // 限制最小尺寸，防止元素过小
+            const minSize = 10;
+            if (newBox.width < minSize || newBox.height < minSize) {
               return oldBox;
             }
             return newBox;
           }}
-          // 根据对象类型配置变换器 - 添加横向和纵向伸缩控制点
+          // 参考Konva示例：简化锚点配置，只使用四个角的锚点
           enabledAnchors={
             object.type === 'line' || object.type === 'arrow' || object.type === 'curved-line' || object.type === 'elbow-line'
               ? [] // 线条和箭头不显示缩放锚点
-              : [
-                  'top-left', 'top-right', 'bottom-left', 'bottom-right', // 四角缩放点
-                  'top-center', 'bottom-center', // 纵向伸缩控制点
-                  'middle-left', 'middle-right' // 横向伸缩控制点
-                ]
+              : ['top-left', 'top-right', 'bottom-left', 'bottom-right'] // 只使用四个角的锚点
           }
           rotateEnabled={object.type !== 'line' && object.type !== 'arrow' && object.type !== 'curved-line' && object.type !== 'elbow-line'}
-          // 启用保持比例的功能键
-          keepRatio={false} // 默认不保持比例，允许自由伸缩
-          // 添加变换开始事件处理
+          // 参考Konva示例：根据对象类型和用户设置决定是否保持比例
+          keepRatio={
+            object.type === 'sticker' || object.type === 'background' || // 贴纸和背景默认保持比例
+            object.aspectRatioLocked === true // 或者用户明确锁定了比例
+          }
+          // 优化锚点样式
+          anchorSize={8}
+          anchorStroke="#4F46E5"
+          anchorFill="#FFFFFF"
+          anchorStrokeWidth={2}
+          anchorCornerRadius={2} // 圆角锚点，更美观
+          // 边框样式
+          borderStroke="#4F46E5"
+          borderStrokeWidth={1}
+          borderDash={[4, 4]}
+          // 变换事件处理
           onTransformStart={handleTransformStart}
-          // 添加变换进行中事件处理
           onTransform={handleTransform}
-          // 添加变换结束事件处理
           onTransformEnd={handleTransformEnd}
+          // 性能优化设置
+          shouldOverdrawWholeArea={false}
+          ignoreStroke={false}
+          // 参考示例：简化配置，移除可能导致问题的复杂设置
+          centeredScaling={false} // 从边角缩放而不是中心缩放
+          flipEnabled={false} // 禁用翻转功能，避免意外操作
         />
       )}
     </>
