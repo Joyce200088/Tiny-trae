@@ -12,6 +12,8 @@ import StickerDetailModal from '@/components/StickerDetailModal';
 import WorldsGrid from '@/components/WorldsGrid';
 import StickersGrid from '@/components/StickersGrid';
 import { StatusIcon } from '@/components/StatusIcon';
+import InlineWorldCreation from '@/components/InlineWorldCreation';
+import AIStickerGeneratorModal from '@/components/AIStickerGeneratorModal';
 
 /**
  * 用户个人主页组件
@@ -66,10 +68,16 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('worlds');
   const [showCreateWorldModal, setShowCreateWorldModal] = useState(false);
   const [showStickerGenerator, setShowStickerGenerator] = useState(false);
+  const [showAIStickerGenerator, setShowAIStickerGenerator] = useState(false);
   const [userData, setUserData] = useState(mockUserData);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 内嵌世界创建流程状态
+  const [showInlineWorldCreation, setShowInlineWorldCreation] = useState(false);
+  const [worldCreationStep, setWorldCreationStep] = useState<'template' | 'ai' | 'blank'>('template');
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // 处理添加新标签
   const handleAddTag = () => {
@@ -79,6 +87,13 @@ export default function ProfilePage() {
       setNewTagName('');
       setShowAddTagModal(false);
     }
+  };
+
+  // 处理AI生成世界按钮点击 - 功能B：直达AI生成功能
+  const handleAIWorldClick = () => {
+    setActiveTab('worlds');
+    setShowInlineWorldCreation(true);
+    setWorldCreationStep('ai');
   };
 
   // 处理横幅图片上传
@@ -151,7 +166,7 @@ export default function ProfilePage() {
         </div>
 
         {/* 用户信息区域 */}
-        <div className="relative mt-2">
+        <div className="relative -mt-2">
           <div className="bg-white p-4 pt-2">
             <div className="flex flex-col lg:flex-row items-start lg:items-end gap-4">
               {/* 基本信息 */}
@@ -197,14 +212,14 @@ export default function ProfilePage() {
               {/* CTA按钮 */}
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowCreateWorldModal(true)}
+                  onClick={handleAIWorldClick}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Sparkles className="w-4 h-4" />
                   AI 生成世界
                 </button>
                 <button
-                  onClick={() => setShowStickerGenerator(true)}
+                  onClick={() => setShowAIStickerGenerator(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
@@ -250,7 +265,14 @@ export default function ProfilePage() {
 
           {/* Tab内容 */}
           <div className="p-6">
-            {activeTab === 'worlds' && <MyWorldsTab />}
+            {activeTab === 'worlds' && (
+          <MyWorldsTab 
+            showInlineWorldCreation={showInlineWorldCreation}
+            setShowInlineWorldCreation={setShowInlineWorldCreation}
+            worldCreationStep={worldCreationStep}
+            setShowCreateModal={setShowCreateWorldModal}
+          />
+        )}
             {activeTab === 'stickers' && <StickersTab />}
             {activeTab === 'favorites' && <FavoritesTab />}
             {activeTab === 'shared' && <SharedTab />}
@@ -268,6 +290,14 @@ export default function ProfilePage() {
       {/* 贴纸生成器模态框 */}
       {showStickerGenerator && (
         <StickerGenerator onClose={() => setShowStickerGenerator(false)} />
+      )}
+
+      {/* AI生成贴纸模态框 */}
+      {showAIStickerGenerator && (
+        <AIStickerGeneratorModal 
+          isOpen={showAIStickerGenerator}
+          onClose={() => setShowAIStickerGenerator(false)}
+        />
       )}
 
       {/* 添加标签模态框 */}
@@ -315,12 +345,21 @@ export default function ProfilePage() {
 }
 
 // My Worlds Tab组件 - 复用my-worlds页面的完整结构
-function MyWorldsTab() {
+function MyWorldsTab({ 
+  showInlineWorldCreation: parentShowInlineWorldCreation, 
+  setShowInlineWorldCreation: parentSetShowInlineWorldCreation,
+  worldCreationStep,
+  setShowCreateModal
+}: {
+  showInlineWorldCreation?: boolean;
+  setShowInlineWorldCreation?: (show: boolean) => void;
+  worldCreationStep?: 'template' | 'ai' | 'blank';
+  setShowCreateModal?: (show: boolean) => void;
+}) {
   const [sortBy, setSortBy] = useState('lastModified');
   const [savedWorlds, setSavedWorlds] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [deletingWorldId, setDeletingWorldId] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [isClient, setIsClient] = useState(false);
   
   // 新增功能状态
@@ -333,6 +372,22 @@ function MyWorldsTab() {
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [showBatchTagModal, setShowBatchTagModal] = useState(false);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
+
+  // 内嵌世界创建状态 - 优先使用父组件传递的状态
+  const [showInlineWorldCreation, setShowInlineWorldCreation] = useState(false);
+  const finalShowInlineWorldCreation = parentShowInlineWorldCreation ?? showInlineWorldCreation;
+  const finalSetShowInlineWorldCreation = parentSetShowInlineWorldCreation ?? setShowInlineWorldCreation;
+
+  // 处理创建新世界卡片点击
+  const handleCreateNewWorld = () => {
+    // 添加埋点日志
+    console.log('World creation initiated', { 
+      source: 'create-card',
+      location: 'worlds-tab',
+      timestamp: new Date().toISOString()
+    });
+    setShowCreateModal?.(true); // 使用传入的函数打开模态框
+  };
 
   // 计算世界统计信息的函数
   const calculateWorldStats = (world: any) => {
@@ -587,7 +642,7 @@ function MyWorldsTab() {
 
           {/* 创建世界按钮 */}
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => setShowCreateModal?.(true)}
             className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
           >
             <Plus className="w-4 h-4" />
@@ -661,7 +716,7 @@ function MyWorldsTab() {
           {/* Create New World Card - 只在非多选模式下显示 */}
           {!isMultiSelectMode && (
             <div 
-              onClick={() => setShowCreateModal(true)}
+              onClick={handleCreateNewWorld}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400"
             >
               <div className="aspect-video flex items-center justify-center" style={{backgroundColor: '#FFFBF5'}}>
