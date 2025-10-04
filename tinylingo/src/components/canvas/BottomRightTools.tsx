@@ -144,7 +144,7 @@ export default function BottomRightTools({
   ];
 
   return (
-    <div className="fixed bottom-4 right-4 flex flex-col items-end space-y-3 z-50">
+    <div className="fixed bottom-4 left-4 flex flex-col items-start space-y-3 z-50">
       {/* 帮助中心弹窗 */}
       {showHelp && (
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg w-80 max-h-96 overflow-hidden">

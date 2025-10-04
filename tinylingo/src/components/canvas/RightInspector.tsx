@@ -295,21 +295,24 @@ export default function RightInspector({
 
   // 根据状态机模式渲染不同面板
   return (
-    <div className="h-full bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+    <div className="w-56 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
       {/* 统一的头部标签栏 - 吸顶固定 */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 sticky top-0 z-10">
         {/* 标签切换区域 */}
         <div className="flex items-center border-b border-gray-100">
-          <button
-            onClick={() => onModeChange?.('properties')}
-            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              mode === 'properties'
-                ? 'text-blue-600 border-blue-600 bg-blue-50'
-                : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            属性
-          </button>
+          {/* 只有在有选中对象时才显示属性按钮 */}
+          {selectedObjects.length > 0 && (
+            <button
+              onClick={() => onModeChange?.('properties')}
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                mode === 'properties'
+                  ? 'text-blue-600 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              属性
+            </button>
+          )}
           <button
             onClick={() => onModeChange?.('stickers')}
             className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${

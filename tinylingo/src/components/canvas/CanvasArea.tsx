@@ -932,7 +932,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       <div className="w-full h-full overflow-hidden">
         <Stage
           ref={stageRef}
-          width={windowSize.width - 320} // 减去左右侧边栏宽度
+          width={windowSize.width - 224} // 减去左右侧边栏宽度
           height={windowSize.height - 60} // 减去顶部栏高度
           scaleX={canvasScale}
           scaleY={canvasScale}

@@ -575,7 +575,7 @@ export default function CreateWorldPage() {
 
         {/* 右侧属性面板 - 固定宽度，内部滚动 */}
         {shouldShowRightPanel && (
-          <div className="flex-shrink-0 w-96">
+          <div className="flex-shrink-0 w-56">
             <RightInspector
               selectedObjects={selectedObjects}
               onUpdateObject={(id, updates) => {
@@ -659,8 +659,8 @@ export default function CreateWorldPage() {
         )}
       </div>
 
-      {/* 右下角底部工具 - 固定定位 */}
-      <div className="fixed bottom-4 right-4 z-50">
+      {/* 底部左侧工具栏 - 地图、缩放、帮助中心 */}
+      <div className="fixed bottom-4 left-4 z-50">
         <BottomRightTools
           canvasScale={canvasScale}
           onZoomIn={() => setCanvasScale(Math.min(canvasScale * 1.2, 5))}
