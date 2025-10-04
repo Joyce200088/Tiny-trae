@@ -14,7 +14,11 @@ import {
   Copy,
   Trash2,
   Link,
-  Unlink
+  Unlink,
+  Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react';
 
 // 贴纸数据接口
@@ -291,10 +295,10 @@ export default function PropertiesPanel({
     </button>
   );
 
-  // 检查是否有文字对象
-  const hasText = selectedObjects.some(obj => obj.type === 'text');
+  // 检查是否有贴纸对象
   const hasSticker = selectedObjects.some(obj => obj.type === 'sticker');
   const hasBackground = selectedObjects.some(obj => obj.type === 'background'); // 检查是否有背景对象
+  const hasText = selectedObjects.some(obj => obj.type === 'text'); // 检查是否有文本对象
 
   // 如果没有选中对象，显示提示
   if (selectedObjects.length === 0) {
@@ -457,16 +461,76 @@ export default function PropertiesPanel({
           )}
         </div>
 
-        {/* 文字属性 */}
+        {/* 文本专属属性 */}
         {hasText && (
           <div>
-            {renderSectionHeader('文字属性', 'text')}
+            {renderSectionHeader('文本属性', 'text', <Type className="w-4 h-4" />)}
             {expandedSections.text && (
-              <div className="space-y-1">
-                {renderInputField('文字内容', getCommonStyleProperty('text'), (value) => updateStyleProperty('text', value))}
-                {renderInputField('字体大小', getCommonStyleProperty('fontSize'), (value) => updateStyleProperty('fontSize', value), 'number', undefined, 'px')}
-                {renderInputField('字体粗细', getCommonStyleProperty('fontWeight'), (value) => updateStyleProperty('fontWeight', value), 'select', ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'])}
-                {renderInputField('文字对齐', getCommonStyleProperty('textAlign'), (value) => updateStyleProperty('textAlign', value), 'select', ['left', 'center', 'right'])}
+              <div className="space-y-3 px-4 py-2">
+                {/* 字体设置 */}
+                <div className="space-y-2">
+                  {renderInputField('字体', getCommonProperty('fontFamily'), (value) => updateProperty('fontFamily', value), 'select', [
+                    'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New', 
+                    '微软雅黑', '宋体', '黑体', '楷体', '仿宋'
+                  ])}
+                  {renderInputField('字号', getCommonProperty('fontSize'), (value) => updateProperty('fontSize', value), 'number', undefined, 'px')}
+                  {renderInputField('字重', getCommonProperty('fontWeight'), (value) => updateProperty('fontWeight', value), 'select', [
+                    'normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'
+                  ])}
+                </div>
+
+                {/* 文本对齐 */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-2">对齐方式</label>
+                  <div className="flex space-x-1">
+                    {[
+                      { value: 'left', icon: AlignLeft, label: '左对齐' },
+                      { value: 'center', icon: AlignCenter, label: '居中' },
+                      { value: 'right', icon: AlignRight, label: '右对齐' }
+                    ].map(({ value, icon: Icon, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => updateProperty('textAlign', value)}
+                        className={`flex items-center justify-center w-8 h-8 rounded border ${
+                          getCommonProperty('textAlign') === value
+                            ? 'bg-blue-100 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                        }`}
+                        title={label}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 文本颜色 */}
+                <div>
+                  {renderInputField('文本颜色', getCommonProperty('fill'), (value) => updateProperty('fill', value), 'color')}
+                </div>
+
+                {/* 文本内容编辑 */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-2">文本内容</label>
+                  <textarea
+                    value={getCommonProperty('text') || ''}
+                    onChange={(e) => updateProperty('text', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    rows={3}
+                    placeholder="输入文本内容..."
+                  />
+                </div>
+
+                {/* 文本模式信息 */}
+                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                  <p className="mb-1">
+                    <strong>文本模式：</strong>
+                    {getCommonProperty('autoExpand') ? 'Point Text (自动扩展)' : 'Area Text (固定区域)'}
+                  </p>
+                  <p>
+                    双击文本可进入编辑模式，按 Escape 取消，按 Ctrl+Enter 完成编辑
+                  </p>
+                </div>
               </div>
             )}
           </div>

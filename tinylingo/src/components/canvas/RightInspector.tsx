@@ -289,8 +289,7 @@ export default function RightInspector({
     </div>
   );
 
-  // 检查是否有文字对象
-  const hasText = selectedObjects.some(obj => obj.type === 'text');
+  // 检查是否有贴纸对象
   const hasSticker = selectedObjects.some(obj => obj.type === 'sticker');
 
   // 根据状态机模式渲染不同面板

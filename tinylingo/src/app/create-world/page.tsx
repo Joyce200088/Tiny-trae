@@ -7,11 +7,12 @@ import { StickerData } from '@/types/sticker';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 
 // 导入新的组件
-import TopBar from '@/components/canvas/TopBar';
 import LeftToolbar from '@/components/canvas/LeftToolbar';
+import CanvasArea from '@/components/canvas/CanvasArea';
 import RightInspector from '@/components/canvas/RightInspector';
 import BottomRightTools from '@/components/canvas/BottomRightTools';
-import CanvasArea from '@/components/canvas/CanvasArea';
+import TopBar from '@/components/canvas/TopBar';
+import TextPropertiesPanel from '@/components/canvas/TextPropertiesPanel';
 
 // 模拟贴纸数据
 const mockStickers: StickerData[] = [
@@ -338,7 +339,7 @@ export default function CreateWorldPage() {
   const selectedObjects = canvasObjects.filter(obj => obj.selected);
 
   // 右侧面板显示逻辑
-  const shouldShowRightPanel = isRightPanelVisible && (selectedObjects.length > 0 || ['stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab));
+  const shouldShowRightPanel = isRightPanelVisible && (selectedObjects.length > 0 || ['properties', 'stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab));
   
   // 当选中对象时，优先显示Properties面板
   // 同时处理AI生成面板的模式映射
@@ -712,6 +713,7 @@ export default function CreateWorldPage() {
               // 点击画布空白区域时收起右侧面板
               setIsRightPanelVisible(false);
             }}
+            onToolChange={setActiveTool}
           />
         </div>
 
@@ -820,6 +822,15 @@ export default function CreateWorldPage() {
           onViewportChange={setCanvasPosition}
         />
       </div>
+
+      {/* 独立的文本属性面板 */}
+      {selectedObject && selectedObject.type === 'text' && (
+        <TextPropertiesPanel
+          selectedTextObject={selectedObject as any}
+          onUpdateTextObject={handleObjectChange}
+          onClose={() => setSelectedObjectId(null)}
+        />
+      )}
     </div>
   );
 }

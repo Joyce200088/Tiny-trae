@@ -10,6 +10,7 @@ interface CanvasObjectProps {
   onSelect: () => void;
   onChange: (newAttrs: any) => void;
   onContextMenu: (e: any) => void;
+  onEdit?: (objectId: string) => void; // 添加编辑回调
   snapToGrid?: boolean;
   gridSize?: number;
 }
@@ -20,6 +21,7 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
   onSelect,
   onChange,
   onContextMenu,
+  onEdit, // 添加onEdit参数
   snapToGrid = false,
   gridSize = 20
 }) => {
@@ -210,12 +212,13 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
             fill={object.fill}
             align={object.textAlign}
             opacity={object.opacity}
-            visible={object.visible}
+            visible={object.visible && !object.isEditing}
+            width={object.width}
+            height={object.height}
+            wrap={object.autoExpand ? "none" : "word"}
             onDblClick={() => {
-              // 双击编辑文本的逻辑
-              const newText = prompt('编辑文本:', object.text);
-              if (newText !== null) {
-                onChange({ text: newText });
+              if (onEdit) {
+                onEdit(object.id);
               }
             }}
           />

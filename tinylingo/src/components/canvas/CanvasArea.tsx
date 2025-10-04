@@ -5,6 +5,7 @@ import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text, Line
 import useImage from 'use-image';
 import { StickerData } from '@/types/sticker';
 import CanvasObject from './CanvasObject';
+import TextEditor from './TextEditor';
 
 // 智能对齐线组件
 const AlignmentGuides = ({ guides }: { guides: any[] }) => {
@@ -281,6 +282,7 @@ interface CanvasAreaProps {
   onCanvasScaleChange: (scale: number) => void;
   onCreateObject: (object: any) => void; // 新增：创建对象的回调
   onCanvasClick?: () => void; // 新增：画布空白区域点击回调
+  onToolChange: (tool: string) => void; // 新增：工具切换回调
 }
 
 const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void }, CanvasAreaProps>(({
@@ -297,7 +299,8 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   onCanvasPositionChange,
   onCanvasScaleChange,
   onCreateObject,
-  onCanvasClick
+  onCanvasClick,
+  onToolChange
 }, ref) => {
   const stageRef = useRef<any>(null);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, objectId: null });
@@ -306,11 +309,35 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // 文本编辑相关状态
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [isDrawingTextBox, setIsDrawingTextBox] = useState(false);
+  const [textBoxStart, setTextBoxStart] = useState<{ x: number; y: number } | null>(null);
+  const [textBoxEnd, setTextBoxEnd] = useState<{ x: number; y: number } | null>(null);
+
   const [spacePressed, setSpacePressed] = useState(false);
   const [backgroundImg] = useImage(backgroundImage);
   
   // 窗口尺寸状态
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
+
+  // 根据当前工具获取光标样式
+  const getCursorStyle = () => {
+    switch (activeTool) {
+      case 'select':
+        return 'default';
+      case 'text':
+        return 'text';
+      case 'rectangle':
+      case 'circle':
+        return 'crosshair';
+      case 'line':
+      case 'arrow':
+        return 'crosshair';
+      default:
+        return 'default';
+    }
+  };
 
   // 背景模式切换函数
   const updateBackgroundMode = useCallback((backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => {
@@ -403,6 +430,36 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
         setSpacePressed(true);
       }
       
+      // 工具切换快捷键（不需要Ctrl/Cmd）
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case 't':
+            e.preventDefault();
+            onToolChange('text');
+            break;
+          case 'v':
+            e.preventDefault();
+            onToolChange('select');
+            break;
+          case 'r':
+            e.preventDefault();
+            onToolChange('rectangle');
+            break;
+          case 'o':
+            e.preventDefault();
+            onToolChange('circle');
+            break;
+          case 'l':
+            e.preventDefault();
+            onToolChange('line');
+            break;
+          case 'a':
+            e.preventDefault();
+            onToolChange('arrow');
+            break;
+        }
+      }
+      
       // 快捷键处理
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
@@ -463,7 +520,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedObjectId]);
+  }, [selectedObjectId, onToolChange]);
 
   // 鼠标滚轮缩放（无需按键）
   const handleWheel = useCallback((e: any) => {
@@ -507,23 +564,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
         const canvasY = (pointerPosition.y - canvasPosition.y) / canvasScale;
         
         // 根据当前工具创建对象
-        if (activeTool === 'text') {
-          const newText = {
-            id: `text-${Date.now()}`,
-            type: 'text',
-            x: canvasX,
-            y: canvasY,
-            text: '双击编辑文本',
-            fontSize: 24,
-            fontFamily: 'Arial',
-            fill: '#000000',
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newText);
-        } else if (activeTool === 'rectangle') {
+        if (activeTool === 'rectangle') {
           const newRect = {
             id: `rect-${Date.now()}`,
             type: 'rectangle',
@@ -611,6 +652,29 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
             locked: false
           };
           onCreateObject(newElbowLine);
+        } else if (activeTool === 'text') {
+          // Point Text: 点击创建文本
+          const newText = {
+            id: `text-${Date.now()}`,
+            type: 'text',
+            x: canvasX,
+            y: canvasY,
+            text: '',
+            fontSize: 16,
+            fontFamily: 'Arial',
+            fill: '#000000',
+            textAlign: 'left',
+            width: 200,
+            height: 40,
+            isEditing: true,
+            autoExpand: true, // Point Text 自动扩展
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          onCreateObject(newText);
+          setEditingTextId(newText.id);
         }
       }
       
@@ -630,6 +694,19 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
     if (spacePressed) {
       setIsDragging(true);
       setDragStart({ x: e.evt.clientX, y: e.evt.clientY });
+    } else if (activeTool === 'text' && e.target === e.target.getStage()) {
+      // Area Text: 拖拽绘制文本框
+      const stage = e.target.getStage();
+      const pointerPosition = stage?.getPointerPosition();
+      
+      if (pointerPosition) {
+        const canvasX = (pointerPosition.x - canvasPosition.x) / canvasScale;
+        const canvasY = (pointerPosition.y - canvasPosition.y) / canvasScale;
+        
+        setIsDrawingTextBox(true);
+        setTextBoxStart({ x: canvasX, y: canvasY });
+        setTextBoxEnd({ x: canvasX, y: canvasY });
+      }
     }
   };
 
@@ -644,11 +721,60 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       });
       
       setDragStart({ x: e.evt.clientX, y: e.evt.clientY });
+    } else if (isDrawingTextBox && activeTool === 'text') {
+      // 更新文本框拖拽的结束位置
+      const stage = e.target.getStage();
+      const pointerPosition = stage?.getPointerPosition();
+      
+      if (pointerPosition) {
+        const canvasX = (pointerPosition.x - canvasPosition.x) / canvasScale;
+        const canvasY = (pointerPosition.y - canvasPosition.y) / canvasScale;
+        
+        setTextBoxEnd({ x: canvasX, y: canvasY });
+      }
     }
   };
 
   const handleStageDragEnd = () => {
-    setIsDragging(false);
+    if (isDragging) {
+      setIsDragging(false);
+    } else if (isDrawingTextBox && textBoxStart && textBoxEnd) {
+      // Area Text: 创建固定尺寸的文本框
+      const x = Math.min(textBoxStart.x, textBoxEnd.x);
+      const y = Math.min(textBoxStart.y, textBoxEnd.y);
+      const width = Math.abs(textBoxEnd.x - textBoxStart.x);
+      const height = Math.abs(textBoxEnd.y - textBoxStart.y);
+      
+      // 只有当拖拽距离足够大时才创建文本框
+      if (width > 10 && height > 10) {
+        const newText = {
+          id: `text-${Date.now()}`,
+          type: 'text',
+          x: x,
+          y: y,
+          text: '',
+          fontSize: 16,
+          fontFamily: 'Arial',
+          fill: '#000000',
+          textAlign: 'left',
+          width: width,
+          height: height,
+          isEditing: true,
+          autoExpand: false, // Area Text 固定尺寸
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+          locked: false
+        };
+        onCreateObject(newText);
+        setEditingTextId(newText.id);
+      }
+      
+      // 重置拖拽状态
+      setIsDrawingTextBox(false);
+      setTextBoxStart(null);
+      setTextBoxEnd(null);
+    }
   };
 
   // 右键菜单处理
@@ -993,6 +1119,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
           onDragStart={handleStageDragStart}
           onDragMove={handleStageDragMove}
           onDragEnd={handleStageDragEnd}
+          style={{ cursor: getCursorStyle() }}
         >
           <Layer>
             {/* 背景图片 */}
@@ -1016,12 +1143,35 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
                 object={obj}
                 isSelected={obj.id === selectedObjectId}
                 onSelect={() => onObjectSelect(obj.id)}
-                onChange={(newAttrs) => onObjectChange(obj.id, newAttrs)}
+                onChange={(newAttrs) => {
+                  // 处理对象属性变化
+                  onObjectChange(obj.id, newAttrs);
+                }}
                 onContextMenu={handleContextMenu}
+                onEdit={(objectId) => {
+                  // 开始编辑文本
+                  setEditingTextId(objectId);
+                  // 更新对象的编辑状态
+                  onObjectChange(objectId, { isEditing: true });
+                }}
                 snapToGrid={false}
                 gridSize={20}
               />
             ))}
+            
+            {/* 文本框拖拽预览 */}
+            {isDrawingTextBox && textBoxStart && textBoxEnd && (
+              <Rect
+                x={Math.min(textBoxStart.x, textBoxEnd.x)}
+                y={Math.min(textBoxStart.y, textBoxEnd.y)}
+                width={Math.abs(textBoxEnd.x - textBoxStart.x)}
+                height={Math.abs(textBoxEnd.y - textBoxStart.y)}
+                stroke="#4F46E5"
+                strokeWidth={2}
+                dash={[5, 5]}
+                fill="rgba(79, 70, 229, 0.1)"
+              />
+            )}
             
             {/* 智能对齐线 */}
             <AlignmentGuides guides={alignmentGuides} />
@@ -1039,8 +1189,69 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
         onClose={() => setContextMenu({ visible: false, x: 0, y: 0, objectId: null })}
       />
       
-
-
+      {/* 文本编辑器 */}
+      {editingTextId && (() => {
+        const editingObject = canvasObjects.find(obj => obj.id === editingTextId && obj.type === 'text');
+        if (!editingObject) return null;
+        
+        return (
+          <TextEditor
+            x={editingObject.x}
+            y={editingObject.y}
+            width={editingObject.width}
+            height={editingObject.height}
+            fontSize={editingObject.fontSize}
+            fontFamily={editingObject.fontFamily}
+            fill={editingObject.fill}
+            textAlign={editingObject.textAlign}
+            text={editingObject.text}
+            isPointText={editingObject.autoExpand}
+            canvasScale={canvasScale}
+            canvasPosition={canvasPosition}
+            onTextChange={(newText) => {
+              // 实时更新文本内容
+              onObjectChange(editingTextId, { text: newText });
+            }}
+            onEditComplete={(finalText) => {
+              // 完成编辑
+              if (finalText.trim() === '') {
+                // 如果文本为空，删除对象
+                const updatedObjects = canvasObjects.filter(obj => obj.id !== editingTextId);
+                onObjectsChange(updatedObjects);
+              } else {
+                // 更新文本并退出编辑模式
+                onObjectChange(editingTextId, { 
+                  text: finalText, 
+                  isEditing: false 
+                });
+              }
+              setEditingTextId(null);
+            }}
+            onEditCancel={() => {
+              // 取消编辑
+              const originalObject = canvasObjects.find(obj => obj.id === editingTextId);
+              if (originalObject && originalObject.text.trim() === '') {
+                // 如果是新创建的空文本，删除它
+                const updatedObjects = canvasObjects.filter(obj => obj.id !== editingTextId);
+                onObjectsChange(updatedObjects);
+              } else {
+                // 恢复编辑状态
+                onObjectChange(editingTextId, { isEditing: false });
+              }
+              setEditingTextId(null);
+            }}
+            onSizeChange={(newWidth, newHeight) => {
+              // 更新Point Text的尺寸
+              if (editingObject.autoExpand) {
+                onObjectChange(editingTextId, { 
+                  width: newWidth, 
+                  height: newHeight 
+                });
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 });
