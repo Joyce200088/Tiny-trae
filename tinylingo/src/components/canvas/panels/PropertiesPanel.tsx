@@ -12,7 +12,9 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
-  Trash2
+  Trash2,
+  Link,
+  Unlink
 } from 'lucide-react';
 
 // 贴纸数据接口
@@ -114,10 +116,10 @@ export default function PropertiesPanel({
   // 展开状态管理
   const [expandedSections, setExpandedSections] = useState({
     transform: true,
-    style: false,
+    appearance: false,
     text: false,
     sticker: false,
-    background: false // 添加背景展开状态
+    background: false // 添加背景区域的展开状态
   });
 
   // 音频播放函数
@@ -128,7 +130,7 @@ export default function PropertiesPanel({
     }
   };
 
-  // 切换展开状态
+  // 切换区域展开状态
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -158,6 +160,60 @@ export default function PropertiesPanel({
       onUpdateObject(selectedObjects[0].id, { [property]: value });
     } else {
       onUpdateMultipleObjects({ [property]: value });
+    }
+  };
+
+  // 获取比例锁定状态
+  const getAspectRatioLocked = () => {
+    if (selectedObjects.length === 0) return false;
+    return selectedObjects.every(obj => obj.aspectRatioLocked === true);
+  };
+
+  // 切换比例锁定状态
+  const toggleAspectRatioLock = () => {
+    const isLocked = getAspectRatioLocked();
+    const newLockState = !isLocked;
+    
+    if (selectedObjects.length === 1) {
+      onUpdateObject(selectedObjects[0].id, { aspectRatioLocked: newLockState });
+    } else {
+      onUpdateMultipleObjects({ aspectRatioLocked: newLockState });
+    }
+  };
+
+  // 更新宽度并保持比例（如果锁定）
+  const updateWidth = (newWidth: number) => {
+    const isLocked = getAspectRatioLocked();
+    
+    if (isLocked && selectedObjects.length === 1) {
+      const obj = selectedObjects[0];
+      const aspectRatio = obj.width / obj.height;
+      const newHeight = newWidth / aspectRatio;
+      
+      onUpdateObject(obj.id, { 
+        width: newWidth, 
+        height: newHeight 
+      });
+    } else {
+      updateProperty('width', newWidth);
+    }
+  };
+
+  // 更新高度并保持比例（如果锁定）
+  const updateHeight = (newHeight: number) => {
+    const isLocked = getAspectRatioLocked();
+    
+    if (isLocked && selectedObjects.length === 1) {
+      const obj = selectedObjects[0];
+      const aspectRatio = obj.width / obj.height;
+      const newWidth = newHeight * aspectRatio;
+      
+      onUpdateObject(obj.id, { 
+        width: newWidth, 
+        height: newHeight 
+      });
+    } else {
+      updateProperty('height', newHeight);
     }
   };
 
@@ -306,8 +362,53 @@ export default function PropertiesPanel({
             <div className="space-y-1">
               {renderInputField('X 位置', getCommonProperty('x'), (value) => updateProperty('x', value), 'number', undefined, 'px')}
               {renderInputField('Y 位置', getCommonProperty('y'), (value) => updateProperty('y', value), 'number', undefined, 'px')}
-              {renderInputField('宽度', getCommonProperty('width'), (value) => updateProperty('width', value), 'number', undefined, 'px')}
-              {renderInputField('高度', getCommonProperty('height'), (value) => updateProperty('height', value), 'number', undefined, 'px')}
+              
+              {/* 宽度和高度，带比例锁定 */}
+              <div className="px-4 py-2 border-b">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">尺寸</label>
+                  <button
+                    onClick={toggleAspectRatioLock}
+                    className={`flex items-center space-x-1 px-2 py-1 text-xs rounded ${
+                      getAspectRatioLocked()
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Link className={`w-3 h-3 ${getAspectRatioLocked() ? '' : 'opacity-50'}`} />
+                    <span>锁定比例</span>
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 min-w-0 flex-1">宽度</label>
+                    <div className="flex items-center space-x-1 min-w-0 flex-1">
+                      <input
+                        type="number"
+                        value={getCommonProperty('width') || ''}
+                        onChange={(e) => updateWidth(parseFloat(e.target.value) || 0)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        step={0.1}
+                      />
+                      <span className="text-xs text-gray-500">px</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 min-w-0 flex-1">高度</label>
+                    <div className="flex items-center space-x-1 min-w-0 flex-1">
+                      <input
+                        type="number"
+                        value={getCommonProperty('height') || ''}
+                        onChange={(e) => updateHeight(parseFloat(e.target.value) || 0)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        step={0.1}
+                      />
+                      <span className="text-xs text-gray-500">px</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               {renderInputField('旋转', getCommonProperty('rotation'), (value) => updateProperty('rotation', value), 'number', undefined, '°')}
               {renderInputField('透明度', getCommonProperty('opacity'), (value) => updateProperty('opacity', value), 'number')}
             </div>
@@ -343,10 +444,10 @@ export default function PropertiesPanel({
           </div>
         </div>
 
-        {/* 样式属性 */}
+        {/* 外观属性 */}
         <div>
-          {renderSectionHeader('样式属性', 'style', <Palette className="w-4 h-4" />)}
-          {expandedSections.style && (
+          {renderSectionHeader('外观属性', 'appearance', <Palette className="w-4 h-4" />)}
+          {expandedSections.appearance && (
             <div className="space-y-1">
               {renderInputField('填充颜色', getCommonStyleProperty('fill'), (value) => updateStyleProperty('fill', value), 'color')}
               {renderInputField('描边颜色', getCommonStyleProperty('stroke'), (value) => updateStyleProperty('stroke', value), 'color')}
