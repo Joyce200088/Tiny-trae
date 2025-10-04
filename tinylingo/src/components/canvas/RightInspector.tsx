@@ -295,7 +295,7 @@ export default function RightInspector({
 
   // 根据状态机模式渲染不同面板
   return (
-    <div className="w-72 bg-[#FFFBF5] border-l border-gray-200 flex flex-col h-screen overflow-hidden">
+    <div className="w-72 bg-[#FFFBF5] border-l border-gray-200 flex flex-col h-screen overflow-hidden relative z-20">
       {/* 统一的头部标签栏 - 吸顶固定 */}
       <div className="flex-shrink-0 bg-[#FFFBF5] border-b border-gray-200 sticky top-0 z-10">
         {/* 标签切换区域 */}

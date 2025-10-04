@@ -21,6 +21,8 @@ interface BottomRightToolsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitToScreen: () => void;
+  onZoomChange?: (scale: number) => void; // 新增：直接设置缩放比例
+  onFitToElements?: () => void; // 新增：适配所有元素
   minZoom?: number;
   maxZoom?: number;
   
@@ -46,6 +48,8 @@ export default function BottomRightTools({
   onZoomIn,
   onZoomOut,
   onFitToScreen,
+  onZoomChange,
+  onFitToElements,
   minZoom = 0.1,
   maxZoom = 5,
   canvasPosition,
@@ -57,6 +61,8 @@ export default function BottomRightTools({
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
+  const [dragStartPosition, setDragStartPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hasDragged, setHasDragged] = useState(false);
   
   const miniMapRef = useRef<HTMLDivElement>(null);
   const miniMapSize = 200; // 小地图尺寸
@@ -99,20 +105,75 @@ export default function BottomRightTools({
     onViewportChange({ x: newCanvasX, y: newCanvasY });
   };
 
-  // 处理鼠标拖拽
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDraggingViewport(true);
-    handleMiniMapInteraction(e);
+  // 处理小地图滚轮缩放
+  const handleMiniMapWheel = (e: React.WheelEvent) => {
+    e.preventDefault(); // 阻止默认滚动行为
+    
+    if (!onZoomChange) return;
+    
+    const zoomFactor = 1.1;
+    const delta = e.deltaY;
+    
+    let newScale;
+    if (delta < 0) {
+      // 向上滚动，放大
+      newScale = Math.min(canvasScale * zoomFactor, maxZoom);
+    } else {
+      // 向下滚动，缩小
+      newScale = Math.max(canvasScale / zoomFactor, minZoom);
+    }
+    
+    onZoomChange(newScale);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDraggingViewport) {
-      handleMiniMapInteraction(e);
+  // 处理小地图点击 - 适配所有元素
+  const handleMiniMapClick = (e: React.MouseEvent) => {
+    // 调用适配所有元素的回调
+    if (onFitToElements) {
+      onFitToElements();
     }
   };
 
-  const handleMouseUp = () => {
+  // 处理鼠标拖拽
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setDragStartPosition({ x, y });
+    setHasDragged(false);
+    setIsDraggingViewport(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingViewport && dragStartPosition) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+      
+      // 计算拖拽距离
+      const dragDistance = Math.sqrt(
+        Math.pow(currentX - dragStartPosition.x, 2) + 
+        Math.pow(currentY - dragStartPosition.y, 2)
+      );
+      
+      // 如果拖拽距离超过阈值，标记为真正的拖拽
+      if (dragDistance > 3) {
+        setHasDragged(true);
+        handleMiniMapInteraction(e);
+      }
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // 只有在没有真正拖拽的情况下才触发点击事件
+    if (!hasDragged) {
+      handleMiniMapClick(e);
+    }
+    
     setIsDraggingViewport(false);
+    setDragStartPosition(null);
+    setHasDragged(false);
   };
 
   // 格式化缩放百分比
@@ -238,8 +299,15 @@ export default function BottomRightTools({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onWheel={handleMiniMapWheel}
             >
-              {/* 渲染画布对象 */}
+              {/* 视窗框 - 先渲染，放在底层 */}
+              <div
+                className="absolute border-2 border-red-500 bg-red-200 bg-opacity-10 pointer-events-none"
+                style={getViewportRect()}
+              />
+              
+              {/* 渲染画布对象 - 后渲染，显示在视窗框之上 */}
               {canvasObjects.map(obj => {
                 const scale = getMiniMapScale();
                 const objX = obj.x * scale;
@@ -253,24 +321,19 @@ export default function BottomRightTools({
                   return (
                     <div
                       key={obj.id}
-                      className="absolute bg-blue-400 opacity-60 rounded-sm"
+                      className="absolute border-2 border-blue-400 bg-blue-100 bg-opacity-30 rounded-sm"
                       style={{
                         left: Math.max(0, objX),
                         top: Math.max(0, objY),
                         width: Math.min(objWidth, miniMapSize - Math.max(0, objX)),
                         height: Math.min(objHeight, miniMapSize - Math.max(0, objY))
                       }}
+                      title={`${obj.type} (${obj.id})`}
                     />
                   );
                 }
                 return null;
               })}
-              
-              {/* 视窗框 */}
-              <div
-                className="absolute border-2 border-red-500 bg-red-200 bg-opacity-20 pointer-events-none"
-                style={getViewportRect()}
-              />
             </div>
           </div>
         </div>

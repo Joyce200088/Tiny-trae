@@ -213,9 +213,96 @@ export default function CreateWorldPage() {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   
   // 画布尺寸和位置
-  const [canvasSize] = useState({ width: 800, height: 600 });
+  const [canvasSize] = useState({ width: 1600, height: 1200 });
+  
+  // 画布位置和缩放状态
   const [canvasPosition, setCanvasPosition] = useState({ x: 0, y: 0 });
   const [canvasScale, setCanvasScale] = useState(1);
+  
+  // 动画状态
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // 平滑设置画布位置和缩放的函数
+  const smoothSetCanvasTransform = (targetPosition: { x: number; y: number }, targetScale: number, duration = 300) => {
+    if (isAnimating) return; // 防止重复动画
+    
+    setIsAnimating(true);
+    const startPosition = { ...canvasPosition };
+    const startScale = canvasScale;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // 使用缓动函数
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      const easedProgress = easeOutCubic(progress);
+
+      // 插值计算当前位置和缩放
+      const currentX = startPosition.x + (targetPosition.x - startPosition.x) * easedProgress;
+      const currentY = startPosition.y + (targetPosition.y - startPosition.y) * easedProgress;
+      const currentScale = startScale + (targetScale - startScale) * easedProgress;
+
+      setCanvasPosition({ x: currentX, y: currentY });
+      setCanvasScale(currentScale);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  };
+  
+  // 适配所有元素的函数
+  const fitToAllElements = () => {
+    if (canvasObjects.length === 0) {
+      // 无元素时，回到画布中心
+      smoothSetCanvasTransform({ x: 0, y: 0 }, 1);
+      return;
+    }
+
+    // 计算所有元素的边界框
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+
+    canvasObjects.forEach(obj => {
+      minX = Math.min(minX, obj.x);
+      minY = Math.min(minY, obj.y);
+      maxX = Math.max(maxX, obj.x + obj.width);
+      maxY = Math.max(maxY, obj.y + obj.height);
+    });
+
+    // 计算边界框的中心和尺寸
+    const boundingWidth = maxX - minX;
+    const boundingHeight = maxY - minY;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // 获取实际的视窗尺寸（减去左侧工具栏72px + 右侧面板288px）
+    const actualViewportWidth = window.innerWidth - 72 - 288; // 减去左侧工具栏和右侧面板宽度
+    const actualViewportHeight = window.innerHeight - 60; // 减去顶部栏高度
+    
+    // 计算适合的缩放比例，留20%边距
+    const margin = 0.8; // 80%填充，20%边距
+
+    const scaleX = (actualViewportWidth * margin) / boundingWidth;
+    const scaleY = (actualViewportHeight * margin) / boundingHeight;
+    const newScale = Math.min(scaleX, scaleY, 5); // 限制最大缩放
+
+    // 计算新的画布位置，使元素中心对齐视窗中心
+    const newCanvasX = -centerX * newScale + actualViewportWidth / 2;
+    const newCanvasY = -centerY * newScale + actualViewportHeight / 2;
+
+    // 使用平滑动画应用新的位置和缩放
+    smoothSetCanvasTransform(
+      { x: newCanvasX, y: newCanvasY }, 
+      Math.max(newScale, 0.1)
+    );
+  };
   
   // 保存状态
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
@@ -274,8 +361,8 @@ export default function CreateWorldPage() {
         updatedAt: new Date().toISOString()
       };
       
-      // 保存到localStorage（后续可替换为Supabase）
-      const existingWorlds = JSON.parse(localStorage.getItem('userWorlds') || '[]');
+      // 保存到localStorage（使用正确的键名）
+      const existingWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
       const worldIndex = existingWorlds.findIndex((w: any) => w.name === documentName);
       
       if (worldIndex >= 0) {
@@ -284,7 +371,7 @@ export default function CreateWorldPage() {
         existingWorlds.push(worldData);
       }
       
-      localStorage.setItem('userWorlds', JSON.stringify(existingWorlds));
+      localStorage.setItem('savedWorlds', JSON.stringify(existingWorlds));
       
       setSaveStatus('saved');
       setHasUnsavedChanges(false);
@@ -539,9 +626,9 @@ export default function CreateWorldPage() {
         <TopBar
           documentName="我的英语世界"
           onDocumentNameChange={(name) => console.log('Document name changed:', name)}
-          saveStatus="saved"
-          onSave={() => console.log('Save clicked')}
-          hasUnsavedChanges={false}
+          saveStatus={saveStatus}
+          onSave={saveWorldData}
+          hasUnsavedChanges={hasUnsavedChanges}
           onExport={(format, options) => console.log('Export:', format, options)}
           onSearch={(query) => console.log('Search:', query)}
           notifications={[]}
@@ -590,8 +677,8 @@ export default function CreateWorldPage() {
           />
         </div>
 
-        {/* 画布区域 - 自适应宽度，固定高度 */}
-        <div className="flex-1 relative overflow-hidden">
+        {/* 画布区域 - 自适应宽度，固定高度，确保不被右侧面板遮挡 */}
+        <div className="flex-1 relative overflow-hidden" style={{ zIndex: 1 }}>
           <CanvasArea
             canvasObjects={canvasObjects}
             selectedObjectId={selectedObjectId}
@@ -720,10 +807,12 @@ export default function CreateWorldPage() {
           canvasScale={canvasScale}
           onZoomIn={() => setCanvasScale(Math.min(canvasScale * 1.2, 5))}
           onZoomOut={() => setCanvasScale(Math.max(canvasScale / 1.2, 0.1))}
+          onZoomChange={(scale) => setCanvasScale(scale)} // 新增：直接设置缩放比例
           onFitToScreen={() => {
             setCanvasScale(1);
             setCanvasPosition({ x: 0, y: 0 });
           }}
+          onFitToElements={fitToAllElements} // 新增：适配所有元素
           canvasObjects={canvasObjects}
           canvasPosition={canvasPosition}
           canvasSize={canvasSize}

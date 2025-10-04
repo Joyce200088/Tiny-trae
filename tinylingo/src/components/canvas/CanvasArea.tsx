@@ -962,7 +962,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
 
   return (
     <div 
-      className="flex-1 relative overflow-hidden h-full"
+      className="flex-1 relative h-full"
       style={{
         backgroundImage: `radial-gradient(circle, #D1D5DB 1px, transparent 1px)`,
         backgroundSize: '20px 20px',
@@ -976,12 +976,12 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
         handleWheel(e as any);
       }}
     >
-      {/* 画布容器 - 固定高度，防止溢出 */}
-      <div className="w-full h-full overflow-hidden">
+      {/* 画布容器 - 移除overflow-hidden，允许元素完全显示 */}
+      <div className="w-full h-full">
         <Stage
           ref={stageRef}
-          width={windowSize.width - 288} // 减去左右侧边栏宽度
-          height={windowSize.height - 60} // 减去顶部栏高度
+          width={Math.max(windowSize.width - 72 - 288, canvasSize.width)} // 减去左侧工具栏72px + 右侧面板288px
+          height={Math.max(windowSize.height - 60, canvasSize.height)} // 确保Stage高度至少等于画布逻辑高度
           scaleX={canvasScale}
           scaleY={canvasScale}
           x={canvasPosition.x}
