@@ -893,7 +893,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
               visible: true,
               locked: false,
               zIndex: -1, // 背景应该在最底层
-              aspectRatioLocked: true, // 锁定宽高比防止变形
+              aspectRatioLocked: false, // 允许独立横向/纵向缩放
               backgroundData: data.data, // 保存完整的背景数据
               backgroundMode: backgroundMode // 保存显示模式
             };

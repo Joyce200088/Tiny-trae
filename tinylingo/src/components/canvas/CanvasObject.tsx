@@ -63,10 +63,11 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
   // 处理变换开始事件 - 记录初始状态
   const handleTransformStart = () => {
     initialStateRef.current = {
-      width: object.width,
-      height: object.height,
-      radius: object.radius,
-      fontSize: object.fontSize
+      // 确保所有尺寸属性都有默认值，避免undefined导致的计算错误
+      width: object.width || 100,           // 默认宽度100px
+      height: object.height || 100,         // 默认高度100px
+      radius: object.radius || 50,          // 默认半径50px
+      fontSize: object.fontSize || 16       // 默认字体大小16px
     };
   };
 
@@ -107,7 +108,9 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
     } else if (object.type === 'circle') {
       newAttrs.radius = Math.max(5, (initialStateRef.current.radius || 0) * Math.max(Math.abs(scaleX), Math.abs(scaleY)));
     } else if (object.type === 'text') {
-      newAttrs.fontSize = Math.max(8, (initialStateRef.current.fontSize || 12) * Math.max(Math.abs(scaleX), Math.abs(scaleY)));
+      // 修复文字缩放：确保使用正确的初始字体大小
+      const initialFontSize = initialStateRef.current.fontSize || object.fontSize || 16;
+      newAttrs.fontSize = Math.max(8, initialFontSize * Math.max(Math.abs(scaleX), Math.abs(scaleY)));
     }
 
     // 重置节点的缩放，避免累积
@@ -281,17 +284,20 @@ const CanvasObject: React.FC<CanvasObjectProps> = ({
             }
             return newBox;
           }}
-          // 参考Konva示例：简化锚点配置，只使用四个角的锚点
+          // 恢复完整的八个缩放锚点，支持横向、纵向和对角线缩放
           enabledAnchors={
             object.type === 'line' || object.type === 'arrow' || object.type === 'curved-line' || object.type === 'elbow-line'
               ? [] // 线条和箭头不显示缩放锚点
-              : ['top-left', 'top-right', 'bottom-left', 'bottom-right'] // 只使用四个角的锚点
+              : [
+                  'top-left', 'top-center', 'top-right',
+                  'middle-left', 'middle-right',
+                  'bottom-left', 'bottom-center', 'bottom-right'
+                ] // 完整的八个锚点：四个角 + 四个边中点
           }
           rotateEnabled={object.type !== 'line' && object.type !== 'arrow' && object.type !== 'curved-line' && object.type !== 'elbow-line'}
-          // 参考Konva示例：根据对象类型和用户设置决定是否保持比例
+          // 调整keepRatio逻辑：只有在明确锁定比例时才保持比例
           keepRatio={
-            object.type === 'sticker' || object.type === 'background' || // 贴纸和背景默认保持比例
-            object.aspectRatioLocked === true // 或者用户明确锁定了比例
+            object.aspectRatioLocked === true // 只有用户明确锁定比例时才保持比例
           }
           // 优化锚点样式
           anchorSize={8}
