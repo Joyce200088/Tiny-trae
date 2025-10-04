@@ -914,7 +914,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
 
   return (
     <div 
-      className="flex-1 relative overflow-hidden"
+      className="flex-1 relative overflow-hidden h-full"
       style={{
         backgroundImage: `radial-gradient(circle, #D1D5DB 1px, transparent 1px)`,
         backgroundSize: '20px 20px',
@@ -922,9 +922,14 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      onWheel={(e) => {
+        // 只有当鼠标在画布区域时才处理滚轮事件
+        e.stopPropagation();
+        handleWheel(e as any);
+      }}
     >
-      {/* 画布容器 */}
-      <div className="w-full h-full">
+      {/* 画布容器 - 固定高度，防止溢出 */}
+      <div className="w-full h-full overflow-hidden">
         <Stage
           ref={stageRef}
           width={windowSize.width - 320} // 减去左右侧边栏宽度

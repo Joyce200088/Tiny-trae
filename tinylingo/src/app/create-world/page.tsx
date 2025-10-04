@@ -497,161 +497,185 @@ export default function CreateWorldPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#FFFBF5' }}>
-      {/* 主要内容区域 */}
-      <div className="flex-1 flex">
-        {/* 左侧工具栏 */}
-        <LeftToolbar
-          activeTool={activeTool}
-          onToolChange={setActiveTool}
-          onOpenStickers={() => {
-            // 记录当前功能页面，然后切换到右侧Inspector的贴纸标签页
-            if (inspectorActiveTab !== 'stickers') {
-              setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
-            }
-            setInspectorActiveTab('stickers');
-          }}
-          onOpenBackgrounds={() => {
-            // 记录当前功能页面，然后切换到右侧Inspector的背景标签页
-            if (inspectorActiveTab !== 'backgrounds') {
-              setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
-            }
-            setInspectorActiveTab('backgrounds');
-          }}
-          onOpenAIGenerator={() => {
-            // 记录当前功能页面，然后切换到右侧Inspector的AI生成标签页
-            if (inspectorActiveTab !== 'ai-generate') {
-              setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
-            }
-            setInspectorActiveTab('ai-generate');
-          }}
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#FFFBF5' }}>
+      {/* 顶部导航栏 - 固定高度 */}
+      <div className="flex-shrink-0">
+        <TopBar
+          documentName="我的英语世界"
+          onDocumentNameChange={(name) => console.log('Document name changed:', name)}
+          saveStatus="saved"
+          onSave={() => console.log('Save clicked')}
+          hasUnsavedChanges={false}
+          onExport={(format, options) => console.log('Export:', format, options)}
+          onSearch={(query) => console.log('Search:', query)}
+          notifications={[]}
+          onNotificationDismiss={(id) => console.log('Dismiss notification:', id)}
+          shareMode="private"
+          onShareModeChange={(mode) => console.log('Share mode changed:', mode)}
+          onShare={() => console.log('Share clicked')}
         />
-
-        {/* 画布区域 */}
-        <CanvasArea
-          canvasObjects={canvasObjects}
-          selectedObjectId={selectedObjectId}
-          canvasSize={canvasSize}
-          canvasScale={canvasScale}
-          canvasPosition={canvasPosition}
-          backgroundImage={selectedBackground?.url}
-          activeTool={activeTool}
-          onObjectSelect={setSelectedObjectId}
-          onObjectChange={handleObjectChange}
-          onObjectsChange={setCanvasObjects}
-          onCanvasPositionChange={setCanvasPosition}
-          onCanvasScaleChange={setCanvasScale}
-          onCreateObject={(newObject) => {
-            // 创建新对象并添加到画布
-            setCanvasObjects(prev => [...prev, newObject]);
-            // 选中新创建的对象
-            setSelectedObjectId(newObject.id);
-            // 切换回选择工具
-            setActiveTool('select');
-          }}
-        />
-
-        {/* 右侧属性面板 - 按需显示 */}
-        {shouldShowRightPanel && (
-          <RightInspector
-            selectedObjects={selectedObjects}
-            onUpdateObject={(id, updates) => {
-              handleObjectChange(id, updates);
-            }}
-            onUpdateMultipleObjects={(updates) => {
-              selectedObjects.forEach(obj => {
-                handleObjectChange(obj.id, updates);
-              });
-            }}
-            onDeleteObjects={(ids) => {
-              ids.forEach(id => {
-                setCanvasObjects(prev => prev.filter(obj => obj.id !== id));
-              });
-              setSelectedObjectId(null);
-            }}
-            onDuplicateObjects={(ids) => {
-              // 复制对象逻辑
-              console.log('Duplicate objects:', ids);
-            }}
-            onGroupObjects={(ids) => {
-              // 组合对象逻辑
-              console.log('Group objects:', ids);
-            }}
-            onUngroupObject={(id) => {
-              // 取消组合逻辑
-              console.log('Ungroup object:', id);
-            }}
-            // 背景模式更新函数
-            onUpdateBackgroundMode={(id, mode) => {
-              // 找到背景对象并更新其模式
-              const backgroundObj = canvasObjects.find(obj => obj.id === id && obj.type === 'background');
-              if (backgroundObj) {
-                // 更新背景对象的模式
-                handleObjectChange(id, { mode });
+      </div>
+      
+      {/* 主要内容区域 - 固定高度，三列布局 */}
+      <div className="flex-1 flex min-h-0">
+        {/* 左侧工具栏 - 固定宽度 */}
+        <div className="flex-shrink-0">
+          <LeftToolbar
+            activeTool={activeTool}
+            onToolChange={setActiveTool}
+            onOpenStickers={() => {
+              // 记录当前功能页面，然后切换到右侧Inspector的贴纸标签页
+              if (inspectorActiveTab !== 'stickers') {
+                setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
               }
+              setInspectorActiveTab('stickers');
             }}
-            // 状态机模式管理
-            mode={effectiveActiveTab as 'properties' | 'stickers' | 'backgrounds' | 'ai'}
-            onModeChange={(mode) => {
-              if (mode === 'properties') {
-                // 如果切换到properties但没有选中对象，则隐藏面板
-                if (selectedObjects.length === 0) {
-                  setInspectorActiveTab('properties');
-                }
-              } else {
-                // 记录当前功能页面状态
-                if (mode !== 'properties' && inspectorActiveTab !== mode) {
-                  setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
-                }
-                setInspectorActiveTab(mode === 'ai' ? 'ai-generate' : mode);
+            onOpenBackgrounds={() => {
+              // 记录当前功能页面，然后切换到右侧Inspector的背景标签页
+              if (inspectorActiveTab !== 'backgrounds') {
+                setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
               }
+              setInspectorActiveTab('backgrounds');
             }}
-            // 贴纸相关
-            userStickers={userStickers}
-            onAddSticker={handleAddSticker}
-            // 背景相关
-            backgrounds={mockBackgrounds}
-            onSelectBackground={handleSelectBackground}
-            // AI生成相关
-            aiWord={aiWord}
-            aiDescription={aiDescription}
-            aiStyle={aiStyle}
-            aiViewpoint={aiViewpoint}
-            isGenerating={isGenerating}
-            generatedImage={generatedImage}
-            transparentImage={transparentImage}
-            isRemovingBackground={isRemovingBackground}
-            generationError={aiError}
-            onAiWordChange={setAiWord}
-            onAiDescriptionChange={setAiDescription}
-            onAiStyleChange={setAiStyle}
-            onAiViewpointChange={setAiViewpoint}
-            onGenerateAI={handleGenerateAI}
-            onRemoveBackground={handleRemoveBackground}
-            onSaveToLibrary={handleSaveToLibrary}
-            onDragToCanvas={handleDragToCanvas}
-            onRegenerateAI={handleRegenerateAI}
+            onOpenAIGenerator={() => {
+              // 记录当前功能页面，然后切换到右侧Inspector的AI生成标签页
+              if (inspectorActiveTab !== 'ai-generate') {
+                setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+              }
+              setInspectorActiveTab('ai-generate');
+            }}
           />
+        </div>
+
+        {/* 画布区域 - 自适应宽度，固定高度 */}
+        <div className="flex-1 relative overflow-hidden">
+          <CanvasArea
+            canvasObjects={canvasObjects}
+            selectedObjectId={selectedObjectId}
+            canvasSize={canvasSize}
+            canvasScale={canvasScale}
+            canvasPosition={canvasPosition}
+            backgroundImage={selectedBackground?.url}
+            activeTool={activeTool}
+            onObjectSelect={setSelectedObjectId}
+            onObjectChange={handleObjectChange}
+            onObjectsChange={setCanvasObjects}
+            onCanvasPositionChange={setCanvasPosition}
+            onCanvasScaleChange={setCanvasScale}
+            onCreateObject={(newObject) => {
+              // 创建新对象并添加到画布
+              setCanvasObjects(prev => [...prev, newObject]);
+              // 选中新创建的对象
+              setSelectedObjectId(newObject.id);
+              // 切换回选择工具
+              setActiveTool('select');
+            }}
+          />
+        </div>
+
+        {/* 右侧属性面板 - 固定宽度，内部滚动 */}
+        {shouldShowRightPanel && (
+          <div className="flex-shrink-0 w-96">
+            <RightInspector
+              selectedObjects={selectedObjects}
+              onUpdateObject={(id, updates) => {
+                handleObjectChange(id, updates);
+              }}
+              onUpdateMultipleObjects={(updates) => {
+                selectedObjects.forEach(obj => {
+                  handleObjectChange(obj.id, updates);
+                });
+              }}
+              onDeleteObjects={(ids) => {
+                ids.forEach(id => {
+                  setCanvasObjects(prev => prev.filter(obj => obj.id !== id));
+                });
+                setSelectedObjectId(null);
+              }}
+              onDuplicateObjects={(ids) => {
+                // 复制对象逻辑
+                console.log('Duplicate objects:', ids);
+              }}
+              onGroupObjects={(ids) => {
+                // 组合对象逻辑
+                console.log('Group objects:', ids);
+              }}
+              onUngroupObject={(id) => {
+                // 取消组合逻辑
+                console.log('Ungroup object:', id);
+              }}
+              // 背景模式更新函数
+              onUpdateBackgroundMode={(id, mode) => {
+                // 找到背景对象并更新其模式
+                const backgroundObj = canvasObjects.find(obj => obj.id === id && obj.type === 'background');
+                if (backgroundObj) {
+                  // 更新背景对象的模式
+                  handleObjectChange(id, { mode });
+                }
+              }}
+              // 状态机模式管理
+              mode={effectiveActiveTab as 'properties' | 'stickers' | 'backgrounds' | 'ai'}
+              onModeChange={(mode) => {
+                if (mode === 'properties') {
+                  // 如果切换到properties但没有选中对象，则隐藏面板
+                  if (selectedObjects.length === 0) {
+                    setInspectorActiveTab('properties');
+                  }
+                } else {
+                  // 记录当前功能页面状态
+                  if (mode !== 'properties' && inspectorActiveTab !== mode) {
+                    setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+                  }
+                  setInspectorActiveTab(mode === 'ai' ? 'ai-generate' : mode);
+                }
+              }}
+              // 贴纸相关
+              userStickers={userStickers}
+              onAddSticker={handleAddSticker}
+              // 背景相关
+              backgrounds={mockBackgrounds}
+              onSelectBackground={handleSelectBackground}
+              // AI生成相关
+              aiWord={aiWord}
+              aiDescription={aiDescription}
+              aiStyle={aiStyle}
+              aiViewpoint={aiViewpoint}
+              isGenerating={isGenerating}
+              generatedImage={generatedImage}
+              transparentImage={transparentImage}
+              isRemovingBackground={isRemovingBackground}
+              generationError={aiError}
+              onAiWordChange={setAiWord}
+              onAiDescriptionChange={setAiDescription}
+              onAiStyleChange={setAiStyle}
+              onAiViewpointChange={setAiViewpoint}
+              onGenerateAI={handleGenerateAI}
+              onRemoveBackground={handleRemoveBackground}
+              onSaveToLibrary={handleSaveToLibrary}
+              onDragToCanvas={handleDragToCanvas}
+              onRegenerateAI={handleRegenerateAI}
+            />
+          </div>
         )}
       </div>
 
-      {/* 右下角底部工具 */}
-      <BottomRightTools
-        canvasScale={canvasScale}
-        onZoomIn={() => setCanvasScale(Math.min(canvasScale * 1.2, 5))}
-        onZoomOut={() => setCanvasScale(Math.max(canvasScale / 1.2, 0.1))}
-        onFitToScreen={() => {
-          setCanvasScale(1);
-          setCanvasPosition({ x: 0, y: 0 });
-        }}
-        canvasObjects={canvasObjects}
-        canvasPosition={canvasPosition}
-        canvasSize={canvasSize}
-        viewportSize={{ width: 800, height: 600 }}
-        onViewportChange={setCanvasPosition}
-      />
-
-
+      {/* 右下角底部工具 - 固定定位 */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <BottomRightTools
+          canvasScale={canvasScale}
+          onZoomIn={() => setCanvasScale(Math.min(canvasScale * 1.2, 5))}
+          onZoomOut={() => setCanvasScale(Math.max(canvasScale / 1.2, 0.1))}
+          onFitToScreen={() => {
+            setCanvasScale(1);
+            setCanvasPosition({ x: 0, y: 0 });
+          }}
+          canvasObjects={canvasObjects}
+          canvasPosition={canvasPosition}
+          canvasSize={canvasSize}
+          viewportSize={{ width: 800, height: 600 }}
+          onViewportChange={setCanvasPosition}
+        />
+      </div>
     </div>
   );
 }

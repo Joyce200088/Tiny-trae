@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Nav from "@/components/Nav";
+import ConditionalNav from "@/components/ConditionalNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +28,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
-        <Nav />
+        {/* 使用条件导航组件，在画布页面隐藏Nav */}
+        <ConditionalNav />
         <main className="flex-1">
           {children}
         </main>

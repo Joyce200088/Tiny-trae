@@ -294,103 +294,127 @@ export default function RightInspector({
   const hasSticker = selectedObjects.some(obj => obj.type === 'sticker');
 
   // 根据状态机模式渲染不同面板
-  if (mode === 'stickers') {
-    return (
-      <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-        {/* 贴纸面板标题栏 */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-sm font-medium">我的贴纸库</h3>
-          <button
-            onClick={() => onModeChange?.('properties')}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-        <StickersPanel 
-          userStickers={userStickers}
-          onAddSticker={onAddSticker}
-        />
-      </div>
-    );
-  }
-
-  if (mode === 'backgrounds') {
-    return (
-      <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-        {/* 背景面板标题栏 */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-sm font-medium">背景图片</h3>
-          <button
-            onClick={() => onModeChange?.('properties')}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-        <BackgroundPanel 
-          backgrounds={backgrounds}
-          onSelectBackground={onSelectBackground}
-        />
-      </div>
-    );
-  }
-
-  if (mode === 'ai') {
-    return (
-      <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-        {/* AI生成面板标题栏 */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-sm font-medium">AI生成贴纸</h3>
-          <button
-            onClick={() => onModeChange?.('properties')}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-        <AIGeneratePanel 
-          aiWord={aiWord}
-          aiDescription={aiDescription}
-          aiStyle={aiStyle}
-          aiViewpoint={aiViewpoint}
-          isGenerating={isGenerating}
-          generatedImage={generatedImage}
-          transparentImage={transparentImage}
-          isRemovingBackground={isRemovingBackground}
-          generationError={generationError}
-          onAiWordChange={onAiWordChange}
-          onAiDescriptionChange={onAiDescriptionChange}
-          onAiStyleChange={onAiStyleChange}
-          onAiViewpointChange={onAiViewpointChange}
-          onGenerateAI={onGenerateAI}
-          onRemoveBackground={onRemoveBackground}
-          onSaveToLibrary={onSaveToLibrary}
-          onDragToCanvas={onDragToCanvas}
-          onRegenerateAI={onRegenerateAI}
-        />
-      </div>
-    );
-  }
-
-  // 默认显示 Properties 面板
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-      {/* 标题栏 */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="text-lg font-semibold">属性</h3>
+    <div className="h-full bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+      {/* 统一的头部标签栏 - 吸顶固定 */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 sticky top-0 z-10">
+        {/* 标签切换区域 */}
+        <div className="flex items-center border-b border-gray-100">
+          <button
+            onClick={() => onModeChange?.('properties')}
+            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              mode === 'properties'
+                ? 'text-blue-600 border-blue-600 bg-blue-50'
+                : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            属性
+          </button>
+          <button
+            onClick={() => onModeChange?.('stickers')}
+            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              mode === 'stickers'
+                ? 'text-blue-600 border-blue-600 bg-blue-50'
+                : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            贴纸
+          </button>
+          <button
+            onClick={() => onModeChange?.('backgrounds')}
+            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              mode === 'backgrounds'
+                ? 'text-blue-600 border-blue-600 bg-blue-50'
+                : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            背景
+          </button>
+          <button
+            onClick={() => onModeChange?.('ai')}
+            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              mode === 'ai'
+                ? 'text-blue-600 border-blue-600 bg-blue-50'
+                : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            AI
+          </button>
+        </div>
+        
+        {/* 面板标题 */}
+        <div className="px-4 py-3 bg-gray-50">
+          <h3 className="text-sm font-medium text-gray-900">
+            {mode === 'properties' && '对象属性'}
+            {mode === 'stickers' && '我的贴纸库'}
+            {mode === 'backgrounds' && '背景图片'}
+            {mode === 'ai' && 'AI生成贴纸'}
+          </h3>
+        </div>
       </div>
 
-      <PropertiesPanel 
-        selectedObjects={selectedObjects}
-        onUpdateObject={onUpdateObject}
-        onUpdateMultipleObjects={onUpdateMultipleObjects}
-        onDeleteObjects={onDeleteObjects}
-        onDuplicateObjects={onDuplicateObjects}
-        onGroupObjects={onGroupObjects}
-        onUngroupObject={onUngroupObject}
-        onUpdateBackgroundMode={onUpdateBackgroundMode} // 传递背景模式更新函数
-      />
+      {/* 内容区域 - 可滚动，防止事件冒泡 */}
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden"
+        onWheel={(e) => {
+          // 防止滚动事件冒泡到页面
+          e.stopPropagation();
+        }}
+        onScroll={(e) => {
+          // 防止滚动事件冒泡到页面
+          e.stopPropagation();
+        }}
+      >
+        {mode === 'properties' && (
+          <PropertiesPanel 
+            selectedObjects={selectedObjects}
+            onUpdateObject={onUpdateObject}
+            onUpdateMultipleObjects={onUpdateMultipleObjects}
+            onDeleteObjects={onDeleteObjects}
+            onDuplicateObjects={onDuplicateObjects}
+            onGroupObjects={onGroupObjects}
+            onUngroupObject={onUngroupObject}
+            onUpdateBackgroundMode={onUpdateBackgroundMode}
+          />
+        )}
+        
+        {mode === 'stickers' && (
+          <StickersPanel 
+            userStickers={userStickers}
+            onAddSticker={onAddSticker}
+          />
+        )}
+        
+        {mode === 'backgrounds' && (
+          <BackgroundPanel 
+            backgrounds={backgrounds}
+            onSelectBackground={onSelectBackground}
+          />
+        )}
+        
+        {mode === 'ai' && (
+          <AIGeneratePanel 
+            aiWord={aiWord}
+            aiDescription={aiDescription}
+            aiStyle={aiStyle}
+            aiViewpoint={aiViewpoint}
+            isGenerating={isGenerating}
+            generatedImage={generatedImage}
+            transparentImage={transparentImage}
+            isRemovingBackground={isRemovingBackground}
+            generationError={generationError}
+            onAiWordChange={onAiWordChange}
+            onAiDescriptionChange={onAiDescriptionChange}
+            onAiStyleChange={onAiStyleChange}
+            onAiViewpointChange={onAiViewpointChange}
+            onGenerateAI={onGenerateAI}
+            onRemoveBackground={onRemoveBackground}
+            onSaveToLibrary={onSaveToLibrary}
+            onDragToCanvas={onDragToCanvas}
+            onRegenerateAI={onRegenerateAI}
+          />
+        )}
+      </div>
     </div>
   );
 }
