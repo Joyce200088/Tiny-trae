@@ -192,6 +192,8 @@ export default function CreateWorldPage() {
   const [documentName, setDocumentName] = useState('未命名世界');
   const [activeTab, setActiveTab] = useState<'stickers' | 'background' | 'ai'>('stickers');
   const [selectedBackground, setSelectedBackground] = useState<any>(null);
+  // Inspector标签页状态
+  const [inspectorActiveTab, setInspectorActiveTab] = useState<'properties' | 'stickers' | 'backgrounds' | 'ai-generate'>('properties');
   const [canvasObjects, setCanvasObjects] = useState<any[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
@@ -222,10 +224,7 @@ export default function CreateWorldPage() {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [aiError, setAiError] = useState('');
   
-  // 侧边栏状态
-  const [showStickersPanel, setShowStickersPanel] = useState(false);
-  const [showBackgroundPanel, setShowBackgroundPanel] = useState(false);
-  const [showAIPanel, setShowAIPanel] = useState(false);
+
   
   const searchParams = useSearchParams();
   
@@ -269,6 +268,26 @@ export default function CreateWorldPage() {
     setCanvasObjects(prev => [...prev, newObject]);
   };
 
+  // 选择背景
+  const handleSelectBackground = (background: any) => {
+    setSelectedBackground(background);
+  };
+
+  // AI生成处理函数
+  const handleGenerateAI = () => {
+    if (!aiWord) return;
+    
+    setIsGenerating(true);
+    // 这里应该调用实际的AI生成逻辑
+    console.log('生成 AI 贴纸', { aiWord, aiDescription, aiStyle });
+    
+    // 模拟生成过程
+    setTimeout(() => {
+      setIsGenerating(false);
+      // 这里应该处理生成的结果
+    }, 2000);
+  };
+
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: '#FFFBF5' }}>
       {/* 顶部栏 */}
@@ -295,19 +314,16 @@ export default function CreateWorldPage() {
             console.log('Tool changed:', tool);
           }}
           onOpenStickers={() => {
-            setShowStickersPanel(true);
-            setShowBackgroundPanel(false);
-            setShowAIPanel(false);
+            // 切换到右侧Inspector的贴纸标签页
+            setInspectorActiveTab('stickers');
           }}
           onOpenBackgrounds={() => {
-            setShowStickersPanel(false);
-            setShowBackgroundPanel(true);
-            setShowAIPanel(false);
+            // 切换到右侧Inspector的背景标签页
+            setInspectorActiveTab('backgrounds');
           }}
           onOpenAIGenerator={() => {
-            setShowStickersPanel(false);
-            setShowBackgroundPanel(false);
-            setShowAIPanel(true);
+            // 切换到右侧Inspector的AI生成标签页
+            setInspectorActiveTab('ai-generate');
           }}
           selectedObjectsCount={selectedObjects.length}
           onGroup={() => {
@@ -346,6 +362,24 @@ export default function CreateWorldPage() {
               handleObjectChange(selectedObjectId, changes);
             }
           }}
+          // 标签页管理
+          activeTab={inspectorActiveTab}
+          onTabChange={setInspectorActiveTab}
+          // 贴纸相关
+          userStickers={userStickers}
+          onAddSticker={handleAddSticker}
+          // 背景相关
+          backgrounds={mockBackgrounds}
+          onSelectBackground={handleSelectBackground}
+          // AI生成相关
+          aiWord={aiWord}
+          aiDescription={aiDescription}
+          aiStyle={aiStyle}
+          isGenerating={isGenerating}
+          onAiWordChange={setAiWord}
+          onAiDescriptionChange={setAiDescription}
+          onAiStyleChange={setAiStyle}
+          onGenerateAI={handleGenerateAI}
         />
       </div>
 
@@ -365,134 +399,7 @@ export default function CreateWorldPage() {
         onViewportChange={setCanvasPosition}
       />
 
-      {/* 侧边栏面板 */}
-      {showStickersPanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowStickersPanel(false)}>
-          <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold">我的贴纸</h3>
-              <button 
-                onClick={() => setShowStickersPanel(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4 grid grid-cols-3 gap-4 overflow-y-auto">
-              {userStickers.map((sticker) => (
-                <div
-                  key={sticker.id}
-                  className="border rounded-lg p-2 cursor-pointer hover:bg-gray-50"
-                  onClick={() => {
-                    handleAddSticker(sticker);
-                    setShowStickersPanel(false);
-                  }}
-                >
-                  <img src={sticker.thumbnailUrl} alt={sticker.name} className="w-full h-16 object-contain" />
-                  <p className="text-xs text-center mt-1">{sticker.name}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {showBackgroundPanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowBackgroundPanel(false)}>
-          <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold">背景设置</h3>
-              <button 
-                onClick={() => setShowBackgroundPanel(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-4">
-                {mockBackgrounds.map((bg) => (
-                  <div
-                    key={bg.id}
-                    className={`border rounded-lg p-2 cursor-pointer hover:bg-gray-50 ${
-                      selectedBackground?.id === bg.id ? 'border-blue-500' : ''
-                    }`}
-                    onClick={() => {
-                      setSelectedBackground(bg);
-                      setShowBackgroundPanel(false);
-                    }}
-                  >
-                    <img src={bg.url} alt={bg.name} className="w-full h-20 object-cover rounded" />
-                    <p className="text-xs text-center mt-1">{bg.name}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAIPanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowAIPanel(false)}>
-          <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold">AI 生成贴纸</h3>
-              <button 
-                onClick={() => setShowAIPanel(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">单词</label>
-                <input
-                  type="text"
-                  value={aiWord}
-                  onChange={(e) => setAiWord(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="输入英文单词"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">描述</label>
-                <textarea
-                  value={aiDescription}
-                  onChange={(e) => setAiDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  rows={3}
-                  placeholder="描述贴纸的外观特征"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">风格</label>
-                <select
-                  value={aiStyle}
-                  onChange={(e) => setAiStyle(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="cartoon">卡通</option>
-                  <option value="realistic">写实</option>
-                  <option value="pixel">像素</option>
-                  <option value="watercolor">水彩</option>
-                  <option value="sketch">素描</option>
-                </select>
-              </div>
-              <button
-                onClick={() => {
-                  // AI 生成逻辑
-                  console.log('生成 AI 贴纸');
-                }}
-                disabled={isGenerating || !aiWord}
-                className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:opacity-50"
-              >
-                {isGenerating ? '生成中...' : '生成贴纸'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

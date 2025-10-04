@@ -293,6 +293,31 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
   const [backgroundImg] = useImage(backgroundImage);
+  
+  // 窗口尺寸状态
+  const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
+
+  // 监听窗口尺寸变化
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const updateWindowSize = () => {
+        setWindowSize({
+          width: window.innerWidth,
+          height: window.innerHeight
+        });
+      };
+
+      // 初始化窗口尺寸
+      updateWindowSize();
+
+      // 监听窗口尺寸变化
+      window.addEventListener('resize', updateWindowSize);
+      
+      return () => {
+        window.removeEventListener('resize', updateWindowSize);
+      };
+    }
+  }, []);
 
   // 键盘事件处理
   useEffect(() => {
@@ -507,14 +532,141 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({
     return guides;
   }, [canvasSize.height]);
 
+  // 处理拖拽事件
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // 允许拖拽
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    try {
+      // 尝试获取 JSON 格式的数据
+      const jsonData = e.dataTransfer.getData('application/json');
+      if (jsonData) {
+        const data = JSON.parse(jsonData);
+        
+        // 获取画布相对坐标
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = (e.clientX - rect.left - canvasPosition.x) / canvasScale;
+        const y = (e.clientY - rect.top - canvasPosition.y) / canvasScale;
+        
+        if (data.type === 'sticker') {
+          // 处理贴纸拖拽 - 使用统一的数据结构
+          const newSticker = {
+            id: `sticker-${Date.now()}`,
+            type: 'sticker',
+            src: data.data.image, // 使用 data.data.image 获取图片路径
+            x: x,
+            y: y,
+            width: 100,
+            height: 100,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false,
+            word: data.data.word,
+            cn: data.data.cn,
+            stickerData: data.data // 保存完整的贴纸数据
+          };
+          
+          onObjectsChange([...canvasObjects, newSticker]);
+        } else if (data.type === 'background') {
+          // 处理背景图片拖拽 - 使用统一的数据结构
+          console.log('设置背景图片:', data.data.url);
+          // 如果需要将背景作为对象添加到画布，可以这样做：
+          const newBackground = {
+            id: `background-${Date.now()}`,
+            type: 'background',
+            src: data.data.url, // 使用 data.data.url 获取图片路径
+            x: 0,
+            y: 0,
+            width: canvasSize.width,
+            height: canvasSize.height,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false,
+            backgroundData: data.data // 保存完整的背景数据
+          };
+          
+          onObjectsChange([...canvasObjects, newBackground]);
+        }
+        return;
+      }
+      
+      // 兼容旧的 text/plain 格式
+      const dragData = e.dataTransfer.getData('text/plain');
+      if (dragData) {
+        const data = JSON.parse(dragData);
+        
+        // 获取画布相对坐标
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = (e.clientX - rect.left - canvasPosition.x) / canvasScale;
+        const y = (e.clientY - rect.top - canvasPosition.y) / canvasScale;
+        
+        if (data.type === 'sticker') {
+          // 处理贴纸拖拽
+          const newSticker = {
+            id: `sticker-${Date.now()}`,
+            type: 'sticker',
+            src: data.image,
+            x: x,
+            y: y,
+            width: 100,
+            height: 100,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false,
+            word: data.word,
+            cn: data.cn
+          };
+          
+          onObjectsChange([...canvasObjects, newSticker]);
+        } else if (data.type === 'background') {
+          // 处理背景图片拖拽 - 设置为画布背景
+          console.log('设置背景图片:', data.src);
+          // 如果需要将背景作为对象添加到画布，可以这样做：
+          const newBackground = {
+            id: `background-${Date.now()}`,
+            type: 'background',
+            src: data.src,
+            x: 0,
+            y: 0,
+            width: canvasSize.width,
+            height: canvasSize.height,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            locked: false
+          };
+          
+          onObjectsChange([...canvasObjects, newBackground]);
+        }
+      }
+    } catch (error) {
+      console.error('拖拽数据解析失败:', error);
+    }
+  };
+
   return (
-    <div className="flex-1 relative overflow-hidden">
+    <div 
+      className="flex-1 relative overflow-hidden"
+      style={{
+        backgroundImage: `radial-gradient(circle, #D1D5DB 1px, transparent 1px)`,
+        backgroundSize: '20px 20px',
+        backgroundColor: '#F9FAFB'
+      }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {/* 画布容器 */}
       <div className="w-full h-full">
         <Stage
           ref={stageRef}
-          width={window.innerWidth - 320} // 减去左右侧边栏宽度
-          height={window.innerHeight - 60} // 减去顶部栏高度
+          width={windowSize.width - 320} // 减去左右侧边栏宽度
+          height={windowSize.height - 60} // 减去顶部栏高度
           scaleX={canvasScale}
           scaleY={canvasScale}
           x={canvasPosition.x}
