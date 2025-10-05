@@ -5,14 +5,16 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { StickerDataUtils } from '@/utils/stickerDataUtils';
 import { StickerData } from '@/types/sticker';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
+// 导入Konva相关组件
+import { Image as KonvaImage, Transformer } from 'react-konva';
+import useImage from 'use-image';
 
 // 导入新的组件
+import TopBar from '@/components/canvas/TopBar';
 import LeftToolbar from '@/components/canvas/LeftToolbar';
-import CanvasArea from '@/components/canvas/CanvasArea';
 import RightInspector from '@/components/canvas/RightInspector';
 import BottomRightTools from '@/components/canvas/BottomRightTools';
-import TopBar from '@/components/canvas/TopBar';
-import TextPropertiesPanel from '@/components/canvas/TextPropertiesPanel';
+import CanvasArea from '@/components/canvas/CanvasArea';
 
 // 模拟贴纸数据
 const mockStickers: StickerData[] = [
@@ -82,6 +84,35 @@ const mockBackgrounds = [
 ];
 
 // 可拖拽和变换的图片组件
+// 定义画布对象的类型接口
+interface CanvasObject {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  src: string;
+  rotation?: number;
+  locked?: boolean;
+  stickerData?: StickerData;
+}
+
+// 定义上下文菜单的类型接口
+interface ContextMenu {
+  visible: boolean;
+  x: number;
+  y: number;
+  objectId?: string;
+}
+
+// 定义背景的类型接口
+interface Background {
+  id: string;
+  name: string;
+  url: string;
+  category: string;
+}
+
 const DraggableImage = ({ 
   imageObj, 
   isSelected, 
@@ -89,11 +120,11 @@ const DraggableImage = ({
   onChange,
   setContextMenu 
 }: {
-  imageObj: any;
+  imageObj: CanvasObject;
   isSelected: boolean;
   onSelect: () => void;
-  onChange: (newAttrs: any) => void;
-  setContextMenu: (menu: any) => void;
+  onChange: (newAttrs: CanvasObject) => void;
+  setContextMenu: (menu: ContextMenu) => void;
 }) => {
   const shapeRef = useRef<any>(null);
   const trRef = useRef<any>(null);
@@ -118,7 +149,10 @@ const DraggableImage = ({
         onClick={onSelect}
         onTap={onSelect}
         onContextMenu={(e) => {
-          e.evt.preventDefault();
+          // 安全地访问事件对象，添加类型检查
+          if (e && e.evt && typeof e.evt.preventDefault === 'function') {
+            e.evt.preventDefault();
+          }
           const stage = e.target.getStage();
           const pointerPosition = stage?.getPointerPosition();
           if (pointerPosition) {
@@ -188,9 +222,33 @@ const DraggableImage = ({
   );
 };
 
+// 定义世界数据的类型接口
+interface WorldData {
+  id: string;
+  name: string;
+  description?: string;
+  thumbnail?: string;
+  coverUrl?: string;
+  wordCount: number;
+  stickerCount: number;
+  likes: number;
+  favorites: number;
+  isPublic: boolean;
+  canvasData: {
+    objects: CanvasObject[];
+    background: Background | null;
+  };
+  canvasObjects?: CanvasObject[];
+  selectedBackground?: Background | null;
+  createdAt: string;
+  updatedAt: string;
+  lastModified: string;
+}
+
 export default function CreateWorldPage() {
   // 基础状态
   const [documentName, setDocumentName] = useState('未命名世界');
+  const [currentWorldId, setCurrentWorldId] = useState<string | null>(null); // 新增：当前编辑世界的ID
   const [activeTab, setActiveTab] = useState<'stickers' | 'background' | 'ai'>('stickers');
   const [selectedBackground, setSelectedBackground] = useState<any>(null);
   // Inspector标签页状态
@@ -305,8 +363,14 @@ export default function CreateWorldPage() {
     );
   };
   
-  // 保存状态
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  // 自动保存相关状态
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoSavingRef = useRef(false);
+
+  // 保存状态（保留原有逻辑）
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'offline' | 'error'>('saved');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // 工具状态管理
@@ -332,55 +396,190 @@ export default function CreateWorldPage() {
   
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    
+    // 检查URL参数，看是否是编辑现有世界
+    const worldId = searchParams.get('worldId');
+    if (worldId) {
+      // 从localStorage加载世界数据
+      const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+      const world = savedWorlds.find((w: WorldData) => w.id === worldId);
+      
+      if (world) {
+        setCurrentWorldId(world.id);
+        setDocumentName(world.name);
+        // 恢复画布对象和背景
+        if (world.canvasObjects) {
+          setCanvasObjects(world.canvasObjects);
+        } else if (world.canvasData?.objects) {
+          setCanvasObjects(world.canvasData.objects);
+        }
+        if (world.selectedBackground) {
+          setSelectedBackground(world.selectedBackground);
+        } else if (world.canvasData?.background) {
+          setSelectedBackground(world.canvasData.background);
+        }
+        console.log('已加载世界:', world);
+      }
+    }
+  }, [searchParams]);
+
+  // 页面关闭前保存
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && !isAutoSavingRef.current) {
+        // 同步保存（简化版本）
+        try {
+          const worldData = {
+            id: currentWorldId || Date.now().toString(),
+            name: documentName || '未命名世界',
+            description: `包含 ${canvasObjects.length} 个贴纸的英语学习世界`,
+            thumbnail: '', // 页面关闭时跳过缩略图生成
+            coverUrl: '', // 个人主页世界库期望的字段名
+            wordCount: canvasObjects.length,
+            likes: 0,
+            favorites: 0,
+            isPublic: false,
+            canvasData: {
+              objects: canvasObjects,
+              background: selectedBackground
+            },
+            createdAt: currentWorldId ? 
+              (JSON.parse(localStorage.getItem('savedWorlds') || '[]').find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
+              new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastModified: new Date().toISOString()
+          };
+          
+          const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+          const existingIndex = savedWorlds.findIndex((world: WorldData) => world.id === worldData.id);
+          
+          if (existingIndex >= 0) {
+            savedWorlds[existingIndex] = worldData;
+          } else {
+            savedWorlds.push(worldData);
+          }
+          
+          localStorage.setItem('savedWorlds', JSON.stringify(savedWorlds));
+        } catch (error) {
+          console.error('页面关闭前保存失败:', error);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges, currentWorldId, documentName, canvasObjects, selectedBackground]);
 
   // 获取选中的对象
   const selectedObject = canvasObjects.find(obj => obj.id === selectedObjectId);
   const selectedObjects = canvasObjects.filter(obj => obj.selected);
 
   // 右侧面板显示逻辑
-  const shouldShowRightPanel = isRightPanelVisible && (selectedObjects.length > 0 || ['properties', 'stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab));
+  const shouldShowRightPanel = isRightPanelVisible && (selectedObjects.length > 0 || ['stickers', 'backgrounds', 'ai-generate'].includes(inspectorActiveTab));
   
   // 当选中对象时，优先显示Properties面板
   // 同时处理AI生成面板的模式映射
   const effectiveActiveTab = selectedObjects.length > 0 ? 'properties' : 
     inspectorActiveTab === 'ai-generate' ? 'ai' : inspectorActiveTab;
 
-  // 保存功能
-  const saveWorldData = async () => {
+  // 生成缩略图函数
+  const generateThumbnail = async (): Promise<string> => {
+    // 这里应该实现画布缩略图生成逻辑
+    // 暂时返回空字符串，实际应该生成画布的缩略图
+    return '';
+  };
+
+  // 保存世界数据（保留原有逻辑，添加自动保存支持）
+  const saveWorldData = async (isAutoSave = false) => {
     try {
-      setSaveStatus('saving');
-      
-      // 构建世界数据
-      const worldData = {
-        id: Date.now().toString(),
-        name: documentName,
-        canvasObjects,
-        selectedBackground,
-        canvasSize,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      // 保存到localStorage（使用正确的键名）
-      const existingWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
-      const worldIndex = existingWorlds.findIndex((w: any) => w.name === documentName);
-      
-      if (worldIndex >= 0) {
-        existingWorlds[worldIndex] = worldData;
+      if (isAutoSave) {
+        setAutoSaveStatus('saving');
+        isAutoSavingRef.current = true;
       } else {
-        existingWorlds.push(worldData);
+        setSaveStatus('saving');
       }
       
-      localStorage.setItem('savedWorlds', JSON.stringify(existingWorlds));
+      // 获取画布数据
+      const canvasData = {
+        objects: canvasObjects,
+        background: selectedBackground
+      };
       
-      setSaveStatus('saved');
+      // 生成缩略图
+      const thumbnailDataUrl = await generateThumbnail();
+      
+      // 计算统计信息
+      const stickerObjects = canvasObjects.filter((obj: CanvasObject) => obj.stickerData);
+      const stickerCount = stickerObjects.length;
+      const uniqueWords = new Set(
+        stickerObjects
+          .map((obj: CanvasObject) => obj.stickerData?.name || obj.stickerData?.word || obj.name)
+          .filter(Boolean)
+          .map((word: string) => word.toLowerCase().trim())
+      ).size;
+      
+      // 创建世界数据 - 匹配个人主页世界库期望的数据结构
+      const worldData = {
+        id: currentWorldId || Date.now().toString(),
+        name: documentName || '未命名世界',
+        description: `包含 ${uniqueWords} 个单词，${stickerCount} 个贴纸的英语学习世界`, // 更新描述
+        thumbnail: thumbnailDataUrl,
+        coverUrl: thumbnailDataUrl, // 个人主页世界库期望的字段名
+        previewImage: thumbnailDataUrl, // 添加预览图片字段
+        wordCount: uniqueWords, // 使用正确的单词数量
+        stickerCount: stickerCount, // 添加贴纸数量字段
+        likes: 0, // 初始化点赞数
+        favorites: 0, // 初始化收藏数
+        isPublic: false, // 默认为私有
+        canvasObjects: canvasObjects, // 保存画布对象数组，用于统计计算
+        canvasData: canvasData, // 保留原有的画布数据
+        selectedBackground: selectedBackground, // 保存背景信息
+        createdAt: currentWorldId ? 
+          (JSON.parse(localStorage.getItem('savedWorlds') || '[]').find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
+          new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastModified: new Date().toISOString() // 个人主页世界库期望的字段名
+      };
+      
+      // 保存到localStorage
+      const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+      const existingIndex = savedWorlds.findIndex((world: WorldData) => world.id === worldData.id);
+      
+      if (existingIndex >= 0) {
+        // 更新现有世界
+        savedWorlds[existingIndex] = worldData;
+      } else {
+        // 添加新世界
+        savedWorlds.push(worldData);
+      }
+      
+      localStorage.setItem('savedWorlds', JSON.stringify(savedWorlds));
+      
+      // 更新当前世界ID
+      setCurrentWorldId(worldData.id);
+      
+      if (isAutoSave) {
+        setAutoSaveStatus('saved');
+        setLastSavedTime(new Date());
+        isAutoSavingRef.current = false;
+      } else {
+        setSaveStatus('saved');
+      }
       setHasUnsavedChanges(false);
       
-      console.log('世界已保存:', worldData);
+      console.log('世界数据已保存:', worldData);
+      
     } catch (error) {
       console.error('保存失败:', error);
-      setSaveStatus('error');
+      if (isAutoSave) {
+        setAutoSaveStatus('error');
+        isAutoSavingRef.current = false;
+      } else {
+        setSaveStatus('error');
+      }
     }
   };
 
@@ -390,19 +589,29 @@ export default function CreateWorldPage() {
     setSaveStatus('saved'); // 重置保存状态，等待用户手动保存
   }, [canvasObjects, selectedBackground, documentName]);
 
-  // 自动保存（可选）
+  // 自动保存逻辑
   useEffect(() => {
-    if (hasUnsavedChanges) {
-      const autoSaveTimer = setTimeout(() => {
-        saveWorldData();
-      }, 5000); // 5秒后自动保存
-
-      return () => clearTimeout(autoSaveTimer);
+    if (hasUnsavedChanges && !isAutoSavingRef.current) {
+      // 清除之前的定时器
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      // 设置新的自动保存定时器
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        saveWorldData(true); // 传入true表示自动保存
+      }, 3000); // 3秒后自动保存
     }
-  }, [hasUnsavedChanges]);
+    
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [hasUnsavedChanges, canvasObjects, selectedBackground, documentName]);
 
   // 处理对象变化
-  const handleObjectChange = (id: string, newAttrs: any) => {
+  const handleObjectChange = (id: string, newAttrs: CanvasObject) => {
     setCanvasObjects(prev => 
       prev.map(obj => obj.id === id ? { ...obj, ...newAttrs } : obj)
     );
@@ -434,7 +643,7 @@ export default function CreateWorldPage() {
   };
 
   // 选择背景
-  const handleSelectBackground = (background: any) => {
+  const handleSelectBackground = (background: Background) => {
     setSelectedBackground(background);
   };
 
@@ -627,9 +836,8 @@ export default function CreateWorldPage() {
         <TopBar
           documentName="我的英语世界"
           onDocumentNameChange={(name) => console.log('Document name changed:', name)}
-          saveStatus={saveStatus}
-          onSave={saveWorldData}
-          hasUnsavedChanges={hasUnsavedChanges}
+          autoSaveStatus={autoSaveStatus}
+          lastSavedTime={lastSavedTime}
           onExport={(format, options) => console.log('Export:', format, options)}
           onSearch={(query) => console.log('Search:', query)}
           notifications={[]}
@@ -637,7 +845,7 @@ export default function CreateWorldPage() {
           shareMode="private"
           onShareModeChange={(mode) => console.log('Share mode changed:', mode)}
           onShare={() => console.log('Share clicked')}
-          onBack={() => router.back()}
+          onBack={() => router.push('/u/joyce')}
         />
       </div>
       
@@ -713,7 +921,6 @@ export default function CreateWorldPage() {
               // 点击画布空白区域时收起右侧面板
               setIsRightPanelVisible(false);
             }}
-            onToolChange={setActiveTool}
           />
         </div>
 
@@ -822,15 +1029,6 @@ export default function CreateWorldPage() {
           onViewportChange={setCanvasPosition}
         />
       </div>
-
-      {/* 独立的文本属性面板 */}
-      {selectedObject && selectedObject.type === 'text' && (
-        <TextPropertiesPanel
-          selectedTextObject={selectedObject as any}
-          onUpdateTextObject={handleObjectChange}
-          onClose={() => setSelectedObjectId(null)}
-        />
-      )}
     </div>
   );
 }

@@ -344,7 +344,7 @@ export default function ProfilePage() {
   );
 }
 
-// My Worlds Tab组件 - 复用my-worlds页面的完整结构
+// My Worlds Tab组件 - 复用个人主页世界库的完整结构
 function MyWorldsTab({ 
   showInlineWorldCreation: parentShowInlineWorldCreation, 
   setShowInlineWorldCreation: parentSetShowInlineWorldCreation,
@@ -770,9 +770,9 @@ function MyWorldsTab({
 
                 {/* Cover Image */}
                 <div className="aspect-video relative border-b border-black" style={{backgroundColor: '#FFFBF5'}}>
-                  {world.previewImage ? (
+                  {world.thumbnail || world.previewImage ? (
                     <img 
-                      src={world.previewImage} 
+                      src={world.thumbnail || world.previewImage} 
                       alt={world.name}
                       className="w-full h-full object-cover"
                     />
@@ -795,7 +795,9 @@ function MyWorldsTab({
                     {new Date(stats.lastModified).toLocaleDateString('zh-CN', {
                       year: 'numeric',
                       month: 'short',
-                      day: 'numeric'
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </div>
                 </div>
@@ -841,9 +843,9 @@ function MyWorldsTab({
 
                   {/* 缩略图 */}
                   <div className="w-16 h-12 rounded border border-gray-300 flex-shrink-0" style={{backgroundColor: '#FFFBF5'}}>
-                    {world.previewImage ? (
+                    {world.thumbnail || world.previewImage ? (
                       <img 
-                        src={world.previewImage} 
+                        src={world.thumbnail || world.previewImage} 
                         alt={world.name}
                         className="w-full h-full object-cover rounded"
                       />

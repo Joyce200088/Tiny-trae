@@ -138,7 +138,7 @@ export default function TrashPage() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="mb-8">
             <div className="flex items-center space-x-4 mb-4">
-              <Link href="/my-worlds">
+              <Link href="/u/joyce">
                 <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors">
                   <ArrowLeft className="w-5 h-5" />
                   <span>返回我的世界</span>
@@ -213,7 +213,7 @@ export default function TrashPage() {
                     
                     <div className="text-xs text-gray-500 space-y-1 mb-4">
                       <div>删除时间: {new Date(world.deletedAt).toLocaleString()}</div>
-                      <div>来源位置: {world.originalLocation === 'my-worlds' ? '我的世界' : world.originalLocation}</div>
+                      <div>来源位置: {world.originalLocation === 'savedWorlds' ? '我的世界' : world.originalLocation}</div>
                       <div>单词数量: {world.wordCount}</div>
                     </div>
                     

@@ -2,21 +2,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Save, 
+  ArrowLeft, 
   Download, 
   Search, 
-  Bell, 
-  User, 
+  X, 
   Share2, 
-  FileText,
-  Settings,
-  LogOut,
-  Check,
-  X,
-  AlertCircle,
-  Wifi,
+  Users, 
+  Link, 
+  Check, 
+  AlertCircle, 
   WifiOff,
-  ArrowLeft
+  FileText,
+  Bell,
+  User
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -24,10 +22,9 @@ interface TopBarProps {
   documentName: string;
   onDocumentNameChange: (name: string) => void;
   
-  // 保存状态
-  saveStatus: 'saved' | 'saving' | 'offline' | 'error';
-  onSave?: () => void; // 手动保存回调
-  hasUnsavedChanges?: boolean; // 是否有未保存的更改
+  // 自动保存状态
+  autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+  lastSavedTime?: Date; // 最后保存时间
   
   // 导出功能
   onExport: (format: 'png' | 'svg' | 'webp', options: ExportOptions) => void;
@@ -67,9 +64,8 @@ interface Notification {
 export default function TopBar({
   documentName,
   onDocumentNameChange,
-  saveStatus,
-  onSave,
-  hasUnsavedChanges = false,
+  autoSaveStatus = 'idle',
+  lastSavedTime,
   onExport,
   onSearch,
   notifications,
@@ -140,23 +136,27 @@ export default function TopBar({
     }
   };
 
-  // 保存状态显示
-  const getSaveStatusDisplay = () => {
-    switch (saveStatus) {
-      case 'saved':
-        return { icon: Check, text: 'Saved', color: 'text-green-600' };
+  // 自动保存状态显示
+  const getAutoSaveStatusDisplay = () => {
+    if (!lastSavedTime && autoSaveStatus === 'idle') {
+      return null; // 初始状态不显示
+    }
+    
+    switch (autoSaveStatus) {
       case 'saving':
-        return { icon: null, text: 'Saving...', color: 'text-blue-600' };
-      case 'offline':
-        return { icon: WifiOff, text: 'Offline', color: 'text-orange-600' };
+        return { text: '正在保存...', color: 'text-blue-600' };
+      case 'saved':
+        const timeStr = lastSavedTime ? 
+          lastSavedTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+        return { text: `已自动保存 (${timeStr})`, color: 'text-green-600' };
       case 'error':
-        return { icon: AlertCircle, text: 'Error', color: 'text-red-600' };
+        return { text: '保存失败，请检查网络', color: 'text-red-600' };
       default:
-        return { icon: Check, text: 'Saved', color: 'text-green-600' };
+        return null;
     }
   };
 
-  const saveStatusDisplay = getSaveStatusDisplay();
+  const autoSaveStatusDisplay = getAutoSaveStatusDisplay();
 
   // 处理导出
   const handleExport = (format: 'png' | 'svg' | 'webp') => {
@@ -225,33 +225,15 @@ export default function TopBar({
           )}
         </div>
 
-        {/* 保存状态和保存按钮 */}
-        <div className="flex items-center space-x-3">
-          {/* 保存按钮 */}
-          {onSave && (
-            <button
-              onClick={onSave}
-              disabled={saveStatus === 'saving' || (!hasUnsavedChanges && saveStatus === 'saved')}
-              className={`flex items-center space-x-1 px-3 py-1.5 text-xs rounded-md transition-colors ${
-                hasUnsavedChanges && saveStatus !== 'saving'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <Save className="w-3 h-3" />
-              <span>{saveStatus === 'saving' ? '保存中...' : '保存'}</span>
-            </button>
-          )}
-          
-          {/* 保存状态显示 */}
-          <div className={`flex items-center space-x-1 text-xs ${saveStatusDisplay.color}`}>
-            {saveStatusDisplay.icon && <saveStatusDisplay.icon className="w-3 h-3" />}
-            {saveStatus === 'saving' && (
+        {/* 自动保存状态显示 */}
+        {autoSaveStatusDisplay && (
+          <div className={`flex items-center space-x-1 text-xs ${autoSaveStatusDisplay.color}`}>
+            {autoSaveStatus === 'saving' && (
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
             )}
-            <span>{saveStatusDisplay.text}</span>
+            <span>{autoSaveStatusDisplay.text}</span>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 中间：搜索 */}

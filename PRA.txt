@@ -1,6 +1,32 @@
-运行网页：
-npm run dev 
-npm install 
+# TinyLingo 网页运行步骤
+
+## 快速启动
+1. 打开终端，进入项目目录：
+   cd "d:\0. Master_Laptop\0.项目\11. 英语世界_trae\tinylingo"
+
+2. 安装依赖（首次运行或依赖更新时）：
+   npm install
+
+3. 启动开发服务器：
+   npm run dev
+
+4. 打开浏览器访问：
+   http://localhost:3000
+
+## 详细说明
+- 项目使用 Next.js 15.5.3 + React 19 + TypeScript + Tailwind CSS
+- 开发服务器启动后会显示本地地址和网络地址
+- 如果端口3000被占用，Next.js会自动使用下一个可用端口
+- 修改代码后页面会自动热重载
+
+## 其他命令
+- 构建生产版本：npm run build
+- 启动生产服务器：npm run start
+- 代码检查：npm run lint
+
+---
+
+原始内容： 
 
 
 「TinyLingo · 微世界英语」(Next.js + TS + Tailwind)
