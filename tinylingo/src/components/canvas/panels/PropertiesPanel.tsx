@@ -303,7 +303,7 @@ export default function PropertiesPanel({
   // 如果没有选中对象，显示提示
   if (selectedObjects.length === 0) {
     return (
-      <div className="w-56 bg-white border-l border-gray-200 flex flex-col">
+      <div className="flex flex-col h-full">
         <div className="flex items-center p-4 border-b">
           <h3 className="text-sm font-medium">属性</h3>
         </div>
@@ -316,7 +316,7 @@ export default function PropertiesPanel({
 
   // Properties 面板渲染
   return (
-    <div className="w-56 bg-white border-l border-gray-200 flex flex-col">
+    <div className="flex flex-col h-full">
       {/* 标题栏 */}
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="text-lg font-semibold">属性</h3>

@@ -939,7 +939,9 @@ export default function CreateWorldPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#FFFBF5' }}>
+    <div 
+      className="h-screen flex flex-col overflow-hidden" 
+    >
       {/* 顶部导航栏 - 固定高度 */}
       <div className="flex-shrink-0">
         <TopBar
@@ -959,10 +961,10 @@ export default function CreateWorldPage() {
         />
       </div>
       
-      {/* 主要内容区域 - 固定高度，三列布局 */}
-      <div className="flex-1 flex min-h-0">
-        {/* 左侧工具栏 - 固定宽度 */}
-        <div className="flex-shrink-0">
+      {/* 主要内容区域 - 固定高度，相对定位容器 */}
+      <div className="flex-1 relative min-h-0">
+        {/* 左侧工具栏 - 绝对定位 */}
+        <div className="absolute left-0 top-0 z-30">
           <LeftToolbar
             activeTool={activeTool}
             onToolChange={setActiveTool}
@@ -996,8 +998,8 @@ export default function CreateWorldPage() {
           />
         </div>
 
-        {/* 画布区域 - 自适应宽度，固定高度，确保不被右侧面板遮挡 */}
-        <div className="flex-1 relative overflow-hidden" style={{ zIndex: 1 }}>
+        {/* 画布区域 - 占据全部空间，无边界 */}
+        <div className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }}>
           <CanvasArea
             canvasObjects={canvasObjects}
             selectedObjectId={selectedObjectId}
@@ -1034,9 +1036,9 @@ export default function CreateWorldPage() {
           />
         </div>
 
-        {/* 右侧属性面板 - 固定宽度，内部滚动 */}
+        {/* 右侧属性面板 - 绝对定位，覆盖在画布之上 */}
         {shouldShowRightPanel && (
-          <div className="flex-shrink-0 w-72">
+          <div className="absolute right-0 top-0 z-40">
             <RightInspector
               selectedObjects={selectedObjects}
               onUpdateObject={(id, updates) => {

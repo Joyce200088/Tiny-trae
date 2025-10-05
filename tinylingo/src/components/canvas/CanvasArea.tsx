@@ -529,11 +529,32 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       e.evt.preventDefault();
     }
     
+    // 获取stage对象 - 区分Konva事件和DOM事件
+    let stage;
+    if (e.target && typeof e.target.getStage === 'function') {
+      // Konva事件：直接从target获取stage
+      stage = e.target.getStage();
+    } else {
+      // DOM事件：从ref获取stage
+      stage = stageRef.current;
+    }
+    
+    // 如果无法获取stage，直接返回
+    if (!stage) {
+      console.warn('无法获取stage对象，跳过滚轮缩放');
+      return;
+    }
+    
     // 移除Ctrl键限制，直接支持滚轮缩放
     const scaleBy = 1.1;
-    const stage = e.target.getStage();
     const oldScale = stage.scaleX();
     const pointer = stage.getPointerPosition();
+    
+    // 如果无法获取指针位置，直接返回
+    if (!pointer) {
+      console.warn('无法获取指针位置，跳过滚轮缩放');
+      return;
+    }
     
     const mousePointTo = {
       x: (pointer.x - stage.x()) / oldScale,

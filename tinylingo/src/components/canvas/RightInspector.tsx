@@ -20,13 +20,14 @@ import {
   Image as ImageIcon,
   Sparkles
 } from 'lucide-react';
+import { useFlexZoomFix } from '@/hooks/useZoomFix';
+
 
 // 导入独立的面板组件
 import PropertiesPanel from './panels/PropertiesPanel';
 import StickersPanel from './StickersPanel';
 import BackgroundPanel from './BackgroundPanel';
 import AIGeneratePanel from './AIGeneratePanel';
-
 // 贴纸数据结构接口
 interface Sticker {
   word: string;
@@ -153,7 +154,7 @@ export default function RightInspector({
   onGroupObjects,
   onUngroupObject,
   onUpdateBackgroundMode, // 背景模式更新函数
-  // 状态机模式管理
+  // 面板状态
   mode = 'properties',
   onModeChange,
   stickers = [],
@@ -162,9 +163,9 @@ export default function RightInspector({
   onStickerDragStart,
   onBackgroundDragStart,
   onOpenBackgrounds,
-  // 删除了onSelectBackground参数，只支持拖拽添加背景
+  // 添加贴纸回调
   onAddSticker, // 添加贴纸回调
-  // AI生成相关props
+  // AI 生成相关
   aiWord = '',
   aiDescription = '',
   aiStyle = 'cartoon',
@@ -184,6 +185,12 @@ export default function RightInspector({
   onDragToCanvas,
   onRegenerateAI
 }: RightInspectorProps) {
+  // 面板高度状态管理 - 固定高度600px
+  const panelHeight = 600;
+  
+  // 使用适用于flex布局的缩放修复
+  const zoomStyle = useFlexZoomFix();
+  
   // 展开状态管理
   const [expandedSections, setExpandedSections] = useState({
     transform: true,
@@ -294,7 +301,7 @@ export default function RightInspector({
 
   // 根据状态机模式渲染不同面板
   return (
-    <div className="w-72 bg-white border-l border-gray-300 flex flex-col h-screen overflow-hidden relative z-20">
+    <div className="w-72 h-full bg-white border-l border-gray-200 shadow-lg flex flex-col" style={zoomStyle}>
       {/* 统一的头部标签栏 - 吸顶固定 */}
       <div className="flex-shrink-0 bg-white border-b border-gray-300 sticky top-0 z-10">
         {/* 标签切换区域 */}
@@ -345,9 +352,10 @@ export default function RightInspector({
         </div>
       </div>
 
-      {/* 内容区域 - 可滚动，防止事件冒泡 */}
+      {/* 内容区域 - 固定高度，可滚动，防止事件冒泡 */}
       <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden"
+        className="overflow-y-auto overflow-x-hidden"
+        style={{ height: `${panelHeight}px` }}
         onWheel={(e) => {
           // 防止滚动事件冒泡到页面
           e.stopPropagation();

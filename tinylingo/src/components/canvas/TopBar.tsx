@@ -20,6 +20,7 @@ import {
   Eye
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSimpleZoomFix } from '@/hooks/useZoomFix';
 
 interface TopBarProps {
   // 文档相关
@@ -85,6 +86,7 @@ export default function TopBar({
 }: TopBarProps) {
   // 路由实例
   const router = useRouter();
+  const zoomFixStyle = useSimpleZoomFix(); // 使用缩放修复Hook
   
   // 文档名编辑状态
   const [isEditingName, setIsEditingName] = useState(false);
@@ -198,7 +200,7 @@ export default function TopBar({
   const shareModeDisplay = getShareModeDisplay();
 
   return (
-    <div className="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-4">
+    <div className="h-12 bg-white border-b border-gray-300 flex items-center justify-between px-4" style={zoomFixStyle}>
       {/* 左侧：返回按钮、文档名和保存状态 */}
       <div className="flex items-center space-x-4">
         {/* 返回按钮 */}

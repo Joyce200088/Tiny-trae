@@ -44,8 +44,8 @@ export default function AIGeneratePanel({
   onRegenerateAI
 }: AIGeneratePanelProps) {
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-3 space-y-4">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {/* 输入表单 */}
         <div className="space-y-3">
           {/* 单词输入 */}

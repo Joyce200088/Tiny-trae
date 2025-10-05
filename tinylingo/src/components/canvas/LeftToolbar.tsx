@@ -20,6 +20,7 @@ import {
   TrendingUp,
   CornerDownRight
 } from 'lucide-react';
+import { useSimpleZoomFix } from '@/hooks/useZoomFix';
 
 interface LeftToolbarProps {
   // 当前选中的工具
@@ -55,7 +56,9 @@ export default function LeftToolbar({
   onOpenBackgrounds,
   onOpenAIGenerator
 }: LeftToolbarProps) {
-  // 移除不再需要的状态
+  const zoomFixStyle = useSimpleZoomFix(); // 使用缩放修复Hook
+  
+  // 子菜单显示状态移除不再需要的状态
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // 基础工具
@@ -255,7 +258,7 @@ export default function LeftToolbar({
         onClick={tool.onClick}
         disabled={tool.disabled}
         className={`
-          relative w-12 h-12 flex items-center justify-center rounded-md transition-colors
+          relative w-10 h-10 flex items-center justify-center rounded-md transition-colors
           ${isActiveButton 
             ? 'text-blue-700 bg-blue-50' 
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -278,25 +281,25 @@ export default function LeftToolbar({
   };
 
   return (
-    <div className="fixed left-4 top-16 z-50 bg-white rounded-lg p-2 space-y-1.5">
+    <div className="fixed left-4 top-16 z-50 bg-white rounded-lg p-1.5 space-y-1" style={zoomFixStyle}>
       {/* 基础工具 */}
-      <div className="flex flex-col space-y-1.5">
+      <div className="flex flex-col space-y-1">
         {basicTools.map(tool => renderToolButton(tool))}
       </div>
 
       {/* 分隔线 */}
-      <div className="border-t border-gray-200 my-1.5"></div>
+      <div className="border-t border-gray-200 my-1"></div>
 
       {/* 内容工具（迁移的功能） */}
-      <div className="flex flex-col space-y-1.5">
+      <div className="flex flex-col space-y-1">
         {contentTools.map(tool => renderToolButton(tool))}
       </div>
 
       {/* 分隔线 */}
-      <div className="border-t border-gray-200 my-1.5"></div>
+      <div className="border-t border-gray-200 my-1"></div>
 
       {/* 绘制工具 */}
-      <div className="flex flex-col space-y-1.5 relative">
+      <div className="flex flex-col space-y-1 relative">
         {drawingTools.map(tool => renderToolButton(tool))}
         
         {/* 线条/箭头子菜单 - 已禁用 */}
@@ -304,7 +307,7 @@ export default function LeftToolbar({
       </div>
 
       {/* 扩展工具 */}
-      <div className="flex flex-col space-y-1.5 relative">
+      <div className="flex flex-col space-y-1 relative">
         {extendedTools.map(tool => renderToolButton(tool))}
         
         {/* 更多工具子菜单 */}
@@ -322,10 +325,10 @@ export default function LeftToolbar({
       {quickActions.length > 0 && (
         <>
           {/* 分隔线 */}
-          <div className="border-t border-gray-200 my-1.5"></div>
+          <div className="border-t border-gray-200 my-1"></div>
           
           {/* 快捷操作 */}
-          <div className="flex flex-col space-y-1.5">
+          <div className="flex flex-col space-y-1">
             {quickActions.map(tool => renderToolButton(tool))}
           </div>
         </>

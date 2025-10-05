@@ -14,6 +14,7 @@ import {
   MessageCircle,
   ExternalLink
 } from 'lucide-react';
+import { useSimpleZoomFix } from '@/hooks/useZoomFix';
 
 interface BottomRightToolsProps {
   // 缩放相关
@@ -64,8 +65,11 @@ export default function BottomRightTools({
   const [dragStartPosition, setDragStartPosition] = useState<{ x: number; y: number } | null>(null);
   const [hasDragged, setHasDragged] = useState(false);
   
+  // 应用缩放修复样式
+  const zoomFixStyle = useSimpleZoomFix();
+  
   const miniMapRef = useRef<HTMLDivElement>(null);
-  const miniMapSize = 200; // 小地图尺寸
+  const miniMapSize = 160; // 小地图尺寸
 
   // 计算小地图的缩放比例
   const getMiniMapScale = () => {
@@ -205,7 +209,7 @@ export default function BottomRightTools({
   ];
 
   return (
-    <div className="fixed bottom-4 left-4 flex flex-col items-start space-y-3 z-50">
+    <div className="fixed bottom-4 left-4 flex flex-col items-start space-y-3 z-50" style={zoomFixStyle}>
       {/* 帮助中心弹窗 */}
       {showHelp && (
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg w-80 max-h-96 overflow-hidden">
@@ -345,10 +349,10 @@ export default function BottomRightTools({
         {!showMiniMap && (
           <button
             onClick={() => setShowMiniMap(true)}
-            className="w-12 h-12 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            className="w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
             title="显示小地图"
           >
-            <Map className="w-4 h-4" />
+            <Map className="w-3.5 h-3.5" />
           </button>
         )}
 
@@ -358,14 +362,14 @@ export default function BottomRightTools({
           <button
             onClick={onZoomOut}
             disabled={canvasScale <= minZoom}
-            className="w-12 h-12 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="缩小 (Ctrl + -)"
           >
-            <Minus className="w-4 h-4" />
+            <Minus className="w-3.5 h-3.5" />
           </button>
 
           {/* 缩放比例显示 */}
-          <div className="px-3 py-2 text-sm font-medium text-gray-700 border-x border-gray-200 min-w-16 text-center">
+          <div className="px-2.5 py-1.5 text-xs font-medium text-gray-700 border-x border-gray-200 min-w-14 text-center">
             {formatZoomPercentage(canvasScale)}
           </div>
 
@@ -373,33 +377,33 @@ export default function BottomRightTools({
           <button
             onClick={onZoomIn}
             disabled={canvasScale >= maxZoom}
-            className="w-12 h-12 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="放大 (Ctrl + +)"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
           </button>
 
           {/* 适配屏幕按钮 */}
           <button
             onClick={onFitToScreen}
-            className="w-12 h-12 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 transition-colors"
             title="适配屏幕 (Ctrl + 0)"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* 帮助中心按钮 */}
         <button
           onClick={() => setShowHelp(!showHelp)}
-          className={`w-12 h-12 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center transition-colors ${
+          className={`w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center transition-colors ${
             showHelp 
               ? 'text-blue-600 bg-blue-50 border-blue-200' 
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
           }`}
           title="帮助中心"
         >
-          <HelpCircle className="w-4 h-4" />
+          <HelpCircle className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

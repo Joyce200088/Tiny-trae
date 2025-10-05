@@ -19,7 +19,7 @@ export default function BackgroundPanel({
           {backgrounds.map((background, index) => (
             <div
               key={index}
-              className="aspect-video border rounded-lg overflow-hidden hover:border-blue-300 cursor-pointer transition-colors"
+              className="aspect-video border-gray-300 border rounded-lg overflow-hidden hover:border-blue-300 cursor-pointer transition-colors"
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/json', JSON.stringify({
