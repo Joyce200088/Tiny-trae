@@ -55,8 +55,7 @@ export default function LeftToolbar({
   onOpenBackgrounds,
   onOpenAIGenerator
 }: LeftToolbarProps) {
-  const [showShapeMenu, setShowShapeMenu] = useState(false);
-  const [showLineMenu, setShowLineMenu] = useState(false);
+  // 移除不再需要的状态
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // 基础工具
@@ -108,15 +107,17 @@ export default function LeftToolbar({
       id: 'shape',
       name: '形状',
       icon: Square,
-      tooltip: '基础形状',
-      onClick: () => setShowShapeMenu(!showShapeMenu)
+      tooltip: '基础形状（敬请期待）',
+      disabled: true, // 禁用功能，保留图标占位符
+      onClick: undefined // 移除点击事件
     },
     {
       id: 'line-arrow',
       name: '线条/箭头',
-      icon: activeTool === 'arrow' ? ArrowRight : Minus,
-      tooltip: '绘制线条/箭头 (L)',
-      onClick: () => setShowLineMenu(!showLineMenu)
+      icon: Minus, // 固定图标，不再根据activeTool变化
+      tooltip: '绘制线条/箭头（敬请期待）',
+      disabled: true, // 禁用功能，保留图标占位符
+      onClick: undefined // 移除点击事件
     }
   ];
 
@@ -298,43 +299,8 @@ export default function LeftToolbar({
       <div className="px-3 mb-4 space-y-2 relative">
         {drawingTools.map(tool => renderToolButton(tool))}
         
-        {/* 线条/箭头子菜单 */}
-        {showLineMenu && (
-          <div className="absolute left-16 top-32 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
-            <div className="grid grid-cols-2 gap-1">
-              {lineItems.map(line => (
-                <button
-                  key={line.id}
-                  onClick={line.onClick}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
-                  title={line.tooltip}
-                >
-                  <line.icon className="w-4 h-4" />
-                  <span>{line.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* 形状子菜单 */}
-        {showShapeMenu && (
-          <div className="absolute left-16 top-16 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
-            <div className="grid grid-cols-2 gap-1">
-              {shapeItems.map(shape => (
-                <button
-                  key={shape.id}
-                  onClick={shape.onClick}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
-                  title={shape.tooltip}
-                >
-                  <shape.icon className="w-4 h-4" />
-                  <span>{shape.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* 线条/箭头子菜单 - 已禁用 */}
+        {/* 形状子菜单 - 已禁用 */}
       </div>
 
       {/* 扩展工具 */}
@@ -368,13 +334,11 @@ export default function LeftToolbar({
       {/* 底部占位 */}
       <div className="flex-1"></div>
 
-      {/* 点击外部关闭菜单 */}
-      {(showShapeMenu || showMoreMenu || showLineMenu) && (
+      {/* 点击外部关闭菜单 - 已禁用形状和线条菜单 */}
+      {showMoreMenu && (
         <div
           className="fixed inset-0 z-40"
           onClick={() => {
-            setShowShapeMenu(false);
-            setShowLineMenu(false);
             setShowMoreMenu(false);
           }}
         />

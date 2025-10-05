@@ -563,96 +563,8 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
         const canvasX = (pointerPosition.x - canvasPosition.x) / canvasScale;
         const canvasY = (pointerPosition.y - canvasPosition.y) / canvasScale;
         
-        // 根据当前工具创建对象
-        if (activeTool === 'rectangle') {
-          const newRect = {
-            id: `rect-${Date.now()}`,
-            type: 'rectangle',
-            x: canvasX,
-            y: canvasY,
-            width: 100,
-            height: 60,
-            fill: '#3B82F6',
-            stroke: '#1E40AF',
-            strokeWidth: 2,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newRect);
-        } else if (activeTool === 'circle') {
-          const newCircle = {
-            id: `circle-${Date.now()}`,
-            type: 'circle',
-            x: canvasX,
-            y: canvasY,
-            radius: 50,
-            fill: '#10B981',
-            stroke: '#059669',
-            strokeWidth: 2,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newCircle);
-        } else if (activeTool === 'line') {
-          const newLine = {
-            id: `line-${Date.now()}`,
-            type: 'line',
-            points: [canvasX, canvasY, canvasX + 100, canvasY],
-            stroke: '#EF4444',
-            strokeWidth: 3,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newLine);
-        } else if (activeTool === 'arrow') {
-          const newArrow = {
-            id: `arrow-${Date.now()}`,
-            type: 'arrow',
-            points: [canvasX, canvasY, canvasX + 100, canvasY],
-            stroke: '#8B5CF6',
-            strokeWidth: 3,
-            pointerLength: 10,
-            pointerWidth: 10,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newArrow);
-        } else if (activeTool === 'curved-line') {
-          const newCurvedLine = {
-            id: `curved-line-${Date.now()}`,
-            type: 'curved-line',
-            points: [canvasX, canvasY, canvasX + 50, canvasY - 30, canvasX + 100, canvasY],
-            stroke: '#F59E0B',
-            strokeWidth: 3,
-            tension: 0.5,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newCurvedLine);
-        } else if (activeTool === 'elbow-line') {
-          const newElbowLine = {
-            id: `elbow-line-${Date.now()}`,
-            type: 'elbow-line',
-            points: [canvasX, canvasY, canvasX + 50, canvasY, canvasX + 50, canvasY + 50, canvasX + 100, canvasY + 50],
-            stroke: '#06B6D4',
-            strokeWidth: 3,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-            locked: false
-          };
-          onCreateObject(newElbowLine);
-        } else if (activeTool === 'text') {
+        // 根据当前工具创建对象 - 移除形状和线条绘制功能
+        if (activeTool === 'text') {
           // Point Text: 点击创建文本
           const newText = {
             id: `text-${Date.now()}`,
@@ -676,6 +588,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
           onCreateObject(newText);
           setEditingTextId(newText.id);
         }
+        // 移除了rectangle、circle、line、arrow、curved-line、elbow-line等形状绘制功能
       }
       
       // 取消选择和右键菜单

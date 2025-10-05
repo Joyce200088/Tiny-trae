@@ -14,8 +14,11 @@ import {
   WifiOff,
   FileText,
   Bell,
-  User
+  User,
+  Settings,
+  LogOut
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface TopBarProps {
   // 文档相关
@@ -75,6 +78,9 @@ export default function TopBar({
   onShare,
   onBack
 }: TopBarProps) {
+  // 路由实例
+  const router = useRouter();
+  
   // 文档名编辑状态
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState(documentName);
@@ -540,9 +546,15 @@ export default function TopBar({
           {showUserMenu && (
             <div className="absolute right-0 top-12 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
               <div className="py-2">
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                <button 
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    router.push('/u/joyce');
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                >
                   <User className="w-4 h-4" />
-                  <span>账户信息</span>
+                  <span>个人主页</span>
                 </button>
                 <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
                   <Settings className="w-4 h-4" />
