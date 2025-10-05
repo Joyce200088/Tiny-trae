@@ -558,6 +558,11 @@ export default function CreateWorldPage() {
       
       localStorage.setItem('savedWorlds', JSON.stringify(savedWorlds));
       
+      // 触发自定义事件通知其他页面更新
+      window.dispatchEvent(new CustomEvent('localStorageUpdate', {
+        detail: { key: 'savedWorlds', data: savedWorlds }
+      }));
+      
       // 更新当前世界ID
       setCurrentWorldId(worldData.id);
       
@@ -834,8 +839,8 @@ export default function CreateWorldPage() {
       {/* 顶部导航栏 - 固定高度 */}
       <div className="flex-shrink-0">
         <TopBar
-          documentName="我的英语世界"
-          onDocumentNameChange={(name) => console.log('Document name changed:', name)}
+          documentName={documentName}
+          onDocumentNameChange={setDocumentName}
           autoSaveStatus={autoSaveStatus}
           lastSavedTime={lastSavedTime}
           onExport={(format, options) => console.log('Export:', format, options)}

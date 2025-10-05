@@ -449,10 +449,34 @@ function MyWorldsTab({
   useEffect(() => {
     setIsClient(true);
     // 从localStorage加载保存的世界
-    const saved = localStorage.getItem('savedWorlds');
-    if (saved) {
-      setSavedWorlds(JSON.parse(saved));
-    }
+    const loadSavedWorlds = () => {
+      const saved = localStorage.getItem('savedWorlds');
+      if (saved) {
+        setSavedWorlds(JSON.parse(saved));
+      }
+    };
+    
+    loadSavedWorlds();
+    
+    // 监听localStorage变化，实现实时同步
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'savedWorlds') {
+        loadSavedWorlds();
+      }
+    };
+    
+    // 监听同一页面内的localStorage变化（用于同一浏览器标签页内的更新）
+    const handleCustomStorageChange = () => {
+      loadSavedWorlds();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('localStorageUpdate', handleCustomStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageUpdate', handleCustomStorageChange);
+    };
   }, []);
 
   // 添加全局点击事件监听器来关闭右键菜单
