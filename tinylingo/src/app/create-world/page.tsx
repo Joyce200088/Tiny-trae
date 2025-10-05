@@ -630,6 +630,29 @@ export default function CreateWorldPage() {
     }
   };
 
+  // 播放贴纸英文音频的函数
+  const playStickerAudio = (stickerData: StickerData) => {
+    if (!stickerData) return;
+    
+    // 获取英文单词
+    const englishWord = stickerData.name;
+    if (!englishWord) return;
+    
+    // 使用Web Speech API播放英文音频
+    if ('speechSynthesis' in window) {
+      // 停止当前播放的语音
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(englishWord);
+      utterance.lang = 'en-US'; // 固定使用美式英语
+      utterance.rate = 0.8;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   // 添加贴纸到画布
   const handleAddSticker = (sticker: StickerData) => {
     const newObject = {
@@ -645,11 +668,57 @@ export default function CreateWorldPage() {
       stickerData: sticker
     };
     setCanvasObjects(prev => [...prev, newObject]);
+    
+    // 自动播放贴纸的英文音频
+    playStickerAudio(sticker);
   };
 
-  // 选择背景
-  const handleSelectBackground = (background: Background) => {
-    setSelectedBackground(background);
+  // 选择背景 - 直接添加为可交互的图片对象
+  const handleSelectBackground = (backgroundData: any) => {
+    // 创建临时图片元素来获取原始尺寸
+    const img = new Image();
+    img.onload = () => {
+      // 计算合适的初始尺寸，保持长宽比
+      const maxWidth = canvasSize.width * 0.8; // 最大宽度为画布的80%
+      const maxHeight = canvasSize.height * 0.8; // 最大高度为画布的80%
+      
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      
+      // 如果图片太大，按比例缩放
+      if (width > maxWidth || height > maxHeight) {
+        const scaleX = maxWidth / width;
+        const scaleY = maxHeight / height;
+        const scale = Math.min(scaleX, scaleY);
+        
+        width = width * scale;
+        height = height * scale;
+      }
+      
+      // 居中放置
+      const x = (canvasSize.width - width) / 2;
+      const y = (canvasSize.height - height) / 2;
+      
+      const newBackground = {
+        id: `background-${Date.now()}`,
+        type: 'image', // 使用image类型，享受完整的交互功能
+        src: backgroundData.src || backgroundData.data?.url,
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        locked: false,
+        opacity: 1,
+        visible: true
+      };
+      
+      setCanvasObjects([...canvasObjects, newBackground]);
+    };
+    
+    img.src = backgroundData.src || backgroundData.data?.url;
   };
 
   // AI生成处理函数

@@ -24,10 +24,21 @@ export default function BackgroundPanel({
               onDragStart={(e) => {
                 e.dataTransfer.setData('application/json', JSON.stringify({
                   type: 'background',
+                  src: background.url,
                   data: background
                 }));
               }}
-              onClick={() => onSelectBackground?.(background)}
+              onClick={() => {
+                // 点击背景图片时，也通过拖拽数据的方式添加到画布
+                const backgroundData = {
+                  type: 'background',
+                  src: background.url,
+                  data: background
+                };
+                
+                // 触发选择背景的回调，传递拖拽数据格式
+                onSelectBackground?.(backgroundData);
+              }}
             >
               <img src={background.url} alt={background.name} className="w-full h-full object-cover" />
             </div>
