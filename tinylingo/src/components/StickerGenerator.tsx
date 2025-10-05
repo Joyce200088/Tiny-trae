@@ -6,9 +6,10 @@ import { identifyImageAndGenerateContent, type EnglishLearningContent } from '..
 
 interface StickerGeneratorProps {
   onStickerGenerated?: (stickers: any[]) => void;
+  onClose?: () => void;
 }
 
-const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated }) => {
+const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated, onClose }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);

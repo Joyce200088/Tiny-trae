@@ -303,7 +303,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   onToolChange
 }, ref) => {
   const stageRef = useRef<any>(null);
-  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, objectId: null });
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; objectId: string | null }>({ visible: false, x: 0, y: 0, objectId: null });
   const [selectionBox, setSelectionBox] = useState({ visible: false, x: 0, y: 0, width: 0, height: 0 });
   const [alignmentGuides, setAlignmentGuides] = useState<any[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -316,7 +316,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   const [textBoxEnd, setTextBoxEnd] = useState<{ x: number; y: number } | null>(null);
 
   const [spacePressed, setSpacePressed] = useState(false);
-  const [backgroundImg] = useImage(backgroundImage);
+  const [backgroundImg] = useImage(backgroundImage || '');
   
   // 窗口尺寸状态
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });

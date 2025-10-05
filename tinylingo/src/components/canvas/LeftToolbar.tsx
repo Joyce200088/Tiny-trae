@@ -58,8 +58,10 @@ export default function LeftToolbar({
 }: LeftToolbarProps) {
   const zoomFixStyle = useSimpleZoomFix(); // 使用缩放修复Hook
   
-  // 子菜单显示状态移除不再需要的状态
+  // 子菜单显示状态
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showLineMenu, setShowLineMenu] = useState(false);
+  const [showShapeMenu, setShowShapeMenu] = useState(false);
 
   // 基础工具
   const basicTools: ToolItem[] = [

@@ -58,12 +58,17 @@ export type World = {
   id: string;
   ownerId: string;
   name: string;
+  description?: string; // 添加描述字段
+  tags?: string[]; // 添加标签字段
   boardId?: string;
   nodes: WorldNode[];
   wordCount: number;
   likes: number;
   favorites: number;
   coverUrl?: string;
+  thumbnail?: string;      // 缩略图URL
+  previewImage?: string;   // 预览图URL
+  lastModified?: string;   // 最后修改时间
   createdAt: string;
   updatedAt: string;
 };
@@ -97,4 +102,52 @@ export type ApiResponse<T> = {
 export type RecognitionResult = {
   stickers: Sticker[];
   board?: Board;
+};
+
+// 画布对象类型
+export type CanvasObject = {
+  id: string;
+  type: 'sticker' | 'text' | 'shape' | 'line' | 'arrow' | 'group' | 'background';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+  opacity: number;
+  visible: boolean;
+  locked: boolean;
+  zIndex: number;
+  aspectRatioLocked?: boolean;
+  
+  // 样式属性
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  shadow?: {
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  cornerRadius?: number;
+  
+  // 文本属性
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  lineHeight?: number;
+  
+  // 贴纸数据
+  stickerData?: any;
+  
+  // 背景数据
+  backgroundData?: any;
+  backgroundMode?: 'cover' | 'contain' | 'tile';
+  
+  // 分组
+  children?: string[];
 };

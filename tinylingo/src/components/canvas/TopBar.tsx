@@ -114,6 +114,9 @@ export default function TopBar({
   
   // 分享弹窗状态
   const [showShareModal, setShowShareModal] = useState(false);
+  
+  // 分享链接状态
+  const [shareUrl, setShareUrl] = useState<string>('');
 
   // 处理文档名编辑
   useEffect(() => {

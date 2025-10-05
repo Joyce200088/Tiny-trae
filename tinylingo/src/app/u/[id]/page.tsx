@@ -13,6 +13,8 @@ import WorldsGrid from '@/components/WorldsGrid';
 import StickersGrid from '@/components/StickersGrid';
 import { StatusIcon } from '@/components/StatusIcon';
 import InlineWorldCreation from '@/components/InlineWorldCreation';
+import { World, CanvasObject } from '@/lib/types';
+import { MasteryStatus, StickerData } from '@/types/sticker';
 import AIStickerGeneratorModal from '@/components/AIStickerGeneratorModal';
 
 /**
@@ -75,6 +77,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // 内嵌世界创建流程状态
+  const [allTags, setAllTags] = useState<string[]>(['Kitchen', 'Food', 'Tool', 'Nature', 'Animal', 'Travel']);
   const [showInlineWorldCreation, setShowInlineWorldCreation] = useState(false);
   const [worldCreationStep, setWorldCreationStep] = useState<'template' | 'ai' | 'blank'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -84,6 +87,7 @@ export default function ProfilePage() {
     if (newTagName && newTagName.trim() && !allTags.includes(newTagName.trim())) {
       // TODO: 调用 Supabase API 添加新标签
       console.log('添加新标签:', newTagName.trim());
+      setAllTags(prev => [...prev, newTagName.trim()]); // 更新allTags状态
       setNewTagName('');
       setShowAddTagModal(false);
     }
@@ -357,18 +361,18 @@ function MyWorldsTab({
   setShowCreateModal?: (show: boolean) => void;
 }) {
   const [sortBy, setSortBy] = useState('lastModified');
-  const [savedWorlds, setSavedWorlds] = useState([]);
-  const [contextMenu, setContextMenu] = useState(null);
-  const [deletingWorldId, setDeletingWorldId] = useState(null);
+  const [savedWorlds, setSavedWorlds] = useState<World[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldId: string } | null>(null);
+  const [deletingWorldId, setDeletingWorldId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
   
   // 新增功能状态
   const [searchTerm, setSearchTerm] = useState('');
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedWorldIds, setSelectedWorldIds] = useState([]);
+  const [selectedWorldIds, setSelectedWorldIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [allTags, setAllTags] = useState(['Kitchen', 'Food', 'Tool', 'Nature', 'Animal', 'Travel']);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>(['Kitchen', 'Food', 'Tool', 'Nature', 'Animal', 'Travel']);
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [showBatchTagModal, setShowBatchTagModal] = useState(false);
   const [showAddTagModal, setShowAddTagModal] = useState(false);
@@ -390,7 +394,7 @@ function MyWorldsTab({
   };
 
   // 计算世界统计信息的函数
-  const calculateWorldStats = (world: any) => {
+  const calculateWorldStats = (world: World & { canvasObjects?: CanvasObject[] }) => {
     if (!world.canvasObjects || !Array.isArray(world.canvasObjects)) {
       return {
         uniqueWords: 0,
@@ -400,7 +404,7 @@ function MyWorldsTab({
     }
 
     // 过滤出贴纸对象
-    const stickerObjects = world.canvasObjects.filter((obj: any) => obj.stickerData);
+    const stickerObjects = world.canvasObjects.filter((obj: CanvasObject) => obj.stickerData);
     
     // 计算贴纸数量
     const stickerCount = stickerObjects.length;
@@ -408,7 +412,7 @@ function MyWorldsTab({
     // 计算去重单词数量
     const uniqueWords = new Set(
       stickerObjects
-        .map((obj: any) => obj.stickerData?.name || obj.stickerData?.word || obj.name)
+        .map((obj: CanvasObject) => obj.stickerData?.name || obj.stickerData?.word || (obj as any).name)
         .filter(Boolean)
         .map((word: string) => word.toLowerCase().trim())
     ).size;
@@ -505,7 +509,7 @@ function MyWorldsTab({
     
     // 标签过滤
     const matchesTags = selectedTags.length === 0 || 
-      (world.tags && selectedTags.some(tag => world.tags.includes(tag)));
+      (world.tags && selectedTags.some(tag => world.tags!.includes(tag)));
     
     return matchesSearch && matchesTags;
   });
@@ -519,7 +523,7 @@ function MyWorldsTab({
         return b.wordCount - a.wordCount;
       case 'lastModified':
       default:
-        return new Date(b.lastModified) - new Date(a.lastModified);
+        return new Date(b.lastModified || '').getTime() - new Date(a.lastModified || '').getTime();
     }
   });
 
@@ -577,7 +581,7 @@ function MyWorldsTab({
     setShowBatchDeleteModal(false);
   };
 
-  const handleContextMenu = (e, worldId) => {
+  const handleContextMenu = (e: React.MouseEvent, worldId: string) => {
     e.preventDefault();
     setContextMenu({
       x: e.clientX,
@@ -586,7 +590,7 @@ function MyWorldsTab({
     });
   };
 
-  const handleDeleteWorld = async (worldId) => {
+  const handleDeleteWorld = async (worldId: string) => {
     setDeletingWorldId(worldId);
     setTimeout(() => {
       const updatedWorlds = savedWorlds.filter(world => world.id !== worldId);
@@ -975,15 +979,16 @@ function MyWorldsTab({
 // 贴纸库Tab组件 - 复用my-stickers页面的完整结构
 function StickersTab() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [masteryFilter, setMasteryFilter] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
-  const [selectedStickers, setSelectedStickers] = useState([]);
+  const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAddTagModal, setShowAddTagModal] = useState(false);
   
   // 多选模式状态
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedStickerIds, setSelectedStickerIds] = useState([]);
+  const [selectedStickerIds, setSelectedStickerIds] = useState<string[]>([]);
   
   // 批量操作模态框状态
   const [showBatchTagModal, setShowBatchTagModal] = useState(false);
@@ -991,11 +996,11 @@ function StickersTab() {
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   
   // 贴纸详情模态框状态
-  const [selectedSticker, setSelectedSticker] = useState(null);
+  const [selectedSticker, setSelectedSticker] = useState<StickerData | null>(null);
   const [isStickerModalOpen, setIsStickerModalOpen] = useState(false);
 
   // 模拟贴纸数据 - 使用标准 StickerData 接口，转换为状态以支持动态更新
-  const [mockStickers, setMockStickers] = useState([
+  const [mockStickers, setMockStickers] = useState<StickerData[]>([
     {
       id: '1',
       name: 'Ceramic Mug',
@@ -1055,7 +1060,7 @@ function StickersTab() {
     return matchesSearch && matchesTags && matchesMastery;
   });
 
-  const handleTagToggle = (tag) => {
+  const handleTagToggle = (tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag) 
         ? prev.filter(t => t !== tag)
@@ -1064,7 +1069,7 @@ function StickersTab() {
   };
 
   // 处理贴纸选择 - 修改为打开详情模态框
-  const handleStickerSelect = (stickerId) => {
+  const handleStickerSelect = (stickerId: string) => {
     if (isMultiSelectMode) {
       // 多选模式下处理复选框选择
       setSelectedStickerIds(prev => 
@@ -1107,12 +1112,12 @@ function StickersTab() {
   };
 
   // 导航到其他贴纸
-  const navigateToSticker = (sticker) => {
+  const navigateToSticker = (sticker: StickerData) => {
     setSelectedSticker(sticker);
   };
 
   // 保存贴纸修改
-  const handleSaveSticker = (updatedSticker) => {
+  const handleSaveSticker = (updatedSticker: StickerData) => {
     // 更新本地状态
     setSelectedSticker(updatedSticker);
     
@@ -1161,7 +1166,7 @@ function StickersTab() {
     // router.push(`/dictation?stickers=${selectedStickerIds.join(',')}`);
   };
 
-  const applyBatchMastery = (masteryStatus) => {
+  const applyBatchMastery = (masteryStatus: MasteryStatus) => {
     // 批量更新掌握状态
     setMockStickers(prev => prev.map(sticker => 
       selectedStickerIds.includes(sticker.id) 
@@ -1174,7 +1179,7 @@ function StickersTab() {
     console.log('批量设置掌握状态完成:', masteryStatus);
   };
 
-  const applyBatchTags = (newTags) => {
+  const applyBatchTags = (newTags: string[]) => {
     // 批量添加标签
     setMockStickers(prev => prev.map(sticker => 
       selectedStickerIds.includes(sticker.id) 
