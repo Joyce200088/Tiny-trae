@@ -58,7 +58,7 @@ export default function BottomRightTools({
   onViewportChange,
   canvasObjects
 }: BottomRightToolsProps) {
-  const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showMiniMap, setShowMiniMap] = useState(false); // 默认不展开小地图
   const [showHelp, setShowHelp] = useState(false);
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
   const [dragStartPosition, setDragStartPosition] = useState<{ x: number; y: number } | null>(null);
@@ -348,7 +348,7 @@ export default function BottomRightTools({
             className="w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
             title="显示小地图"
           >
-            <ChevronUp className="w-4 h-4" />
+            <Map className="w-4 h-4" />
           </button>
         )}
 
