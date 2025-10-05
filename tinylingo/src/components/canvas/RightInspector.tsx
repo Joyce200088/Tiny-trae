@@ -120,7 +120,7 @@ interface RightInspectorProps {
   onStickerDragStart?: (sticker: any) => void;
   onBackgroundDragStart?: (background: any) => void;
   onOpenBackgrounds?: () => void;
-  onSelectBackground?: (background: any) => void; // 选择背景回调
+  // 删除了onSelectBackground，只支持拖拽添加背景
   onAddSticker?: (sticker: any) => void; // 添加贴纸回调
   
   // AI生成相关
@@ -162,7 +162,7 @@ export default function RightInspector({
   onStickerDragStart,
   onBackgroundDragStart,
   onOpenBackgrounds,
-  onSelectBackground, // 选择背景回调
+  // 删除了onSelectBackground参数，只支持拖拽添加背景
   onAddSticker, // 添加贴纸回调
   // AI生成相关props
   aiWord = '',
@@ -380,7 +380,6 @@ export default function RightInspector({
         {mode === 'backgrounds' && (
           <BackgroundPanel 
             backgrounds={backgrounds}
-            onSelectBackground={onSelectBackground}
           />
         )}
         

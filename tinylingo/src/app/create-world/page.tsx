@@ -897,6 +897,41 @@ export default function CreateWorldPage() {
   };
 
   // 重新生成
+  // 处理预览功能
+  const handlePreview = () => {
+    // 生成或使用现有的worldId
+    const previewWorldId = currentWorldId || `world_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 保存当前世界数据到localStorage
+    const worldData: WorldData = {
+      id: previewWorldId,
+      name: documentName,
+      description: '',
+      thumbnail: '',
+      coverUrl: '',
+      wordCount: canvasObjects.filter(obj => obj.stickerData).length,
+      stickerCount: canvasObjects.filter(obj => obj.stickerData).length,
+      likes: 0,
+      favorites: 0,
+      isPublic: false,
+      canvasData: {
+        objects: canvasObjects,
+        background: selectedBackground
+      },
+      canvasObjects: canvasObjects,
+      selectedBackground: selectedBackground,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    };
+    
+    // 保存到localStorage
+    localStorage.setItem(`world_${previewWorldId}`, JSON.stringify(worldData));
+    
+    // 跳转到预览页面
+    router.push(`/view-world?worldId=${previewWorldId}`);
+  };
+
   const handleRegenerateAI = () => {
     setGeneratedImage(null);
     setTransparentImage(null);
@@ -913,6 +948,7 @@ export default function CreateWorldPage() {
           autoSaveStatus={autoSaveStatus}
           lastSavedTime={lastSavedTime}
           onExport={(format, options) => console.log('Export:', format, options)}
+          onPreview={handlePreview}
           onSearch={(query) => console.log('Search:', query)}
           notifications={[]}
           onNotificationDismiss={(id) => console.log('Dismiss notification:', id)}
@@ -1057,9 +1093,8 @@ export default function CreateWorldPage() {
               // 贴纸相关
               userStickers={userStickers}
               onAddSticker={handleAddSticker}
-              // 背景相关
+              // 背景相关 - 只支持拖拽添加，不支持点击添加
               backgrounds={mockBackgrounds}
-              onSelectBackground={handleSelectBackground}
               // AI生成相关
               aiWord={aiWord}
               aiDescription={aiDescription}

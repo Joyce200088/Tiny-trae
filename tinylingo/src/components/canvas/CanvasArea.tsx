@@ -524,7 +524,10 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
 
   // 鼠标滚轮缩放（无需按键）
   const handleWheel = useCallback((e: any) => {
-    e.evt.preventDefault();
+    // 添加安全检查，防止undefined错误
+    if (e && e.evt && typeof e.evt.preventDefault === 'function') {
+      e.evt.preventDefault();
+    }
     
     // 移除Ctrl键限制，直接支持滚轮缩放
     const scaleBy = 1.1;
@@ -692,7 +695,10 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
 
   // 右键菜单处理
   const handleContextMenu = (e: any) => {
-    e.evt.preventDefault();
+    // 添加安全检查，防止undefined错误
+    if (e && e.evt && typeof e.evt.preventDefault === 'function') {
+      e.evt.preventDefault();
+    }
     const stage = e.target.getStage();
     const pointerPosition = stage?.getPointerPosition();
     

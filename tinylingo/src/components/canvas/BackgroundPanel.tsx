@@ -4,12 +4,12 @@ import React from 'react';
 
 interface BackgroundPanelProps {
   backgrounds?: any[];
-  onSelectBackground?: (background: any) => void;
+  // 删除了onSelectBackground，只支持拖拽添加背景
 }
 
 export default function BackgroundPanel({
-  backgrounds = [],
-  onSelectBackground
+  backgrounds = []
+  // 删除了onSelectBackground参数，只支持拖拽添加背景
 }: BackgroundPanelProps) {
   return (
     <div className="h-full flex flex-col">
@@ -29,15 +29,8 @@ export default function BackgroundPanel({
                 }));
               }}
               onClick={() => {
-                // 点击背景图片时，也通过拖拽数据的方式添加到画布
-                const backgroundData = {
-                  type: 'background',
-                  src: background.url,
-                  data: background
-                };
-                
-                // 触发选择背景的回调，传递拖拽数据格式
-                onSelectBackground?.(backgroundData);
+                // 移除点击添加背景功能，只保留拖拽功能
+                // 用户只能通过拖拽来添加背景到画布
               }}
             >
               <img src={background.url} alt={background.name} className="w-full h-full object-cover" />

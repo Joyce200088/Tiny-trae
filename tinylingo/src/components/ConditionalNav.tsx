@@ -11,8 +11,8 @@ import Nav from './Nav';
 export default function ConditionalNav() {
   const pathname = usePathname();
   
-  // 在画布页面隐藏导航栏
-  const shouldHideNav = pathname === '/create-world';
+  // 在画布页面和预览页面隐藏导航栏
+  const shouldHideNav = pathname === '/create-world' || pathname === '/view-world';
   
   // 如果需要隐藏导航栏，返回null
   if (shouldHideNav) {
