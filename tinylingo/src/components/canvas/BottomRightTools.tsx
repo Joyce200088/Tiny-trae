@@ -345,7 +345,7 @@ export default function BottomRightTools({
         {!showMiniMap && (
           <button
             onClick={() => setShowMiniMap(true)}
-            className="w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            className="w-12 h-12 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
             title="显示小地图"
           >
             <Map className="w-4 h-4" />
@@ -358,7 +358,7 @@ export default function BottomRightTools({
           <button
             onClick={onZoomOut}
             disabled={canvasScale <= minZoom}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-12 h-12 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="缩小 (Ctrl + -)"
           >
             <Minus className="w-4 h-4" />
@@ -373,7 +373,7 @@ export default function BottomRightTools({
           <button
             onClick={onZoomIn}
             disabled={canvasScale >= maxZoom}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-12 h-12 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="放大 (Ctrl + +)"
           >
             <Plus className="w-4 h-4" />
@@ -382,7 +382,7 @@ export default function BottomRightTools({
           {/* 适配屏幕按钮 */}
           <button
             onClick={onFitToScreen}
-            className="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 transition-colors"
+            className="w-12 h-12 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 transition-colors"
             title="适配屏幕 (Ctrl + 0)"
           >
             <Maximize2 className="w-4 h-4" />
@@ -392,7 +392,7 @@ export default function BottomRightTools({
         {/* 帮助中心按钮 */}
         <button
           onClick={() => setShowHelp(!showHelp)}
-          className={`w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center transition-colors ${
+          className={`w-12 h-12 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center transition-colors ${
             showHelp 
               ? 'text-blue-600 bg-blue-50 border-blue-200' 
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'

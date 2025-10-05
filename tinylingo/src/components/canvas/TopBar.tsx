@@ -198,7 +198,7 @@ export default function TopBar({
   const shareModeDisplay = getShareModeDisplay();
 
   return (
-    <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4" style={{backgroundColor: '#FFFBF5'}}>
+    <div className="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-4">
       {/* 左侧：返回按钮、文档名和保存状态 */}
       <div className="flex items-center space-x-4">
         {/* 返回按钮 */}

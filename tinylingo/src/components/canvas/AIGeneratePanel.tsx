@@ -93,7 +93,7 @@ export default function AIGeneratePanel({
                   onClick={() => onAiStyleChange?.(style.key)}
                   className={`px-2 py-1.5 text-xs rounded-lg border transition-colors ${
                     aiStyle === style.key
-                      ? 'bg-purple-100 border-purple-300 text-purple-700'
+                      ? 'bg-blue-50 border-blue-600 text-blue-600'
                       : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -120,7 +120,7 @@ export default function AIGeneratePanel({
                   onClick={() => onAiViewpointChange?.(viewpoint.key)}
                   className={`px-2 py-1.5 text-xs rounded-lg border transition-colors ${
                     aiViewpoint === viewpoint.key
-                      ? 'bg-purple-100 border-purple-300 text-purple-700'
+                      ? 'bg-blue-50 border-blue-600 text-blue-600'
                       : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -134,7 +134,7 @@ export default function AIGeneratePanel({
           <button
             onClick={onGenerateAI}
             disabled={!aiWord.trim() || isGenerating}
-            className="w-full px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed font-medium transition-all"
+            className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-all"
           >
             {isGenerating ? '生成中...' : '生成贴纸'}
           </button>

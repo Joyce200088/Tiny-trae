@@ -255,10 +255,10 @@ export default function LeftToolbar({
         onClick={tool.onClick}
         disabled={tool.disabled}
         className={`
-          relative w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200
+          relative w-12 h-12 flex items-center justify-center rounded-md transition-colors
           ${isActiveButton 
-            ? 'bg-blue-100 text-blue-700 border border-blue-300' 
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            ? 'text-blue-700 bg-blue-50' 
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
           }
           ${tool.disabled 
             ? 'opacity-50 cursor-not-allowed' 
@@ -267,7 +267,7 @@ export default function LeftToolbar({
         `}
         title={tool.tooltip}
       >
-        <tool.icon className="w-5 h-5" />
+        <tool.icon className="w-4 h-4" />
         {tool.badge && (
           <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
             {tool.badge}
@@ -278,25 +278,25 @@ export default function LeftToolbar({
   };
 
   return (
-    <div className="w-16 border-r border-gray-200 flex flex-col py-4" style={{backgroundColor: '#FFFBF5'}}>
+    <div className="fixed left-4 top-16 z-50 bg-white rounded-lg p-2 space-y-1.5">
       {/* 基础工具 */}
-      <div className="px-3 mb-4">
+      <div className="flex flex-col space-y-1.5">
         {basicTools.map(tool => renderToolButton(tool))}
       </div>
 
       {/* 分隔线 */}
-      <div className="mx-3 mb-4 border-t border-gray-200"></div>
+      <div className="border-t border-gray-200 my-1.5"></div>
 
       {/* 内容工具（迁移的功能） */}
-      <div className="px-3 mb-4 space-y-2">
+      <div className="flex flex-col space-y-1.5">
         {contentTools.map(tool => renderToolButton(tool))}
       </div>
 
       {/* 分隔线 */}
-      <div className="mx-3 mb-4 border-t border-gray-200"></div>
+      <div className="border-t border-gray-200 my-1.5"></div>
 
       {/* 绘制工具 */}
-      <div className="px-3 mb-4 space-y-2 relative">
+      <div className="flex flex-col space-y-1.5 relative">
         {drawingTools.map(tool => renderToolButton(tool))}
         
         {/* 线条/箭头子菜单 - 已禁用 */}
@@ -304,12 +304,12 @@ export default function LeftToolbar({
       </div>
 
       {/* 扩展工具 */}
-      <div className="px-3 mb-4 relative">
+      <div className="flex flex-col space-y-1.5 relative">
         {extendedTools.map(tool => renderToolButton(tool))}
         
         {/* 更多工具子菜单 */}
         {showMoreMenu && (
-          <div className="absolute left-16 top-0 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
+          <div className="absolute left-10 top-0 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
             <div className="text-xs text-gray-500 px-2 py-1 mb-2">扩展功能</div>
             <div className="text-xs text-gray-400 px-2 py-4 text-center">
               敬请期待...
@@ -322,17 +322,14 @@ export default function LeftToolbar({
       {quickActions.length > 0 && (
         <>
           {/* 分隔线 */}
-          <div className="mx-3 mb-4 border-t border-gray-200"></div>
+          <div className="border-t border-gray-200 my-1.5"></div>
           
           {/* 快捷操作 */}
-          <div className="px-3 space-y-2">
+          <div className="flex flex-col space-y-1.5">
             {quickActions.map(tool => renderToolButton(tool))}
           </div>
         </>
       )}
-
-      {/* 底部占位 */}
-      <div className="flex-1"></div>
 
       {/* 点击外部关闭菜单 - 已禁用形状和线条菜单 */}
       {showMoreMenu && (

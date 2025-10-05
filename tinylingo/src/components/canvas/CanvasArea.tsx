@@ -1066,7 +1066,7 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       style={{
         backgroundImage: `radial-gradient(circle, #D1D5DB 1px, transparent 1px)`,
         backgroundSize: '20px 20px',
-        backgroundColor: '#F9FAFB'
+        backgroundColor: '#F5F5F5'
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
