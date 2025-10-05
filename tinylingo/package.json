@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.58.0",
     "jszip": "^3.10.1",
     "konva": "^10.0.2",
     "lucide-react": "^0.544.0",

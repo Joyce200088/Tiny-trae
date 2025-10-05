@@ -15,6 +15,8 @@ import LeftToolbar from '@/components/canvas/LeftToolbar';
 import RightInspector from '@/components/canvas/RightInspector';
 import BottomRightTools from '@/components/canvas/BottomRightTools';
 import CanvasArea from '@/components/canvas/CanvasArea';
+import PresetWorldSelector from '@/components/PresetWorldSelector';
+import { PresetWorld } from '@/types/preset';
 
 // 模拟贴纸数据
 const mockStickers: StickerData[] = [
@@ -271,6 +273,10 @@ export default function CreateWorldPage() {
   // 预览模式
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   
+  // 预设世界相关状态
+  const [showPresetSelector, setShowPresetSelector] = useState(false);
+  const [isLoadingFromPreset, setIsLoadingFromPreset] = useState(false);
+  
   // 画布尺寸和位置
   const [canvasSize] = useState({ width: 1600, height: 1200 });
   
@@ -390,6 +396,50 @@ export default function CreateWorldPage() {
   // 右侧面板显示状态
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
   
+  // 加载预设模板的函数
+  const loadPresetTemplate = async (templateId: string) => {
+    try {
+      setIsLoadingFromPreset(true);
+      
+      // 从localStorage获取预设世界数据（实际项目中应该从API获取）
+      const presetWorlds = JSON.parse(localStorage.getItem('presetWorlds') || '[]');
+      const presetWorld = presetWorlds.find((world: PresetWorld) => world.id === templateId);
+      
+      if (presetWorld) {
+        // 加载预设世界的数据到画布
+        setDocumentName(presetWorld.name + ' - 副本');
+        setCanvasObjects(presetWorld.canvasData.objects || []);
+        setSelectedBackground(presetWorld.canvasData.background);
+        
+        // 重置当前世界ID，因为这是基于模板创建的新世界
+        setCurrentWorldId(null);
+        
+        console.log('已加载预设模板:', presetWorld);
+      } else {
+        console.error('未找到预设模板:', templateId);
+      }
+    } catch (error) {
+      console.error('加载预设模板失败:', error);
+    } finally {
+      setIsLoadingFromPreset(false);
+    }
+  };
+  
+  // 处理预设世界选择
+  const handlePresetWorldSelect = (presetWorld: PresetWorld) => {
+    // 加载预设世界的数据到画布
+    setDocumentName(presetWorld.name + ' - 副本');
+    setCanvasObjects(presetWorld.canvasData.objects || []);
+    setSelectedBackground(presetWorld.canvasData.background);
+    
+    // 重置当前世界ID，因为这是基于模板创建的新世界
+    setCurrentWorldId(null);
+    
+    // 关闭预设世界选择器
+    setShowPresetSelector(false);
+    
+    console.log('已选择预设世界:', presetWorld);
+  };
 
   
   const searchParams = useSearchParams();
@@ -397,8 +447,10 @@ export default function CreateWorldPage() {
   useEffect(() => {
     setIsClient(true);
     
-    // 检查URL参数，看是否是编辑现有世界
+    // 检查URL参数，看是否是编辑现有世界或加载预设模板
     const worldId = searchParams.get('worldId');
+    const templateId = searchParams.get('template');
+    
     if (worldId) {
       // 从localStorage加载世界数据
       const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
@@ -420,6 +472,9 @@ export default function CreateWorldPage() {
         }
         console.log('已加载世界:', world);
       }
+    } else if (templateId) {
+      // 加载预设模板
+      loadPresetTemplate(templateId);
     }
   }, [searchParams]);
 
@@ -932,6 +987,150 @@ export default function CreateWorldPage() {
     router.push(`/view-world?worldId=${previewWorldId}`);
   };
 
+  // 导出画布数据为JSON文件
+  const handleExportCanvas = () => {
+    try {
+      // 构建完整的画布数据
+      const canvasData = {
+        version: '1.0', // 版本号，用于未来兼容性
+        exportDate: new Date().toISOString(),
+        worldName: documentName,
+        canvasSize: canvasSize,
+        canvasObjects: canvasObjects,
+        selectedBackground: selectedBackground,
+        canvasPosition: canvasPosition,
+        canvasScale: canvasScale,
+        // 添加元数据
+        metadata: {
+          totalObjects: canvasObjects.length,
+          stickerCount: canvasObjects.filter(obj => obj.stickerData).length,
+          textCount: canvasObjects.filter(obj => obj.type === 'text').length,
+          backgroundCount: selectedBackground ? 1 : 0,
+          exportedBy: 'TinyLingo Canvas Editor'
+        }
+      };
+
+      // 创建JSON字符串
+      const jsonString = JSON.stringify(canvasData, null, 2);
+      
+      // 创建Blob对象
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // 创建下载链接
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // 生成文件名：世界名称_日期时间.json
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const fileName = `${documentName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${timestamp}.json`;
+      link.download = fileName;
+      
+      // 触发下载
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // 清理URL对象
+      URL.revokeObjectURL(url);
+      
+      // 显示成功提示
+      alert(`画布数据已导出为 ${fileName}`);
+      
+    } catch (error) {
+      console.error('导出画布数据失败:', error);
+      alert('导出失败，请重试');
+    }
+  };
+
+  // 导入画布数据从JSON文件
+  const handleImportCanvas = () => {
+    try {
+      // 创建文件输入元素
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      
+      input.onchange = (event) => {
+        const file = (event.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        
+        // 检查文件类型
+        if (!file.name.endsWith('.json')) {
+          alert('请选择JSON格式的文件');
+          return;
+        }
+        
+        // 读取文件内容
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const jsonContent = e.target?.result as string;
+            const importedData = JSON.parse(jsonContent);
+            
+            // 验证数据格式
+            if (!importedData.canvasObjects || !Array.isArray(importedData.canvasObjects)) {
+              alert('无效的画布数据格式');
+              return;
+            }
+            
+            // 确认导入操作
+            const confirmImport = confirm(
+              `确定要导入画布数据吗？\n\n` +
+              `世界名称: ${importedData.worldName || '未知'}\n` +
+              `导出时间: ${importedData.exportDate ? new Date(importedData.exportDate).toLocaleString() : '未知'}\n` +
+              `对象数量: ${importedData.canvasObjects.length}\n\n` +
+              `当前画布内容将被替换！`
+            );
+            
+            if (!confirmImport) return;
+            
+            // 导入数据到画布
+            setCanvasObjects(importedData.canvasObjects || []);
+            setSelectedBackground(importedData.selectedBackground || null);
+            setDocumentName(importedData.worldName || '导入的世界');
+            
+            // 恢复画布视图状态（可选）
+            if (importedData.canvasPosition) {
+              setCanvasPosition(importedData.canvasPosition);
+            }
+            if (importedData.canvasScale) {
+              setCanvasScale(importedData.canvasScale);
+            }
+            
+            // 清除选择状态
+            setSelectedObjectId(null);
+            
+            // 添加到历史记录
+            const newHistory = [...history.slice(0, historyIndex + 1), importedData.canvasObjects || []];
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            
+            // 显示成功提示
+            alert(`成功导入画布数据！\n对象数量: ${importedData.canvasObjects.length}`);
+            
+          } catch (parseError) {
+            console.error('解析JSON文件失败:', parseError);
+            alert('文件格式错误，请检查JSON文件是否有效');
+          }
+        };
+        
+        reader.onerror = () => {
+          alert('读取文件失败，请重试');
+        };
+        
+        reader.readAsText(file);
+      };
+      
+      // 触发文件选择
+      input.click();
+      
+    } catch (error) {
+      console.error('导入画布数据失败:', error);
+      alert('导入失败，请重试');
+    }
+  };
+
   const handleRegenerateAI = () => {
     setGeneratedImage(null);
     setTransparentImage(null);
@@ -949,7 +1148,8 @@ export default function CreateWorldPage() {
           onDocumentNameChange={setDocumentName}
           autoSaveStatus={autoSaveStatus}
           lastSavedTime={lastSavedTime}
-          onExport={(format, options) => console.log('Export:', format, options)}
+          onExport={handleExportCanvas}
+          onImport={handleImportCanvas}
           onPreview={handlePreview}
           onSearch={(query) => console.log('Search:', query)}
           notifications={[]}
@@ -995,6 +1195,8 @@ export default function CreateWorldPage() {
               // 显示右侧面板
               setIsRightPanelVisible(true);
             }}
+            // 新增：预设世界选择器按钮
+            onOpenPresetSelector={() => setShowPresetSelector(true)}
           />
         </div>
 
@@ -1139,6 +1341,29 @@ export default function CreateWorldPage() {
           viewportSize={{ width: 800, height: 600 }}
           onViewportChange={setCanvasPosition}
         />
+        {/* 预设世界选择器弹窗 */}
+        {showPresetSelector && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg max-w-4xl max-h-[80vh] overflow-hidden">
+              <PresetWorldSelector
+                onSelect={handlePresetWorldSelect}
+                onClose={() => setShowPresetSelector(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 加载状态覆盖层 */}
+        {isLoadingFromPreset && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-40">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-gray-700">正在加载预设世界...</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

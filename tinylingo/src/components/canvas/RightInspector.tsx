@@ -186,7 +186,7 @@ export default function RightInspector({
   onRegenerateAI
 }: RightInspectorProps) {
   // 面板高度状态管理 - 固定高度600px
-  const panelHeight = 600;
+  const panelHeight = 624;
   
   // 使用适用于flex布局的缩放修复
   const zoomStyle = useFlexZoomFix();

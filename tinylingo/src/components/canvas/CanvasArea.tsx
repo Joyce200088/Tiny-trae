@@ -561,7 +561,18 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       y: (pointer.y - stage.y()) / oldScale,
     };
     
-    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+    // 安全检查deltaY属性
+    let deltaY = 0;
+    if (e && e.evt && typeof e.evt.deltaY === 'number') {
+      deltaY = e.evt.deltaY;
+    } else if (e && typeof e.deltaY === 'number') {
+      deltaY = e.deltaY;
+    } else {
+      console.warn('无法获取滚轮deltaY值，跳过滚轮缩放');
+      return;
+    }
+    
+    const newScale = deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
     const clampedScale = Math.max(0.1, Math.min(5, newScale));
     
     onCanvasScaleChange(clampedScale);

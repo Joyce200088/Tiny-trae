@@ -6,11 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { params: string[] } }
+  { params }: { params: Promise<{ params: string[] }> }
 ) {
   try {
     // 解析参数：[width, height] 或 [width] 或 [widthxheight]
-    const pathParams = params.params || [];
+    const resolvedParams = await params;
+    const pathParams = resolvedParams.params || [];
     let width = 400;
     let height = 300;
     

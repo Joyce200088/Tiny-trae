@@ -18,7 +18,8 @@ import {
   Tag,
   Zap,
   TrendingUp,
-  CornerDownRight
+  CornerDownRight,
+  Layout
 } from 'lucide-react';
 import { useSimpleZoomFix } from '@/hooks/useZoomFix';
 
@@ -35,6 +36,9 @@ interface LeftToolbarProps {
   
   // AI生成相关
   onOpenAIGenerator: () => void;
+  
+  // 预设世界选择器
+  onOpenPresetSelector?: () => void;
   
   // 分组相关功能已删除
 }
@@ -54,7 +58,8 @@ export default function LeftToolbar({
   onToolChange,
   onOpenStickers,
   onOpenBackgrounds,
-  onOpenAIGenerator
+  onOpenAIGenerator,
+  onOpenPresetSelector
 }: LeftToolbarProps) {
   const zoomFixStyle = useSimpleZoomFix(); // 使用缩放修复Hook
   
@@ -96,7 +101,15 @@ export default function LeftToolbar({
       icon: Sparkles,
       tooltip: 'AI生成贴纸',
       onClick: onOpenAIGenerator
-    }
+    },
+    // 预设世界选择器按钮（仅在有回调函数时显示）
+    ...(onOpenPresetSelector ? [{
+      id: 'preset-worlds',
+      name: '模板',
+      icon: Layout,
+      tooltip: '选择预设世界模板',
+      onClick: onOpenPresetSelector
+    }] : [])
   ];
 
   // 绘制工具

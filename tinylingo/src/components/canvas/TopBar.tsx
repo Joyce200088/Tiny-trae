@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Download, 
+  Upload,
   Search, 
   X, 
   Share2, 
@@ -32,7 +33,10 @@ interface TopBarProps {
   lastSavedTime?: Date; // 最后保存时间
   
   // 导出功能
-  onExport: (format: 'png' | 'svg' | 'webp', options: ExportOptions) => void;
+  onExport: (format: 'png' | 'svg' | 'webp' | 'json', options: ExportOptions) => void;
+  
+  // 导入功能
+  onImport?: () => void;
   
   // 预览功能
   onPreview?: () => void;
@@ -75,6 +79,7 @@ export default function TopBar({
   autoSaveStatus = 'idle',
   lastSavedTime,
   onExport,
+  onImport,
   onPreview,
   onSearch,
   notifications,
@@ -175,7 +180,7 @@ export default function TopBar({
   const autoSaveStatusDisplay = getAutoSaveStatusDisplay();
 
   // 处理导出
-  const handleExport = (format: 'png' | 'svg' | 'webp') => {
+  const handleExport = (format: 'png' | 'svg' | 'webp' | 'json') => {
     onExport(format, exportOptions);
     setShowExportModal(false);
   };
@@ -307,6 +312,17 @@ export default function TopBar({
           </button>
         )}
 
+        {/* 导入按钮 */}
+        {onImport && (
+          <button
+            onClick={onImport}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="导入画布数据"
+          >
+            <Upload className="w-5 h-5" />
+          </button>
+        )}
+
         {/* 导出按钮 */}
         <div className="relative">
           <button
@@ -387,7 +403,7 @@ export default function TopBar({
                 </div>
 
                 {/* 导出按钮 */}
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 mb-2">
                   <button
                     onClick={() => handleExport('png')}
                     className="flex-1 bg-blue-600 text-white py-2 px-3 text-xs rounded hover:bg-blue-700"
@@ -407,6 +423,14 @@ export default function TopBar({
                     WebP
                   </button>
                 </div>
+
+                {/* JSON导出按钮 */}
+                <button
+                  onClick={() => handleExport('json')}
+                  className="w-full bg-orange-600 text-white py-2 px-3 text-xs rounded hover:bg-orange-700 mb-2"
+                >
+                  导出为JSON (画布数据)
+                </button>
 
                 <button
                   onClick={() => setShowExportModal(false)}
