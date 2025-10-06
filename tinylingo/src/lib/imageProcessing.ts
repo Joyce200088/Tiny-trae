@@ -228,51 +228,12 @@ export class ImageSegmentation {
   }
 
   /**
-   * 生成组件缩略图
+   * 生成组件缩略图（已删除）
    */
-  private generateThumbnail(component: ConnectedComponent, maxSize: number = 100): string {
-    const { boundingBox } = component
-    const scale = Math.min(maxSize / boundingBox.width, maxSize / boundingBox.height)
-    
-    const thumbWidth = Math.ceil(boundingBox.width * scale)
-    const thumbHeight = Math.ceil(boundingBox.height * scale)
-    
-    const thumbCanvas = document.createElement('canvas')
-    thumbCanvas.width = thumbWidth
-    thumbCanvas.height = thumbHeight
-    
-    const thumbCtx = thumbCanvas.getContext('2d')!
-    thumbCtx.imageSmoothingEnabled = true
-    thumbCtx.imageSmoothingQuality = 'high'
-    
-    // 创建临时画布用于提取组件
-    const tempCanvas = document.createElement('canvas')
-    tempCanvas.width = boundingBox.width
-    tempCanvas.height = boundingBox.height
-    const tempCtx = tempCanvas.getContext('2d')!
-    
-    // 提取组件像素
-    const tempImageData = tempCtx.createImageData(boundingBox.width, boundingBox.height)
-    
-    for (const pixel of component.pixels) {
-      const srcIndex = ((pixel.y * this.width) + pixel.x) * 4
-      const destX = pixel.x - boundingBox.x
-      const destY = pixel.y - boundingBox.y
-      const destIndex = ((destY * boundingBox.width) + destX) * 4
-      
-      tempImageData.data[destIndex] = this.imageData.data[srcIndex]
-      tempImageData.data[destIndex + 1] = this.imageData.data[srcIndex + 1]
-      tempImageData.data[destIndex + 2] = this.imageData.data[srcIndex + 2]
-      tempImageData.data[destIndex + 3] = this.imageData.data[srcIndex + 3]
-    }
-    
-    tempCtx.putImageData(tempImageData, 0, 0)
-    
-    // 缩放到缩略图
-    thumbCtx.drawImage(tempCanvas, 0, 0, thumbWidth, thumbHeight)
-    
-    return thumbCanvas.toDataURL('image/png')
-  }
+  // private generateThumbnail(component: ConnectedComponent, maxSize: number = 100): string {
+  //   // 缩略图功能已删除
+  //   return '';
+  // }
 
   /**
    * 执行图像分割
@@ -308,8 +269,8 @@ export class ImageSegmentation {
               centroid,
             }
             
-            // 生成缩略图
-            component.thumbnail = this.generateThumbnail(component)
+            // 生成缩略图（功能已删除）
+            // component.thumbnail = this.generateThumbnail(component)
             
             this.components.push(component)
             

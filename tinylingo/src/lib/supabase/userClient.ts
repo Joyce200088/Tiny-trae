@@ -30,7 +30,7 @@ export interface DatabaseUserWorld {
   world_id: string;
   name: string;
   description?: string;
-  thumbnail?: string;
+  thumbnail?: string; // 缩略图URL - 用于世界库卡片显示
   cover_url?: string;
   preview_image?: string;
   word_count: number;
@@ -45,8 +45,8 @@ export interface DatabaseUserWorld {
   created_at: string;
   updated_at: string;
   last_modified: string;
-  is_deleted: boolean;
-  deleted_at?: string;
+  is_deleted: boolean;         // 软删除标记
+  deleted_at?: string;         // 删除时间
 }
 
 export interface DatabaseUserSticker {
@@ -276,7 +276,7 @@ export class UserDataManager {
         world_id: world.id,
         name: world.name,
         description: world.description,
-        thumbnail: world.thumbnail,
+        thumbnail: world.thumbnail, // 缩略图URL - 用于世界库卡片显示
         cover_url: world.coverUrl,
         preview_image: world.previewImage,
         word_count: typeof world.wordCount === 'number' ? world.wordCount : 0,
@@ -338,13 +338,13 @@ export class UserDataManager {
       }
 
       // 转换为本地数据格式
-      const worlds: WorldData[] = data.map(dbWorld => ({
-        id: dbWorld.world_id,
-        name: dbWorld.name,
-        description: dbWorld.description,
-        thumbnail: dbWorld.thumbnail,
-        coverUrl: dbWorld.cover_url,
-        previewImage: dbWorld.preview_image,
+        const worlds: WorldData[] = data.map(dbWorld => ({
+          id: dbWorld.world_id,
+          name: dbWorld.name,
+          description: dbWorld.description,
+          thumbnail: dbWorld.thumbnail, // 缩略图URL - 用于世界库卡片显示
+          coverUrl: dbWorld.cover_url,
+          previewImage: dbWorld.preview_image,
         wordCount: dbWorld.word_count,
         stickerCount: dbWorld.sticker_count,
         likes: dbWorld.likes,
@@ -450,7 +450,13 @@ export class UserDataManager {
       console.log('同步结果:', data);
       return true;
     } catch (error) {
-      console.error('同步贴纸数据异常:', error);
+      // 提供更详细的错误信息
+      console.error('同步贴纸数据异常:', {
+        message: error?.message || '未知错误',
+        name: error?.name,
+        stack: error?.stack,
+        error: error
+      });
       return false;
     }
   }

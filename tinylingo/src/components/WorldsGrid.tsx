@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-react';
 import { WorldData } from '@/types/world';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 /**
  * 世界网格组件
@@ -108,6 +109,9 @@ export default function WorldsGrid({
   worldCreationStep = 'template',
   setShowCreateModal
 }: WorldsGridProps) {
+  // 获取认证状态
+  const { isAuthenticated } = useAuth();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'words' | 'likes'>('recent');
   const [contextMenu, setContextMenu] = useState<{
@@ -261,8 +265,8 @@ export default function WorldsGrid({
 
       {/* 世界网格 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* 创建新世界卡片 */}
-        {showCreateCard && (
+        {/* 创建新世界卡片 - 只对已登录用户显示 */}
+        {showCreateCard && isAuthenticated && (
           <div 
             onClick={onCreateWorld}
             className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400"
@@ -280,6 +284,22 @@ export default function WorldsGrid({
           </div>
         )}
 
+        {/* 未登录用户的提示卡片 */}
+        {showCreateCard && !isAuthenticated && (
+          <div className="bg-gray-50 rounded-2xl shadow-md overflow-hidden border-2 border-dashed border-gray-200">
+            <div className="aspect-video flex items-center justify-center" style={{backgroundColor: '#FFFBF5'}}>
+              <div className="text-center">
+                <Plus className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-400 font-medium">登录后创建世界</p>
+              </div>
+            </div>
+            <div className="p-4">
+              <h3 className="font-semibold text-gray-500 mb-2">需要登录</h3>
+              <p className="text-sm text-gray-400">请先登录账户才能创建和保存世界</p>
+            </div>
+          </div>
+        )}
+
         {/* 世界卡片 */}
         {filteredWorlds.map((world) => (
           <div 
@@ -293,7 +313,7 @@ export default function WorldsGrid({
             {/* 封面图片 */}
             <div className="aspect-video relative" style={{backgroundColor: '#FFFBF5'}}>
               {(() => {
-                // 确定要显示的图片URL和来源
+                // 优先使用缩略图，然后是预览图片，最后是封面图片
                 const imageUrl = world.thumbnail || world.previewImage || world.coverUrl;
                 const imageSource = world.thumbnail ? 'thumbnail' : 
                                   world.previewImage ? 'previewImage' : 
@@ -314,7 +334,8 @@ export default function WorldsGrid({
                       <img 
                         src={imageUrl} 
                         alt={world.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain" // 使用contain保持宽高比
+                        style={{backgroundColor: '#FFFBF5'}} // 确保背景色一致
                         onError={(e) => {
                           console.error(`世界 "${world.name}" 图片加载失败:`, {
                             source: imageSource,

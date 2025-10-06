@@ -161,10 +161,72 @@ export class WorldDataUtils {
   }
 
   /**
-   * 删除世界
+   * 软删除世界（标记为已删除）
    * 支持用户数据隔离
    */
   static async deleteWorld(worldId: string): Promise<void> {
+    try {
+      const worlds = await this.loadWorldData();
+      const worldIndex = worlds.findIndex(w => w.id === worldId);
+      
+      if (worldIndex === -1) {
+        throw new Error(`未找到ID为 ${worldId} 的世界`);
+      }
+      
+      // 软删除：标记为已删除，而不是真正删除
+      worlds[worldIndex].isDeleted = true;
+      worlds[worldIndex].deletedAt = new Date().toISOString();
+      
+      await this.saveWorldData(worlds);
+      console.log('软删除世界:', worldId);
+      
+      // 尝试同步到Supabase
+      try {
+        await UserDataManager.syncWorldsToSupabase(worlds);
+      } catch (syncError) {
+        console.warn('同步到Supabase失败:', syncError);
+      }
+    } catch (error) {
+      console.error('软删除世界失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 恢复已删除的世界
+   */
+  static async restoreWorld(worldId: string): Promise<void> {
+    try {
+      const worlds = await this.loadWorldData();
+      const worldIndex = worlds.findIndex(w => w.id === worldId);
+      
+      if (worldIndex === -1) {
+        throw new Error(`未找到ID为 ${worldId} 的世界`);
+      }
+      
+      // 恢复世界：取消删除标记
+      worlds[worldIndex].isDeleted = false;
+      worlds[worldIndex].deletedAt = undefined;
+      
+      await this.saveWorldData(worlds);
+      console.log('恢复世界:', worldId);
+      
+      // 尝试同步到Supabase
+      try {
+        await UserDataManager.syncWorldsToSupabase(worlds);
+      } catch (syncError) {
+        console.warn('同步到Supabase失败:', syncError);
+      }
+    } catch (error) {
+      console.error('恢复世界失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 永久删除世界（从数据库中完全删除）
+   */
+  static async permanentlyDeleteWorld(worldId: string): Promise<void> {
     try {
       const worlds = await this.loadWorldData();
       const filteredWorlds = worlds.filter(w => w.id !== worldId);
@@ -174,7 +236,7 @@ export class WorldDataUtils {
       }
       
       await this.saveWorldData(filteredWorlds);
-      console.log('删除世界:', worldId);
+      console.log('永久删除世界:', worldId);
       
       // 尝试同步到Supabase
       try {
@@ -183,8 +245,34 @@ export class WorldDataUtils {
         console.warn('同步到Supabase失败:', syncError);
       }
     } catch (error) {
-      console.error('删除世界失败:', error);
+      console.error('永久删除世界失败:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 获取已删除的世界列表
+   */
+  static async getDeletedWorlds(): Promise<WorldData[]> {
+    try {
+      const worlds = await this.loadWorldData();
+      return worlds.filter(world => world.isDeleted === true);
+    } catch (error) {
+      console.error('获取已删除世界列表失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 获取未删除的世界列表
+   */
+  static async getActiveWorlds(): Promise<WorldData[]> {
+    try {
+      const worlds = await this.loadWorldData();
+      return worlds.filter(world => world.isDeleted !== true);
+    } catch (error) {
+      console.error('获取活跃世界列表失败:', error);
+      return [];
     }
   }
 

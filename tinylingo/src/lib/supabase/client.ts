@@ -29,7 +29,7 @@ export interface DatabasePresetWorld {
   name: string;
   description?: string;
   cover_url?: string;
-  thumbnail_url?: string;
+  thumbnail?: string; // 缩略图URL - 用于世界库卡片显示
   preview_image?: string;
   canvas_objects: any[];
   selected_background?: string;

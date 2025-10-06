@@ -181,7 +181,7 @@ export async function createPresetWorld(request: CreatePresetWorldRequest): Prom
         name: request.name,
         description: request.description || '',
         cover_url: request.coverUrl,
-        thumbnail_url: request.thumbnailUrl,
+        // thumbnail_url: request.thumbnailUrl, // 缩略图功能已删除
         preview_image: request.previewImage,
         canvas_objects: request.canvasObjects || [],
         selected_background: request.selectedBackground,
@@ -343,7 +343,7 @@ function transformDatabaseToPresetWorld(data: DatabasePresetWorld): PresetWorld 
     name: data.name,
     description: data.description,
     coverUrl: data.cover_url,
-    thumbnailUrl: data.thumbnail_url,
+    // thumbnailUrl: data.thumbnail_url, // 缩略图功能已删除
     previewImage: data.preview_image,
     canvasObjects: data.canvas_objects,
     selectedBackground: data.selected_background,

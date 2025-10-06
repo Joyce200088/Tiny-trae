@@ -717,9 +717,9 @@ function DictationPageContent() {
         try {
           let targetWorld = null;
           
-          // 首先尝试从WorldDataUtils获取保存的世界数据
+          // 首先尝试从WorldDataUtils获取保存的世界数据（只获取未删除的世界）
           try {
-            const worlds = await WorldDataUtils.getAllWorlds();
+            const worlds = await WorldDataUtils.getActiveWorlds();
             targetWorld = worlds.find(world => world.id === worldId);
           } catch (error) {
             console.warn('从WorldDataUtils加载世界数据失败:', error);

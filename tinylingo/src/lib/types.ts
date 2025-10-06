@@ -74,7 +74,7 @@ export type World = {
   likes: number;
   favorites: number;
   coverUrl?: string;
-  thumbnail?: string;      // 缩略图URL
+  thumbnail?: string; // 缩略图URL - 用于世界库卡片显示
   previewImage?: string;   // 预览图URL
   lastModified?: string;   // 最后修改时间
   createdAt: string;

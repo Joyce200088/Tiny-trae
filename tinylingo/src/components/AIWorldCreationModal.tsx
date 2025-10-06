@@ -491,7 +491,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
         chinese: sticker.chinese,
         phonetic: sticker.pronunciation,
         imageUrl: sticker.imageUrl,
-        thumbnailUrl: sticker.thumbnailUrl,
+        // // thumbnailUrl: sticker.thumbnailUrl, // 缩略图功能已删除 // 缩略图功能已删除
         category: sticker.category,
         partOfSpeech: sticker.partOfSpeech,
         tags: ['Ai-generated', ...sticker.tags],
@@ -529,7 +529,7 @@ export default function AIWorldCreationModal({ isOpen, onClose }: AIWorldCreatio
       chinese: sticker.chinese,
       phonetic: sticker.pronunciation, // StickerData使用phonetic字段
       imageUrl: sticker.imageUrl,
-      thumbnailUrl: sticker.thumbnailUrl,
+      // thumbnailUrl: sticker.thumbnailUrl, // 缩略图功能已删除
       category: sticker.category,
       partOfSpeech: sticker.partOfSpeech,
       examples: sticker.examples,

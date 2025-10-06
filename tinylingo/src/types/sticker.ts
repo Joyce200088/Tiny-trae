@@ -47,7 +47,7 @@ export interface StickerData {
   audioUrl?: string;
   category?: string | null;
   partOfSpeech?: string;
-  thumbnailUrl?: string;
+  // thumbnailUrl?: string; // 缩略图功能已删除
   imageUrl?: string;            // 兼容旧代码，映射到image字段
   createdAt: string;
   sorted: boolean;

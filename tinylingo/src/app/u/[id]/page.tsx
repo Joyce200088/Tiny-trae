@@ -22,6 +22,8 @@ import AIStickerGeneratorModal from '@/components/AIStickerGeneratorModal';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { UserDataManager } from '@/lib/supabase/userClient';
 import { WorldDataUtils } from '@/utils/worldDataUtils';
+import { useThumbnailManager } from '@/hooks/useThumbnailManager';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 /**
  * 用户个人主页组件
@@ -115,11 +117,30 @@ function MyWorldsTab({
     enabled: true
   });
 
+  // 缩略图管理Hook - 用于自动补生成缺失的缩略图
+  const {
+    generateThumbnail,
+    checkAndGenerateMissingThumbnails,
+    getThumbnailUrl,
+    deleteThumbnails,
+    isGenerating,
+    generationProgress,
+    generationError
+  } = useThumbnailManager({
+    autoRetry: true,
+    maxRetries: 3
+  });
+
   // 加载保存的世界
   useEffect(() => {
     const loadWorlds = async () => {
       try {
-        const worlds = await WorldDataUtils.getAllWorlds();
+        // 初始化用户ID，确保与创建世界页面一致
+        await UserDataManager.initializeUser();
+        console.log('用户页面用户ID已初始化:', UserDataManager.getCurrentUserId());
+        
+        // 只加载未删除的世界（过滤掉已删除的世界）
+        const worlds = await WorldDataUtils.getActiveWorlds();
         console.log('用户页面加载的世界数据:', worlds);
         console.log('世界数据详情:', worlds.map(w => ({
           id: w.id,
@@ -129,6 +150,25 @@ function MyWorldsTab({
           previewImage: w.previewImage
         })));
         setSavedWorlds(worlds);
+
+        // 自动检查并生成缺失的缩略图
+        if (worlds.length > 0) {
+          console.log('开始检查缺失的缩略图...');
+          try {
+            // 为 MyWorldsTab 提供一个 getCanvasForWorld 函数
+            // 由于这里是世界列表页面，没有实际的 canvas，所以返回 null
+            // 这样可以避免错误，同时让缩略图检查逻辑正常运行
+            const getCanvasForWorld = (worldId: string): HTMLCanvasElement | null => {
+              console.log(`MyWorldsTab: 无法为世界 ${worldId} 提供 canvas，跳过缩略图生成`);
+              return null;
+            };
+            
+            await checkAndGenerateMissingThumbnails(worlds, getCanvasForWorld);
+            console.log('缩略图检查完成');
+          } catch (error) {
+            console.error('缩略图自动补生成失败:', error);
+          }
+        }
       } catch (error) {
         console.error('加载世界数据失败:', error);
       }
@@ -136,16 +176,16 @@ function MyWorldsTab({
     
     loadWorlds();
     setIsClient(true);
-  }, []);
+  }, [checkAndGenerateMissingThumbnails]);
 
   // 监听存储变化
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key?.startsWith('tinylingo_worlds')) {
-        // 重新加载世界数据
+        // 重新加载世界数据（只加载未删除的世界）
         const loadWorlds = async () => {
           try {
-            const worlds = await WorldDataUtils.getAllWorlds();
+            const worlds = await WorldDataUtils.getActiveWorlds();
             setSavedWorlds(worlds);
           } catch (error) {
             console.error('重新加载世界失败:', error);
@@ -162,10 +202,10 @@ function MyWorldsTab({
 
     const handleCustomStorageChange = (e: CustomEvent) => {
       if (e.detail?.key?.startsWith('tinylingo_worlds')) {
-        // 重新加载世界数据
+        // 重新加载世界数据（只加载未删除的世界）
         const loadWorlds = async () => {
           try {
-            const worlds = await WorldDataUtils.getAllWorlds();
+            const worlds = await WorldDataUtils.getActiveWorlds();
             setSavedWorlds(worlds);
           } catch (error) {
             console.error('重新加载世界失败:', error);
@@ -876,6 +916,9 @@ export default function ProfilePage() {
   const params = useParams();
   const userId = params.id as string;
   
+  // 获取认证状态
+  const { isAuthenticated } = useAuth();
+  
   // 自动同步Hook - 提供markForSync功能
   const { 
     isOnline, 
@@ -886,6 +929,20 @@ export default function ProfilePage() {
   } = useAutoSync({
     syncInterval: 30000, // 30秒同步一次
     enabled: true
+  });
+
+  // 缩略图管理Hook - 用于全局缩略图管理
+  const {
+    generateThumbnail,
+    checkAndGenerateMissingThumbnails,
+    getThumbnailUrl,
+    deleteThumbnails,
+    isGenerating,
+    generationProgress,
+    generationError
+  } = useThumbnailManager({
+    autoRetry: true,
+    maxRetries: 3
   });
   
   const [activeTab, setActiveTab] = useState<TabType>('worlds');
@@ -1037,15 +1094,27 @@ export default function ProfilePage() {
               {/* CTA按钮 */}
               <div className="flex gap-3">
                 <button
-                  onClick={handleAIWorldClick}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={isAuthenticated ? handleAIWorldClick : undefined}
+                  disabled={!isAuthenticated}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    isAuthenticated 
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' 
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={!isAuthenticated ? '请先登录账户' : ''}
                 >
                   <Sparkles className="w-4 h-4" />
                   AI 生成世界
                 </button>
                 <button
-                  onClick={() => setShowAIStickerGenerator(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  onClick={isAuthenticated ? () => setShowAIStickerGenerator(true) : undefined}
+                  disabled={!isAuthenticated}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    isAuthenticated 
+                      ? 'bg-purple-600 text-white hover:bg-purple-700 cursor-pointer' 
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={!isAuthenticated ? '请先登录账户' : ''}
                 >
                   <Plus className="w-4 h-4" />
                   AI 生成贴纸

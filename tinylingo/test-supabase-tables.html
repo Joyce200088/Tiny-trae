@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Tables</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Tables Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const supabaseUrl = "https://knizbnlzwcuniceqvmvd.supabase.co"
+        const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaXpibmx6d2N1bmljZXF2bXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NjQ3ODQsImV4cCI6MjA3NTI0MDc4NH0.NJxl1MvhdG2vFUoMkCClV4VkLtjfok7eJ6zxzqSzuHQ"
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+        
+        async function testTables() {
+            const results = document.getElementById("results")
+            results.innerHTML = "<p>Testing tables...</p>"
+            
+            try {
+                // Test user_sync_status table
+                const { data, error } = await supabase
+                    .from("user_sync_status")
+                    .select("*")
+                    .limit(1)
+                
+                if (error) {
+                    results.innerHTML += `<p style="color: red;">Error accessing user_sync_status: ${error.message}</p>`
+                } else {
+                    results.innerHTML += `<p style="color: green;">user_sync_status table exists and accessible</p>`
+                }
+                
+                // Test other tables
+                const tables = ["users", "user_worlds", "user_stickers", "user_backgrounds"]
+                for (const table of tables) {
+                    const { data, error } = await supabase
+                        .from(table)
+                        .select("*")
+                        .limit(1)
+                    
+                    if (error) {
+                        results.innerHTML += `<p style="color: red;">Error accessing ${table}: ${error.message}</p>`
+                    } else {
+                        results.innerHTML += `<p style="color: green;">${table} table exists and accessible</p>`
+                    }
+                }
+                
+            } catch (err) {
+                results.innerHTML += `<p style="color: red;">Connection error: ${err.message}</p>`
+            }
+        }
+        
+        testTables()
+    </script>
+</body>
+</html>

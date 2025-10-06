@@ -20,7 +20,7 @@ export interface PresetWorld {
   
   // 展示信息
   coverUrl: string;             // 封面图片URL
-  thumbnail: string;            // 缩略图URL
+  // thumbnail: string;            // 缩略图功能已删除
   previewImages: string[];      // 预览图片数组
   
   // 画布数据
@@ -145,7 +145,7 @@ export interface CreatePresetWorldRequest {
   };
   isPublic: boolean;
   coverUrl?: string;
-  thumbnail?: string;
+  // thumbnail?: string; // 缩略图功能已删除
 }
 
 // 预设世界更新请求

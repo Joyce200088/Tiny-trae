@@ -10,9 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Settings, RefreshCw } from 'lucide-react';
+import { User, LogOut, Settings, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { LoginModal } from './LoginModal';
+import Link from 'next/link';
 
 /**
  * 用户菜单组件
@@ -21,6 +22,9 @@ import { LoginModal } from './LoginModal';
 export function UserMenu() {
   const { user, signOut, isAuthenticated, loading, refreshUser } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // 添加调试信息
+  console.log('UserMenu - isAuthenticated:', isAuthenticated, 'user:', user, 'loading:', loading);
 
   /**
    * 处理注销
@@ -85,9 +89,10 @@ export function UserMenu() {
     );
   }
 
-  if (!isAuthenticated) {
+  // 强制显示登录按钮用于调试
+  if (!isAuthenticated || !user) {
     return (
-      <>
+      <div className="flex items-center space-x-2">
         <Button
           variant="outline"
           size="sm"
@@ -102,23 +107,26 @@ export function UserMenu() {
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
         />
-      </>
+      </div>
     );
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center space-x-2 p-2">
+        <button 
+          className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors duration-200 cursor-pointer"
+          type="button"
+        >
           <Avatar className="w-8 h-8">
-            <AvatarFallback className="bg-blue-500 text-white text-sm">
+            <AvatarFallback className="bg-blue-500 text-white text-sm font-semibold">
               {getUserInitial()}
             </AvatarFallback>
           </Avatar>
           <span className="hidden sm:inline-block text-sm font-medium">
             {getUserDisplayName()}
           </span>
-        </Button>
+        </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
@@ -132,6 +140,13 @@ export function UserMenu() {
         <DropdownMenuItem className="cursor-pointer">
           <Settings className="w-4 h-4 mr-2" />
           设置
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/trash">
+            <Trash2 className="w-4 h-4 mr-2" />
+            垃圾桶
+          </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem 

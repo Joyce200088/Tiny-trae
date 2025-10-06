@@ -145,7 +145,7 @@ export default function StickersPanel({
                     data: {
                       word: sticker.name || sticker.word,
                       cn: sticker.chinese || sticker.cn,
-                      image: sticker.thumbnailUrl || sticker.image,
+                      image: sticker.image,
                       pos: sticker.partOfSpeech || sticker.pos || 'noun',
                       audio: sticker.audio || { uk: '', us: '' },
                       examples: sticker.examples || [],
@@ -159,7 +159,7 @@ export default function StickersPanel({
                 onClick={() => onAddSticker?.(sticker)}
               >
                 <img 
-                  src={sticker.thumbnailUrl || sticker.image} 
+                  src={sticker.image} 
                   alt={sticker.name || sticker.word} 
                   className="w-full h-full object-contain bg-gray-50" 
                 />

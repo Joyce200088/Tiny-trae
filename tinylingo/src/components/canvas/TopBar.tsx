@@ -15,13 +15,11 @@ import {
   WifiOff,
   FileText,
   Bell,
-  User,
-  Settings,
-  LogOut,
   Eye
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSimpleZoomFix } from '@/hooks/useZoomFix';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 interface TopBarProps {
   // 文档相关
@@ -68,7 +66,7 @@ interface ExportOptions {
   resolution: number;
   includeBackground: boolean;
   includeGuides: boolean;
-  thumbnailMode?: 'global' | 'viewport';
+  thumbnailMode?: 'global' | 'viewport'; // 缩略图功能已删除，保留接口兼容性
 }
 
 interface Notification {
@@ -121,11 +119,8 @@ export default function TopBar({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // 通知中心状态
+  // 通知状态
   const [showNotifications, setShowNotifications] = useState(false);
-  
-  // 用户菜单状态
-  const [showUserMenu, setShowUserMenu] = useState(false);
   
   // 分享弹窗状态
   const [showShareModal, setShowShareModal] = useState(false);
@@ -622,53 +617,17 @@ export default function TopBar({
         )}
 
         {/* 用户菜单 */}
-        <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="用户菜单"
-          >
-            <User className="w-5 h-5" />
-          </button>
-
-          {/* 用户菜单弹窗 */}
-          {showUserMenu && (
-            <div className="absolute right-0 top-12 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-              <div className="py-2">
-                <button 
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    router.push('/u/joyce');
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                >
-                  <User className="w-4 h-4" />
-                  <span>个人主页</span>
-                </button>
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
-                  <Settings className="w-4 h-4" />
-                  <span>偏好设置</span>
-                </button>
-                <div className="border-t border-gray-200 my-1"></div>
-                <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2">
-                  <LogOut className="w-4 h-4" />
-                  <span>退出登录</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <UserMenu />
       </div>
 
       {/* 点击外部关闭弹窗 */}
-      {(showExportModal || showNotifications || showShareModal || showUserMenu) && (
+      {(showExportModal || showNotifications || showShareModal) && (
         <div
           className="fixed inset-0 z-40"
           onClick={() => {
             setShowExportModal(false);
             setShowNotifications(false);
             setShowShareModal(false);
-            setShowUserMenu(false);
           }}
         />
       )}

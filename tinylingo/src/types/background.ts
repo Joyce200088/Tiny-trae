@@ -6,7 +6,7 @@ export interface BackgroundData {
   id: string;
   name: string;
   imageUrl?: string;
-  thumbnailUrl?: string;
+  // thumbnailUrl?: string; // 缩略图功能已删除
   category: 'Custom' | 'Ai-generated' | 'Default';
   tags?: string[];
   createdAt: string;

@@ -7,9 +7,9 @@ export interface WorldData {
   id: string;
   name: string;                 // 世界名称
   description?: string;         // 世界描述
-  thumbnail?: string;           // 缩略图URL
   coverUrl?: string;           // 封面图URL
   previewImage?: string;       // 预览图URL
+  thumbnail?: string;          // 缩略图URL - 用于世界库卡片显示
   wordCount: number;           // 单词数量
   stickerCount: number;        // 贴纸数量
   likes: number;               // 点赞数
@@ -26,6 +26,10 @@ export interface WorldData {
   createdAt: string;           // 创建时间
   updatedAt: string;           // 更新时间
   lastModified: string;        // 最后修改时间
+  
+  // 删除状态字段 - 用于软删除功能
+  isDeleted?: boolean;         // 是否已删除（软删除标记）
+  deletedAt?: string;          // 删除时间
   
   // 同步相关字段
   needsSync?: boolean;         // 是否需要同步到Supabase

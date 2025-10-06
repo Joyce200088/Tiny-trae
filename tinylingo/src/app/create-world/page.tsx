@@ -12,6 +12,10 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 import useImage from 'use-image';
 // 导入自动同步功能
 import { useAutoSync } from '@/hooks/useAutoSync';
+import { UserDataManager } from '@/lib/supabase/userClient';
+import { useThumbnailManager } from '@/hooks/useThumbnailManager';
+// 导入认证相关
+import { useAuth } from '@/components/auth/AuthProvider';
 
 // 导入新的组件
 import TopBar from '@/components/canvas/TopBar';
@@ -346,6 +350,31 @@ interface WorldData {
 
 // 重命名主组件为Content组件，准备用Suspense包装
 function CreateWorldPageContent() {
+  // 认证检查 - 防止未登录用户访问创建世界页面
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // 如果未登录，重定向到首页
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  // 如果正在检查认证状态或未登录，显示加载页面
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {authLoading ? '检查登录状态...' : '需要登录才能创建世界'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // 集成自动同步功能
   const { 
     isOnline, 
@@ -356,6 +385,16 @@ function CreateWorldPageContent() {
   } = useAutoSync({
     syncInterval: 30000, // 30秒同步一次
     enabled: true // 修复：使用enabled而不是enableAutoSync
+  });
+
+  // 集成缩略图管理功能
+  const {
+    generateThumbnail,
+    isGenerating: isThumbnailGenerating,
+    error: thumbnailError
+  } = useThumbnailManager({
+    autoRetry: true,
+    maxRetries: 3
   });
 
   // 基础状态
@@ -373,8 +412,7 @@ function CreateWorldPageContent() {
   const [userStickers, setUserStickers] = useState<StickerData[]>(mockStickers);
   const [isClient, setIsClient] = useState(false);
   
-  // 路由
-  const router = useRouter();
+  // 路由 (已在函数开始处定义)
   
   // 历史记录管理
   const [history, setHistory] = useState<any[][]>([[]]);
@@ -390,7 +428,8 @@ function CreateWorldPageContent() {
   // 画布引用
   const canvasAreaRef = useRef<{ 
     updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void;
-    generateThumbnail: () => Promise<string>;
+    generateThumbnail?: () => Promise<string>; // 缩略图功能已删除，保留接口兼容性
+    getStageRef?: () => any; // 新增：获取 stageRef 的方法
   }>(null);
   
   // 画布尺寸和位置
@@ -575,6 +614,13 @@ function CreateWorldPageContent() {
   useEffect(() => {
     setIsClient(true);
     
+    // 初始化用户ID，确保与用户页面一致
+    UserDataManager.initializeUser().then(() => {
+      console.log('用户ID已初始化:', UserDataManager.getCurrentUserId());
+    }).catch(error => {
+      console.error('用户ID初始化失败:', error);
+    });
+    
     // 检查URL参数，看是否是编辑现有世界或加载预设模板
     const worldId = searchParams.get('worldId');
     const templateId = searchParams.get('template');
@@ -620,11 +666,27 @@ function CreateWorldPageContent() {
       if (hasUnsavedChanges && !isAutoSavingRef.current) {
         // 同步保存（简化版本）
         try {
+          // 生成缩略图
+          let thumbnailUrl = '';
+          if (canvasAreaRef.current?.getStageRef) {
+            try {
+              const stage = canvasAreaRef.current.getStageRef();
+              if (stage) {
+                thumbnailUrl = await generateThumbnail(stage, {
+                  worldId: currentWorldId || Date.now().toString(),
+                  worldName: documentName || '未命名世界'
+                });
+              }
+            } catch (thumbnailError) {
+              console.warn('缩略图生成失败，将在下次访问时重试:', thumbnailError);
+            }
+          }
+
           const worldData = {
             id: currentWorldId || Date.now().toString(),
             name: documentName || '未命名世界',
             description: `包含 ${canvasObjects.length} 个贴纸的英语学习世界`,
-            thumbnail: '', // 页面关闭时跳过缩略图生成
+            thumbnail: thumbnailUrl, // 使用生成的缩略图URL
             coverUrl: '', // 个人主页世界库期望的字段名
             wordCount: canvasObjects.length,
             stickerCount: canvasObjects.length, // 添加必需的stickerCount字段
@@ -679,21 +741,7 @@ function CreateWorldPageContent() {
     inspectorActiveTab === 'ai-generate' ? 'ai' : inspectorActiveTab;
 
   // 生成缩略图函数
-  const generateThumbnail = async (): Promise<string> => {
-    try {
-      if (!canvasAreaRef.current) {
-        console.warn('画布引用不存在，无法生成缩略图');
-        return '';
-      }
-      
-      // 调用CanvasArea组件的generateThumbnail方法
-      const thumbnailDataUrl = await canvasAreaRef.current.generateThumbnail();
-      return thumbnailDataUrl;
-    } catch (error) {
-      console.error('生成缩略图失败:', error);
-      return '';
-    }
-  };
+  // 缩略图功能已删除
 
   // 保存世界数据（保留原有逻辑，添加自动保存支持）
   const saveWorldData = async (isAutoSave = false) => {
@@ -718,9 +766,23 @@ function CreateWorldPageContent() {
       console.log('📋 画布数据:', canvasData);
       
       // 生成缩略图
-      console.log('🖼️ 开始生成缩略图...');
-      const thumbnailDataUrl = await generateThumbnail();
-      console.log('✅ 缩略图生成完成:', thumbnailDataUrl ? '成功' : '失败');
+      let thumbnailDataUrl = '';
+      if (canvasAreaRef.current?.getStageRef) {
+        try {
+          const stage = canvasAreaRef.current.getStageRef();
+          if (stage) {
+            thumbnailDataUrl = await generateThumbnail(stage, {
+              worldId: currentWorldId || Date.now().toString(),
+              worldName: documentName || '未命名世界'
+            });
+            console.log('✅ 缩略图生成成功:', thumbnailDataUrl ? '有数据' : '无数据');
+          }
+        } catch (thumbnailError) {
+          console.warn('缩略图生成失败，将在下次访问时重试:', thumbnailError);
+        }
+      } else {
+        console.warn('无法获取canvas引用，跳过缩略图生成');
+      }
       
       // 计算统计信息
       const stickerObjects = canvasObjects.filter((obj: CanvasObject) => obj.stickerData);
@@ -747,9 +809,9 @@ function CreateWorldPageContent() {
         id: currentWorldId || Date.now().toString(),
         name: documentName || '未命名世界',
         description: `包含 ${uniqueWords} 个单词，${stickerCount} 个贴纸的英语学习世界`, // 更新描述
-        thumbnail: thumbnailDataUrl,
-        coverUrl: thumbnailDataUrl, // 个人主页世界库期望的字段名
-        previewImage: thumbnailDataUrl, // 添加预览图片字段
+        thumbnail: thumbnailDataUrl, // 使用生成的缩略图
+        coverUrl: '', // 个人主页世界库期望的字段名
+        previewImage: '', // 预览图字段
         wordCount: uniqueWords, // 使用正确的单词数量
         stickerCount: stickerCount, // 添加贴纸数量字段
         likes: 0, // 初始化点赞数
@@ -824,13 +886,24 @@ function CreateWorldPageContent() {
     }
   };
 
-  // 监听数据变化，标记为未保存
+  // 监听数据变化，标记为未保存并触发实时保存
   useEffect(() => {
+    // 跳过初始加载时的保存
+    if (canvasObjects.length === 0 && !selectedBackground && !documentName) {
+      return;
+    }
+    
     setHasUnsavedChanges(true);
-    setSaveStatus('saved'); // 重置保存状态，等待用户手动保存
+    setSaveStatus('saved'); // 重置保存状态，等待自动保存
+    
+    console.log('🔄 检测到数据变化，准备自动保存...', {
+      canvasObjectsCount: canvasObjects.length,
+      selectedBackground: !!selectedBackground,
+      documentName: documentName || '未命名'
+    });
   }, [canvasObjects, selectedBackground, documentName]);
 
-  // 自动保存逻辑
+  // 实时自动保存逻辑 - 缩短延迟时间
   useEffect(() => {
     if (hasUnsavedChanges && !isAutoSavingRef.current) {
       // 清除之前的定时器
@@ -838,10 +911,11 @@ function CreateWorldPageContent() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
       
-      // 设置新的自动保存定时器
+      // 设置新的自动保存定时器 - 缩短到1.5秒实现更快的实时保存
       autoSaveTimeoutRef.current = setTimeout(() => {
+        console.log('⚡ 触发实时自动保存...');
         saveWorldData(true); // 传入true表示自动保存
-      }, 3000); // 3秒后自动保存
+      }, 1500); // 1.5秒后自动保存，提供更好的实时体验
     }
     
     return () => {
@@ -851,18 +925,24 @@ function CreateWorldPageContent() {
     };
   }, [hasUnsavedChanges, canvasObjects, selectedBackground, documentName]);
 
-  // 处理对象变化
+  // 处理对象变化 - 增强实时保存触发
   const handleObjectChange = (id: string, newAttrs: CanvasObject) => {
+    console.log('🎯 对象属性变化:', { id, changes: Object.keys(newAttrs) });
     setCanvasObjects(prev => 
       prev.map(obj => obj.id === id ? { ...obj, ...newAttrs } : obj)
     );
+    // 立即标记为有未保存的变化，触发实时保存
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteObject = (id?: string) => {
     const targetId = id || selectedObjectId;
     if (targetId) {
+      console.log('🗑️ 删除对象:', targetId);
       setCanvasObjects(prev => prev.filter(obj => obj.id !== targetId));
       setSelectedObjectId(null);
+      // 立即标记为有未保存的变化，触发实时保存
+      setHasUnsavedChanges(true);
     }
   };
 
@@ -889,8 +969,9 @@ function CreateWorldPageContent() {
     }
   };
 
-  // 添加贴纸到画布
+  // 添加贴纸到画布 - 增强实时保存触发
   const handleAddSticker = (sticker: StickerData) => {
+    console.log('🎨 添加贴纸到画布:', sticker.name);
     const newObject = {
       id: `sticker-${Date.now()}`,
       type: 'sticker',
@@ -904,6 +985,9 @@ function CreateWorldPageContent() {
       stickerData: sticker
     };
     setCanvasObjects(prev => [...prev, newObject]);
+    
+    // 立即标记为有未保存的变化，触发实时保存
+    setHasUnsavedChanges(true);
     
     // 自动播放贴纸的英文音频
     playStickerAudio(sticker);
@@ -952,6 +1036,10 @@ function CreateWorldPageContent() {
       };
       
       setCanvasObjects([...canvasObjects, newBackground]);
+      
+      // 立即标记为有未保存的变化，触发实时保存
+      setHasUnsavedChanges(true);
+      console.log('🖼️ 添加背景图片到画布:', backgroundData.src || backgroundData.data?.url);
     };
     
     img.src = backgroundData.src || backgroundData.data?.url;
@@ -1127,11 +1215,12 @@ function CreateWorldPageContent() {
     }
   };
 
-  // 拖拽到画布
+  // 拖拽到画布 - 增强实时保存触发
   const handleDragToCanvas = () => {
     if (!transparentImage && !generatedImage) return;
     
     const imageUrl = transparentImage || generatedImage!;
+    console.log('🤖 添加AI生成图片到画布:', imageUrl.substring(0, 50) + '...');
     
     // 创建新的画布对象
     const newObject = {
@@ -1151,6 +1240,9 @@ function CreateWorldPageContent() {
     // 添加到画布
     setCanvasObjects(prev => [...prev, newObject]);
     
+    // 立即标记为有未保存的变化，触发实时保存
+    setHasUnsavedChanges(true);
+    
     // 重置生成状态
     setGeneratedImage(null);
     setTransparentImage(null);
@@ -1164,16 +1256,16 @@ function CreateWorldPageContent() {
 
   // 重新生成
   // 处理预览功能
-  const handlePreview = () => {
+  const handlePreview = async () => {
     // 生成或使用现有的worldId
     const previewWorldId = currentWorldId || `world_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // 保存当前世界数据到localStorage
+    // 创建世界数据对象
     const worldData: WorldData = {
       id: previewWorldId,
       name: documentName,
       description: '',
-      thumbnail: '',
+      thumbnail: '', // 将在下面生成
       coverUrl: '',
       wordCount: canvasObjects.filter(obj => obj.stickerData).length,
       stickerCount: canvasObjects.filter(obj => obj.stickerData).length,
@@ -1190,6 +1282,17 @@ function CreateWorldPageContent() {
       updatedAt: new Date().toISOString(),
       lastModified: new Date().toISOString()
     };
+
+    // 使用useThumbnailManager生成并上传缩略图
+    try {
+      const thumbnailUrl = await generateThumbnail(worldData);
+      if (thumbnailUrl) {
+        worldData.thumbnail = thumbnailUrl;
+        console.log('缩略图生成并上传成功:', thumbnailUrl);
+      }
+    } catch (thumbnailError) {
+      console.warn('缩略图生成失败，将在下次访问时重试:', thumbnailError);
+    }
     
     // 保存到localStorage
     localStorage.setItem(`world_${previewWorldId}`, JSON.stringify(worldData));

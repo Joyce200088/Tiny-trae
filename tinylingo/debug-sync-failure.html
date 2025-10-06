@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试贴纸同步失败问题</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .test-section {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 贴纸同步失败调试工具</h1>
+        <p>既然数据库表存在，让我们深入分析同步失败的真正原因</p>
+        
+        <div class="test-section">
+            <h3>1. 基础连接测试</h3>
+            <button onclick="testBasicConnection()">测试 Supabase 连接</button>
+            <div id="connection-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 用户认证状态</h3>
+            <button onclick="testUserAuth()">检查用户认证</button>
+            <div id="auth-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. RLS 策略测试</h3>
+            <button onclick="testRLSPolicies()">测试 RLS 权限</button>
+            <div id="rls-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 数据格式验证</h3>
+            <button onclick="testDataFormat()">验证贴纸数据格式</button>
+            <div id="format-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 完整同步测试</h3>
+            <button onclick="testFullSync()">执行完整同步测试</button>
+            <div id="sync-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 错误日志</h3>
+            <div id="error-logs"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://knizbnlzwcuniceqvmvd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaXpibmx6d2N1bmljZXF2bXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NjQ3ODQsImV4cCI6MjA3NTI0MDc4NH0.NJxl1MvhdG2vFUoMkCClV4VkLtjfok7eJ6zxzqSzuHQ';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 日志记录函数
+        function addLog(message, type = 'info') {
+            const logDiv = document.getElementById('error-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div class="status ${type}">[${timestamp}] ${message}</div>`;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // 获取或生成用户ID
+        function getCurrentUserId() {
+            let userId = localStorage.getItem('currentUserId');
+            if (!userId) {
+                userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                localStorage.setItem('currentUserId', userId);
+            }
+            return userId;
+        }
+
+        // 1. 测试基础连接
+        async function testBasicConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.innerHTML = '<div class="status info">正在测试连接...</div>';
+            
+            try {
+                // 测试基础连接
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    resultDiv.innerHTML = `<div class="status error">连接失败: ${error.message}</div>`;
+                    addLog(`连接测试失败: ${error.message}`, 'error');
+                } else {
+                    resultDiv.innerHTML = '<div class="status success">✅ Supabase 连接正常</div>';
+                    addLog('Supabase 连接测试成功', 'success');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">连接异常: ${error.message}</div>`;
+                addLog(`连接异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 2. 测试用户认证状态
+        async function testUserAuth() {
+            const resultDiv = document.getElementById('auth-result');
+            resultDiv.innerHTML = '<div class="status info">正在检查用户认证...</div>';
+            
+            try {
+                const userId = getCurrentUserId();
+                addLog(`当前用户ID: ${userId}`, 'info');
+                
+                // 检查用户是否存在
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .single();
+                
+                if (userError && userError.code !== 'PGRST116') {
+                    resultDiv.innerHTML = `<div class="status error">用户查询失败: ${userError.message}</div>`;
+                    addLog(`用户查询失败: ${userError.message}`, 'error');
+                    return;
+                }
+                
+                if (!userData) {
+                    // 尝试创建用户
+                    const { data: newUser, error: createError } = await supabase
+                        .from('users')
+                        .insert({
+                            user_id: userId,
+                            username: 'Test User',
+                            email: '',
+                            preferences: {},
+                            last_login: new Date().toISOString()
+                        })
+                        .select()
+                        .single();
+                    
+                    if (createError) {
+                        resultDiv.innerHTML = `<div class="status error">创建用户失败: ${createError.message}</div>`;
+                        addLog(`创建用户失败: ${createError.message}`, 'error');
+                    } else {
+                        resultDiv.innerHTML = '<div class="status success">✅ 用户创建成功</div>';
+                        addLog('用户创建成功', 'success');
+                    }
+                } else {
+                    resultDiv.innerHTML = '<div class="status success">✅ 用户认证正常</div>';
+                    addLog('用户认证正常', 'success');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">认证检查异常: ${error.message}</div>`;
+                addLog(`认证检查异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 3. 测试 RLS 策略
+        async function testRLSPolicies() {
+            const resultDiv = document.getElementById('rls-result');
+            resultDiv.innerHTML = '<div class="status info">正在测试 RLS 策略...</div>';
+            
+            try {
+                const userId = getCurrentUserId();
+                
+                // 测试读取权限
+                const { data: readData, error: readError } = await supabase
+                    .from('user_stickers')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .limit(1);
+                
+                if (readError) {
+                    resultDiv.innerHTML = `<div class="status error">读取权限测试失败: ${readError.message}</div>`;
+                    addLog(`RLS 读取权限失败: ${readError.message}`, 'error');
+                    return;
+                }
+                
+                // 测试写入权限
+                const testSticker = {
+                    user_id: userId,
+                    sticker_id: `test_${Date.now()}`,
+                    word: 'test',
+                    cn: '测试',
+                    pos: 'noun',
+                    image: '',
+                    audio: { uk: '', us: '' },
+                    examples: [],
+                    mnemonic: [],
+                    mastery_status: 'new',
+                    tags: [],
+                    related_words: [],
+                    is_deleted: false
+                };
+                
+                const { data: writeData, error: writeError } = await supabase
+                    .from('user_stickers')
+                    .insert(testSticker)
+                    .select();
+                
+                if (writeError) {
+                    resultDiv.innerHTML = `<div class="status error">写入权限测试失败: ${writeError.message}</div>`;
+                    addLog(`RLS 写入权限失败: ${writeError.message}`, 'error');
+                } else {
+                    resultDiv.innerHTML = '<div class="status success">✅ RLS 策略正常</div>';
+                    addLog('RLS 策略测试成功', 'success');
+                    
+                    // 清理测试数据
+                    await supabase
+                        .from('user_stickers')
+                        .delete()
+                        .eq('sticker_id', testSticker.sticker_id);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">RLS 测试异常: ${error.message}</div>`;
+                addLog(`RLS 测试异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 4. 测试数据格式
+        async function testDataFormat() {
+            const resultDiv = document.getElementById('format-result');
+            resultDiv.innerHTML = '<div class="status info">正在验证数据格式...</div>';
+            
+            try {
+                // 获取本地贴纸数据
+                const localStickers = localStorage.getItem('myStickers');
+                if (!localStickers) {
+                    resultDiv.innerHTML = '<div class="status warning">⚠️ 本地没有贴纸数据</div>';
+                    addLog('本地没有贴纸数据', 'warning');
+                    return;
+                }
+                
+                const stickers = JSON.parse(localStickers);
+                addLog(`本地贴纸数量: ${stickers.length}`, 'info');
+                
+                if (stickers.length > 0) {
+                    const firstSticker = stickers[0];
+                    addLog(`第一个贴纸数据: ${JSON.stringify(firstSticker, null, 2)}`, 'info');
+                    
+                    // 验证必需字段
+                    const requiredFields = ['word', 'cn', 'pos', 'image', 'audio', 'examples', 'mnemonic', 'masteryStatus', 'tags', 'relatedWords'];
+                    const missingFields = requiredFields.filter(field => !(field in firstSticker));
+                    
+                    if (missingFields.length > 0) {
+                        resultDiv.innerHTML = `<div class="status error">数据格式错误，缺少字段: ${missingFields.join(', ')}</div>`;
+                        addLog(`数据格式错误，缺少字段: ${missingFields.join(', ')}`, 'error');
+                    } else {
+                        resultDiv.innerHTML = '<div class="status success">✅ 数据格式验证通过</div>';
+                        addLog('数据格式验证通过', 'success');
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">数据格式验证异常: ${error.message}</div>`;
+                addLog(`数据格式验证异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 5. 完整同步测试
+        async function testFullSync() {
+            const resultDiv = document.getElementById('sync-result');
+            resultDiv.innerHTML = '<div class="status info">正在执行完整同步测试...</div>';
+            
+            try {
+                const userId = getCurrentUserId();
+                
+                // 获取本地贴纸数据
+                const localStickers = localStorage.getItem('myStickers');
+                if (!localStickers) {
+                    resultDiv.innerHTML = '<div class="status warning">⚠️ 本地没有贴纸数据可同步</div>';
+                    return;
+                }
+                
+                const stickers = JSON.parse(localStickers);
+                addLog(`准备同步 ${stickers.length} 个贴纸`, 'info');
+                
+                // 转换数据格式
+                const userStickers = stickers.map(sticker => ({
+                    user_id: userId,
+                    sticker_id: sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    word: sticker.word || '',
+                    cn: sticker.cn || '',
+                    pos: sticker.pos || 'noun',
+                    image: sticker.image || '',
+                    audio: sticker.audio || { uk: '', us: '' },
+                    examples: sticker.examples || [],
+                    mnemonic: sticker.mnemonic || [],
+                    mastery_status: sticker.masteryStatus || 'new',
+                    tags: sticker.tags || [],
+                    related_words: sticker.relatedWords || [],
+                    is_deleted: false
+                }));
+                
+                // 执行同步
+                const { data, error } = await supabase
+                    .from('user_stickers')
+                    .upsert(userStickers, {
+                        onConflict: 'user_id,sticker_id',
+                        ignoreDuplicates: false
+                    })
+                    .select();
+                
+                if (error) {
+                    resultDiv.innerHTML = `<div class="status error">同步失败: ${error.message}</div>`;
+                    addLog(`同步失败: ${JSON.stringify(error, null, 2)}`, 'error');
+                } else {
+                    resultDiv.innerHTML = `<div class="status success">✅ 同步成功，共同步 ${data.length} 个贴纸</div>`;
+                    addLog(`同步成功，共同步 ${data.length} 个贴纸`, 'success');
+                    
+                    // 更新同步状态
+                    await supabase
+                        .from('user_sync_status')
+                        .upsert({
+                            user_id: userId,
+                            data_type: 'stickers',
+                            last_sync_at: new Date().toISOString(),
+                            sync_version: 1,
+                            is_syncing: false,
+                            sync_error: null
+                        }, {
+                            onConflict: 'user_id,data_type'
+                        });
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status error">同步测试异常: ${error.message}</div>`;
+                addLog(`同步测试异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动开始测试
+        window.onload = function() {
+            addLog('调试工具已加载，开始诊断贴纸同步问题', 'info');
+        };
+    </script>
+</body>
+</html>

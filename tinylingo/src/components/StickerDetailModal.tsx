@@ -424,12 +424,11 @@ function StickerDetailModal({
               
               {/* 图片区域 */}
               <div className="flex-1 flex items-center justify-center p-4 relative">
-                {sticker.imageUrl || sticker.thumbnailUrl ? (
+                {sticker.imageUrl ? (
                   <img
-                    src={sticker.imageUrl || sticker.thumbnailUrl}
-                    alt={sticker.name}
-                    className="max-w-full max-h-full object-contain rounded-lg"
-                    style={{ width: '230px', height: '230px' }}
+                    src={sticker.imageUrl}
+                    alt={sticker.word}
+                    className="w-full h-full object-contain"
                   />
                 ) : (
                   <div className="text-gray-400 text-center">
