@@ -277,6 +277,12 @@ export default function CreateWorldPage() {
   const [showPresetSelector, setShowPresetSelector] = useState(false);
   const [isLoadingFromPreset, setIsLoadingFromPreset] = useState(false);
   
+  // 画布引用
+  const canvasAreaRef = useRef<{ 
+    updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void;
+    generateThumbnail: () => Promise<string>;
+  }>(null);
+  
   // 画布尺寸和位置
   const [canvasSize] = useState({ width: 1600, height: 1200 });
   
@@ -295,6 +301,7 @@ export default function CreateWorldPage() {
     const startPosition = { ...canvasPosition };
     const startScale = canvasScale;
     const startTime = Date.now();
+    let animationId: number;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -309,17 +316,28 @@ export default function CreateWorldPage() {
       const currentY = startPosition.y + (targetPosition.y - startPosition.y) * easedProgress;
       const currentScale = startScale + (targetScale - startScale) * easedProgress;
 
-      setCanvasPosition({ x: currentX, y: currentY });
-      setCanvasScale(currentScale);
-
+      // 批量更新状态，减少重新渲染次数
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        setCanvasPosition({ x: currentX, y: currentY });
+        setCanvasScale(currentScale);
+        animationId = requestAnimationFrame(animate);
       } else {
+        // 动画结束时确保精确到达目标值
+        setCanvasPosition(targetPosition);
+        setCanvasScale(targetScale);
         setIsAnimating(false);
       }
     };
 
-    requestAnimationFrame(animate);
+    animationId = requestAnimationFrame(animate);
+    
+    // 返回取消函数，用于在组件卸载时清理
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        setIsAnimating(false);
+      }
+    };
   };
   
   // 适配所有元素的函数
@@ -542,9 +560,19 @@ export default function CreateWorldPage() {
 
   // 生成缩略图函数
   const generateThumbnail = async (): Promise<string> => {
-    // 这里应该实现画布缩略图生成逻辑
-    // 暂时返回空字符串，实际应该生成画布的缩略图
-    return '';
+    try {
+      if (!canvasAreaRef.current) {
+        console.warn('画布引用不存在，无法生成缩略图');
+        return '';
+      }
+      
+      // 调用CanvasArea组件的generateThumbnail方法
+      const thumbnailDataUrl = await canvasAreaRef.current.generateThumbnail();
+      return thumbnailDataUrl;
+    } catch (error) {
+      console.error('生成缩略图失败:', error);
+      return '';
+    }
   };
 
   // 保存世界数据（保留原有逻辑，添加自动保存支持）
@@ -1203,6 +1231,7 @@ export default function CreateWorldPage() {
         {/* 画布区域 - 占据全部空间，无边界 */}
         <div className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }}>
           <CanvasArea
+            ref={canvasAreaRef}
             canvasObjects={canvasObjects}
             selectedObjectId={selectedObjectId}
             canvasSize={canvasSize}

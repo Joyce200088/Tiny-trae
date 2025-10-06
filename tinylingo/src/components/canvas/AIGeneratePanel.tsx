@@ -8,8 +8,8 @@ interface AIGeneratePanelProps {
   aiStyle?: string;
   aiViewpoint?: string;
   isGenerating?: boolean;
-  generatedImage?: string;
-  transparentImage?: string;
+  generatedImage?: string | null;
+  transparentImage?: string | null;
   isRemovingBackground?: boolean;
   generationError?: string;
   onAiWordChange?: (word: string) => void;

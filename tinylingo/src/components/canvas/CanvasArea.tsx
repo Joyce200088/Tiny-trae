@@ -285,7 +285,10 @@ interface CanvasAreaProps {
   onToolChange: (tool: string) => void; // 新增：工具切换回调
 }
 
-const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void }, CanvasAreaProps>(({
+const CanvasArea = forwardRef<{ 
+  updateBackgroundMode: (backgroundId: string, newMode: 'cover' | 'contain' | 'tile') => void;
+  generateThumbnail: () => Promise<string>;
+}, CanvasAreaProps>(({
   canvasObjects,
   selectedObjectId,
   canvasSize,
@@ -318,8 +321,8 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   const [spacePressed, setSpacePressed] = useState(false);
   const [backgroundImg] = useImage(backgroundImage || '');
   
-  // 窗口尺寸状态
-  const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
+  // 窗口尺寸状态 - 初始值为null，避免抖动
+  const [windowSize, setWindowSize] = useState<{ width: number; height: number } | null>(null);
 
   // 根据当前工具获取光标样式
   const getCursorStyle = () => {
@@ -395,10 +398,248 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
     img.src = backgroundObj.src || backgroundObj.backgroundData.url;
   }, [canvasObjects, canvasSize, onObjectChange]);
 
-  // 暴露updateBackgroundMode函数给父组件
+  // 生成画布缩略图
+  const generateThumbnail = useCallback(async (): Promise<string> => {
+    if (!stageRef.current) {
+      console.warn('Stage引用不存在，无法生成缩略图');
+      return '';
+    }
+
+    console.log('开始生成缩略图，画布对象数量:', canvasObjects.length);
+
+    try {
+      const stage = stageRef.current;
+      
+      // 计算所有元素的边界框（包括背景图片）
+      let minX = Infinity, minY = Infinity;
+      let maxX = -Infinity, maxY = -Infinity;
+      let hasElements = false;
+
+      // 遍历所有画布对象，包括背景
+      canvasObjects.forEach(obj => {
+        hasElements = true;
+        const objLeft = obj.x;
+        const objTop = obj.y;
+        const objRight = obj.x + (obj.width || 0);
+        const objBottom = obj.y + (obj.height || 0);
+        
+        minX = Math.min(minX, objLeft);
+        minY = Math.min(minY, objTop);
+        maxX = Math.max(maxX, objRight);
+        maxY = Math.max(maxY, objBottom);
+      });
+
+      // 如果没有元素，使用画布中心区域
+      if (!hasElements) {
+        const centerX = canvasSize.width / 2;
+        const centerY = canvasSize.height / 2;
+        const defaultSize = Math.min(canvasSize.width, canvasSize.height) * 0.5;
+        
+        minX = centerX - defaultSize / 2;
+        minY = centerY - defaultSize / 2;
+        maxX = centerX + defaultSize / 2;
+        maxY = centerY + defaultSize / 2;
+      }
+
+      // 计算边界框的尺寸和中心
+      const boundingWidth = maxX - minX;
+      const boundingHeight = maxY - minY;
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      // 添加适当的内边距，确保元素不会贴边
+      const padding = Math.min(boundingWidth, boundingHeight) * 0.1; // 10%的内边距
+      const paddedWidth = boundingWidth + padding * 2;
+      const paddedHeight = boundingHeight + padding * 2;
+
+      // 固定缩略图尺寸为正方形，便于在卡片中显示
+      const thumbnailSize = 300; // 使用固定尺寸
+      const thumbnailWidth = thumbnailSize;
+      const thumbnailHeight = thumbnailSize;
+      
+      // 根据最小边长计算缩放比例，确保内容完全适配缩略图
+      const scaleX = thumbnailWidth / paddedWidth;
+      const scaleY = thumbnailHeight / paddedHeight;
+      const scale = Math.min(scaleX, scaleY, 1); // 不放大，只缩小
+
+      // 计算缩略图的中心点
+      const thumbnailCenterX = thumbnailWidth / 2;
+      const thumbnailCenterY = thumbnailHeight / 2;
+      
+      // 计算需要的偏移量，使内容居中显示在缩略图中
+      const offsetX = thumbnailCenterX - centerX * scale;
+      const offsetY = thumbnailCenterY - centerY * scale;
+      
+      // 创建临时画布用于合成最终缩略图
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = thumbnailWidth;
+      tempCanvas.height = thumbnailHeight;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      if (tempCtx) {
+        // 1. 首先设置背景色为 #FFFBF5（项目规定的背景色）
+        tempCtx.fillStyle = '#FFFBF5';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // 2. 如果有背景图片，先绘制背景图片（居中显示）
+        if (backgroundImg && backgroundImage) {
+          try {
+            // 计算背景图片的缩放和位置，确保居中显示在缩略图中
+            const bgAspectRatio = backgroundImg.width / backgroundImg.height;
+            const thumbnailAspectRatio = thumbnailWidth / thumbnailHeight;
+            
+            let bgDrawWidth, bgDrawHeight, bgDrawX, bgDrawY;
+            
+            // 使用 object-contain 的逻辑，确保背景图片完整显示且居中
+            if (bgAspectRatio > thumbnailAspectRatio) {
+              // 背景图片更宽，以宽度为准，高度居中
+              bgDrawWidth = thumbnailWidth;
+              bgDrawHeight = bgDrawWidth / bgAspectRatio;
+              bgDrawX = 0;
+              bgDrawY = (thumbnailHeight - bgDrawHeight) / 2;
+            } else {
+              // 背景图片更高，以高度为准，宽度居中
+              bgDrawHeight = thumbnailHeight;
+              bgDrawWidth = bgDrawHeight * bgAspectRatio;
+              bgDrawX = (thumbnailWidth - bgDrawWidth) / 2;
+              bgDrawY = 0;
+            }
+            
+            tempCtx.drawImage(
+              backgroundImg,
+              bgDrawX, bgDrawY, // 目标位置（居中）
+              bgDrawWidth, bgDrawHeight // 目标尺寸
+            );
+          } catch (bgError) {
+            console.warn('绘制背景图片失败:', bgError);
+          }
+        }
+        
+        // 3. 使用离屏渲染生成画布内容，避免影响用户可见的stage
+        // 创建一个临时的离屏stage来生成缩略图
+        const offscreenDiv = document.createElement('div');
+        offscreenDiv.style.position = 'absolute';
+        offscreenDiv.style.left = '-9999px';
+        offscreenDiv.style.top = '-9999px';
+        offscreenDiv.style.width = `${thumbnailWidth}px`;
+        offscreenDiv.style.height = `${thumbnailHeight}px`;
+        document.body.appendChild(offscreenDiv);
+        
+        try {
+          // 创建离屏Konva Stage
+          const offscreenStage = new Konva.Stage({
+            container: offscreenDiv,
+            width: thumbnailWidth,
+            height: thumbnailHeight,
+          });
+          
+          // 创建离屏Layer
+          const offscreenLayer = new Konva.Layer();
+          offscreenStage.add(offscreenLayer);
+          
+          // 复制所有画布对象到离屏stage，并应用变换
+          const imageLoadPromises: Promise<void>[] = [];
+          
+          canvasObjects.forEach(obj => {
+            let konvaNode: Konva.Node | null = null;
+            
+            if (obj.type === 'image' && obj.imageUrl) {
+              // 创建图片节点
+              const imageNode = new Konva.Image({
+                x: obj.x * scale + offsetX,
+                y: obj.y * scale + offsetY,
+                width: (obj.width || 0) * scale,
+                height: (obj.height || 0) * scale,
+                rotation: obj.rotation || 0,
+                scaleX: obj.scaleX || 1,
+                scaleY: obj.scaleY || 1,
+              });
+              
+              // 创建图片加载Promise
+              const imageLoadPromise = new Promise<void>((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                  imageNode.image(img);
+                  resolve();
+                };
+                img.onerror = () => {
+                  console.warn('图片加载失败:', obj.imageUrl);
+                  resolve(); // 即使失败也继续，不阻塞整个流程
+                };
+                img.src = obj.imageUrl;
+              });
+              
+              imageLoadPromises.push(imageLoadPromise);
+              konvaNode = imageNode;
+              
+            } else if (obj.type === 'text') {
+              // 创建文本节点
+              konvaNode = new Konva.Text({
+                x: obj.x * scale + offsetX,
+                y: obj.y * scale + offsetY,
+                text: obj.text || '',
+                fontSize: (obj.fontSize || 16) * scale,
+                fontFamily: obj.fontFamily || 'Arial',
+                fill: obj.fill || '#000000',
+                rotation: obj.rotation || 0,
+                scaleX: obj.scaleX || 1,
+                scaleY: obj.scaleY || 1,
+              });
+            }
+            
+            if (konvaNode) {
+              offscreenLayer.add(konvaNode);
+            }
+          });
+          
+          // 等待所有图片加载完成
+          await Promise.all(imageLoadPromises);
+          
+          // 强制重绘离屏layer
+          offscreenLayer.batchDraw();
+          
+          // 生成离屏stage的内容
+          const canvasContent = offscreenStage.toDataURL({
+            mimeType: 'image/png',
+            quality: 0.8,
+            pixelRatio: 1,
+          });
+          
+          // 将画布内容绘制到临时画布上（叠加在背景之上）
+          const contentImg = new Image();
+          await new Promise<void>((resolve) => {
+            contentImg.onload = () => {
+              tempCtx.drawImage(contentImg, 0, 0);
+              resolve();
+            };
+            contentImg.src = canvasContent;
+          });
+          
+          // 清理离屏stage
+          offscreenStage.destroy();
+          
+        } finally {
+          // 清理DOM元素
+          document.body.removeChild(offscreenDiv);
+        }
+      }
+      
+      // 返回合成后的缩略图
+      const finalThumbnail = tempCanvas.toDataURL('image/jpeg', 0.8);
+      console.log('缩略图生成成功，数据长度:', finalThumbnail.length);
+      return finalThumbnail;
+    } catch (error) {
+      console.error('生成缩略图失败:', error);
+      return '';
+    }
+  }, [canvasSize, backgroundImg, backgroundImage, canvasObjects]);
+
+  // 暴露updateBackgroundMode和generateThumbnail函数给父组件
   useImperativeHandle(ref, () => ({
-    updateBackgroundMode
-  }), [updateBackgroundMode]);
+    updateBackgroundMode,
+    generateThumbnail
+  }), [updateBackgroundMode, generateThumbnail]);
 
   // 监听窗口尺寸变化
   useEffect(() => {
@@ -522,6 +763,10 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
     };
   }, [selectedObjectId, onToolChange]);
 
+  // 防抖处理滚轮缩放，减少频繁状态更新
+  const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingWheelUpdate = useRef<{scale: number, position: {x: number, y: number}} | null>(null);
+
   // 鼠标滚轮缩放（无需按键）
   const handleWheel = useCallback((e: any) => {
     // 添加安全检查，防止undefined错误
@@ -575,14 +820,37 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
     const newScale = deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
     const clampedScale = Math.max(0.1, Math.min(5, newScale));
     
-    onCanvasScaleChange(clampedScale);
-    
     const newPos = {
       x: pointer.x - mousePointTo.x * clampedScale,
       y: pointer.y - mousePointTo.y * clampedScale,
     };
     
-    onCanvasPositionChange(newPos);
+    // 立即更新Stage的视觉效果，避免延迟
+    stage.scaleX(clampedScale);
+    stage.scaleY(clampedScale);
+    stage.x(newPos.x);
+    stage.y(newPos.y);
+    stage.batchDraw();
+    
+    // 保存待更新的状态
+    pendingWheelUpdate.current = {
+      scale: clampedScale,
+      position: newPos
+    };
+    
+    // 清除之前的定时器
+    if (wheelTimeoutRef.current) {
+      clearTimeout(wheelTimeoutRef.current);
+    }
+    
+    // 设置防抖定时器，延迟更新React状态
+    wheelTimeoutRef.current = setTimeout(() => {
+      if (pendingWheelUpdate.current) {
+        onCanvasScaleChange(pendingWheelUpdate.current.scale);
+        onCanvasPositionChange(pendingWheelUpdate.current.position);
+        pendingWheelUpdate.current = null;
+      }
+    }, 50); // 50ms防抖延迟
   }, [onCanvasScaleChange, onCanvasPositionChange]);
 
   // 画布点击处理
@@ -638,6 +906,9 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   };
 
   // 画布拖拽处理（空格键 + 拖拽平移）
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingDragUpdate = useRef<{x: number, y: number} | null>(null);
+
   const handleStageDragStart = (e: any) => {
     if (spacePressed) {
       setIsDragging(true);
@@ -663,10 +934,34 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       const deltaX = e.evt.clientX - dragStart.x;
       const deltaY = e.evt.clientY - dragStart.y;
       
-      onCanvasPositionChange({
+      const newPosition = {
         x: canvasPosition.x + deltaX,
         y: canvasPosition.y + deltaY
-      });
+      };
+      
+      // 立即更新Stage的视觉效果
+      const stage = stageRef.current;
+      if (stage) {
+        stage.x(newPosition.x);
+        stage.y(newPosition.y);
+        stage.batchDraw();
+      }
+      
+      // 保存待更新的状态
+      pendingDragUpdate.current = newPosition;
+      
+      // 清除之前的定时器
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+      }
+      
+      // 设置防抖定时器，延迟更新React状态
+      dragTimeoutRef.current = setTimeout(() => {
+        if (pendingDragUpdate.current) {
+          onCanvasPositionChange(pendingDragUpdate.current);
+          pendingDragUpdate.current = null;
+        }
+      }, 16); // 16ms防抖延迟，约60fps
       
       setDragStart({ x: e.evt.clientX, y: e.evt.clientY });
     } else if (isDrawingTextBox && activeTool === 'text') {
@@ -686,6 +981,15 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
   const handleStageDragEnd = () => {
     if (isDragging) {
       setIsDragging(false);
+      // 确保最终状态同步
+      if (pendingDragUpdate.current) {
+        onCanvasPositionChange(pendingDragUpdate.current);
+        pendingDragUpdate.current = null;
+      }
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+        dragTimeoutRef.current = null;
+      }
     } else if (isDrawingTextBox && textBoxStart && textBoxEnd) {
       // Area Text: 创建固定尺寸的文本框
       const x = Math.min(textBoxStart.x, textBoxEnd.x);
@@ -1112,8 +1416,8 @@ const CanvasArea = forwardRef<{ updateBackgroundMode: (backgroundId: string, new
       <div className="w-full h-full">
         <Stage
           ref={stageRef}
-          width={Math.max(windowSize.width - 72 - 288, canvasSize.width)} // 减去左侧工具栏72px + 右侧面板288px
-          height={Math.max(windowSize.height - 60, canvasSize.height)} // 确保Stage高度至少等于画布逻辑高度
+          width={windowSize ? Math.max(windowSize.width - 72 - 288, canvasSize.width) : canvasSize.width} // 减去左侧工具栏72px + 右侧面板288px
+          height={windowSize ? Math.max(windowSize.height - 60, canvasSize.height) : canvasSize.height} // 确保Stage高度至少等于画布逻辑高度
           scaleX={canvasScale}
           scaleY={canvasScale}
           x={canvasPosition.x}

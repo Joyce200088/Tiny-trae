@@ -549,6 +549,14 @@ function MyWorldsTab({
     }
   };
 
+  // 处理世界学习（听写功能）
+  const handleWorldLearn = (worldId: string, event: React.MouseEvent) => {
+    // 阻止事件冒泡，避免触发世界选择
+    event.stopPropagation();
+    // 跳转到听写页面，传入worldId参数
+    window.open(`/dictation?worldId=${worldId}`, '_blank');
+  };
+
   // 全选/取消全选
   const handleSelectAll = () => {
     if (selectedWorldIds.length === filteredWorlds.length) {
@@ -797,7 +805,7 @@ function MyWorldsTab({
                 )}
 
                 {/* Cover Image */}
-                <div className="aspect-video relative border-b border-black" style={{backgroundColor: '#FFFBF5'}}>
+                <div className="aspect-[4/3] relative border-b border-black overflow-hidden" style={{backgroundColor: '#FFFBF5'}}>
                   {world.thumbnail || world.previewImage ? (
                     <img 
                       src={world.thumbnail || world.previewImage} 
@@ -819,14 +827,27 @@ function MyWorldsTab({
                     <span>{stats.stickerCount} 个贴纸</span>
                   </div>
                   
-                  <div className="text-xs text-gray-500">
-                    {new Date(stats.lastModified).toLocaleDateString('zh-CN', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                      {new Date(stats.lastModified).toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                    
+                    {/* Learn Button - 只在非多选模式下显示 */}
+                    {!isMultiSelectMode && (
+                      <button
+                        onClick={(e) => handleWorldLearn(world.id, e)}
+                        className="px-3 py-1 bg-black text-white text-xs rounded-md hover:bg-gray-800 transition-colors"
+                        title="开始听写练习"
+                      >
+                        Learn
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -870,12 +891,12 @@ function MyWorldsTab({
                   )}
 
                   {/* 缩略图 */}
-                  <div className="w-16 h-12 rounded border border-gray-300 flex-shrink-0" style={{backgroundColor: '#FFFBF5'}}>
+                  <div className="w-20 h-16 rounded border border-gray-300 flex-shrink-0 overflow-hidden" style={{backgroundColor: '#FFFBF5'}}>
                     {world.thumbnail || world.previewImage ? (
                       <img 
                         src={world.thumbnail || world.previewImage} 
                         alt={world.name}
-                        className="w-full h-full object-cover rounded"
+                        className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">预览</div>
@@ -897,6 +918,17 @@ function MyWorldsTab({
                       </span>
                     </div>
                   </div>
+
+                  {/* Learn Button - 只在非多选模式下显示 */}
+                  {!isMultiSelectMode && (
+                    <button
+                      onClick={(e) => handleWorldLearn(world.id, e)}
+                      className="px-4 py-2 bg-black text-white text-sm rounded-md hover:bg-gray-800 transition-colors flex-shrink-0"
+                      title="开始听写练习"
+                    >
+                      Learn
+                    </button>
+                  )}
                 </div>
               </div>
             );
