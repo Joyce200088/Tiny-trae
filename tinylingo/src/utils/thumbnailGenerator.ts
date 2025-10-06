@@ -22,32 +22,27 @@ export class ThumbnailGenerator {
 
   /**
    * 从画布对象生成缩略图
-   * @param canvasObjects 画布对象数组
-   * @param options 缩略图选项
-   * @returns Promise<string> 缩略图的data URL
    */
   static async generateFromCanvas(
     canvasObjects: CanvasObject[],
-    options: ThumbnailOptions = {}
+    options: Partial<ThumbnailOptions> = {}
   ): Promise<string> {
     const opts = { ...this.DEFAULT_OPTIONS, ...options };
     
     // 创建离屏画布
     const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('无法创建画布上下文');
+
     canvas.width = opts.width;
     canvas.height = opts.height;
-    const ctx = canvas.getContext('2d');
-    
-    if (!ctx) {
-      throw new Error('无法创建画布上下文');
-    }
 
     // 设置背景色
     ctx.fillStyle = opts.backgroundColor;
-    ctx.fillRect(0, 0, opts.width, opts.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 如果没有画布对象，返回纯背景色缩略图
-    if (!canvasObjects || canvasObjects.length === 0) {
+    // 如果没有对象，返回空背景
+    if (canvasObjects.length === 0) {
       return canvas.toDataURL('image/jpeg', opts.quality);
     }
 
@@ -57,16 +52,20 @@ export class ThumbnailGenerator {
       return canvas.toDataURL('image/jpeg', opts.quality);
     }
 
-    // 计算缩放比例（等比contain）
-    const scaleX = (opts.width * 0.9) / bounds.width; // 留10%边距
-    const scaleY = (opts.height * 0.9) / bounds.height;
-    const scale = Math.min(scaleX, scaleY);
+    // 计算缩放比例，确保所有内容都能显示在缩略图中
+    const padding = 20; // 添加内边距，确保内容不会贴边
+    const availableWidth = canvas.width - padding * 2;
+    const availableHeight = canvas.height - padding * 2;
+    
+    const scaleX = availableWidth / bounds.width;
+    const scaleY = availableHeight / bounds.height;
+    const scale = Math.min(scaleX, scaleY, 1); // 不放大，只缩小
 
-    // 计算居中偏移
+    // 计算居中偏移量
     const scaledWidth = bounds.width * scale;
     const scaledHeight = bounds.height * scale;
-    const offsetX = (opts.width - scaledWidth) / 2 - bounds.left * scale;
-    const offsetY = (opts.height - scaledHeight) / 2 - bounds.top * scale;
+    const offsetX = (canvas.width - scaledWidth) / 2 - bounds.left * scale;
+    const offsetY = (canvas.height - scaledHeight) / 2 - bounds.top * scale;
 
     // 渲染所有对象
     await this.renderObjects(ctx, canvasObjects, scale, offsetX, offsetY);
@@ -75,7 +74,7 @@ export class ThumbnailGenerator {
   }
 
   /**
-   * 计算所有对象的边界框
+   * 计算所有对象的边界框（考虑旋转、缩放等变换）
    */
   private static calculateBounds(objects: CanvasObject[]): {
     left: number;
@@ -93,16 +92,62 @@ export class ThumbnailGenerator {
     let bottom = -Infinity;
 
     objects.forEach(obj => {
-      const objLeft = obj.left || 0;
-      const objTop = obj.top || 0;
+      // 过滤掉不可见的对象
+      if (obj.visible === false) return;
+
+      const objX = obj.x || 0;
+      const objY = obj.y || 0;
       const objWidth = obj.width || 0;
       const objHeight = obj.height || 0;
+      const scaleX = obj.scaleX || 1;
+      const scaleY = obj.scaleY || 1;
+      const rotation = obj.rotation || 0;
 
-      left = Math.min(left, objLeft);
-      top = Math.min(top, objTop);
-      right = Math.max(right, objLeft + objWidth);
-      bottom = Math.max(bottom, objTop + objHeight);
+      // 计算实际尺寸（考虑缩放）
+      const actualWidth = objWidth * scaleX;
+      const actualHeight = objHeight * scaleY;
+
+      if (rotation === 0) {
+        // 无旋转的情况
+        left = Math.min(left, objX);
+        top = Math.min(top, objY);
+        right = Math.max(right, objX + actualWidth);
+        bottom = Math.max(bottom, objY + actualHeight);
+      } else {
+        // 有旋转的情况，计算旋转后的边界框
+        const centerX = objX + actualWidth / 2;
+        const centerY = objY + actualHeight / 2;
+        const rad = (rotation * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        // 计算旋转后的四个角点
+        const corners = [
+          { x: objX, y: objY },
+          { x: objX + actualWidth, y: objY },
+          { x: objX + actualWidth, y: objY + actualHeight },
+          { x: objX, y: objY + actualHeight }
+        ];
+
+        corners.forEach(corner => {
+          // 相对于中心点的坐标
+          const relX = corner.x - centerX;
+          const relY = corner.y - centerY;
+          
+          // 旋转后的坐标
+          const rotatedX = centerX + relX * cos - relY * sin;
+          const rotatedY = centerY + relX * sin + relY * cos;
+          
+          left = Math.min(left, rotatedX);
+          top = Math.min(top, rotatedY);
+          right = Math.max(right, rotatedX);
+          bottom = Math.max(bottom, rotatedY);
+        });
+      }
     });
+
+    // 如果所有对象都不可见，返回null
+    if (left === Infinity) return null;
 
     return {
       left,
@@ -147,33 +192,40 @@ export class ThumbnailGenerator {
     offsetX: number,
     offsetY: number
   ): Promise<void> {
-    const x = (obj.left || 0) * scale + offsetX;
-    const y = (obj.top || 0) * scale + offsetY;
-    const width = (obj.width || 0) * scale;
-    const height = (obj.height || 0) * scale;
+    // 跳过不可见的对象
+    if (obj.visible === false) return;
+
+    const x = (obj.x || 0) * scale + offsetX;
+    const y = (obj.y || 0) * scale + offsetY;
+    const width = (obj.width || 0) * scale * (obj.scaleX || 1);
+    const height = (obj.height || 0) * scale * (obj.scaleY || 1);
 
     ctx.save();
 
     // 应用透明度
-    if (obj.opacity !== undefined) {
+    if (obj.opacity !== undefined && obj.opacity < 1) {
       ctx.globalAlpha = obj.opacity;
     }
 
     // 应用旋转
-    if (obj.angle) {
+    if (obj.rotation) {
       const centerX = x + width / 2;
       const centerY = y + height / 2;
       ctx.translate(centerX, centerY);
-      ctx.rotate((obj.angle * Math.PI) / 180);
+      ctx.rotate((obj.rotation * Math.PI) / 180);
       ctx.translate(-centerX, -centerY);
     }
 
-    if (obj.type === 'image' && obj.src) {
+    // 根据对象类型渲染
+    if (obj.type === 'sticker' && obj.src) {
       await this.renderImage(ctx, obj.src, x, y, width, height);
-    } else if (obj.type === 'text') {
+    } else if (obj.type === 'text' && obj.text) {
       this.renderText(ctx, obj, x, y, width, height, scale);
-    } else if (obj.type === 'rect') {
+    } else if (obj.type === 'shape') {
       this.renderRect(ctx, obj, x, y, width, height);
+    } else if (obj.type === 'background' && obj.src) {
+      // 背景图片特殊处理 - 可能需要填充整个缩略图区域
+      await this.renderImage(ctx, obj.src, x, y, width, height);
     }
 
     ctx.restore();
@@ -230,20 +282,37 @@ export class ThumbnailGenerator {
   ): void {
     if (!obj.text) return;
 
-    const fontSize = (obj.fontSize || 16) * scale;
+    const fontSize = Math.max(8, (obj.fontSize || 16) * scale); // 确保最小字体大小
     const fontFamily = obj.fontFamily || 'Arial';
+    const fontWeight = obj.fontWeight || 'normal';
     
-    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
     ctx.fillStyle = obj.fill || '#000000';
-    ctx.textAlign = 'left';
+    
+    // 文本对齐方式
+    const textAlign = obj.textAlign || 'left';
+    ctx.textAlign = textAlign as CanvasTextAlign;
     ctx.textBaseline = 'top';
+
+    // 计算文本起始位置
+    let textX = x;
+    if (textAlign === 'center') {
+      textX = x + width / 2;
+    } else if (textAlign === 'right') {
+      textX = x + width;
+    }
 
     // 简单的文本换行处理
     const lines = obj.text.split('\n');
-    const lineHeight = fontSize * 1.2;
+    const lineHeight = fontSize * (obj.lineHeight || 1.2);
     
     lines.forEach((line, index) => {
-      ctx.fillText(line, x, y + index * lineHeight);
+      const textY = y + index * lineHeight;
+      
+      // 确保文本不超出边界
+      if (textY + fontSize <= y + height) {
+        ctx.fillText(line, textX, textY);
+      }
     });
   }
 
@@ -277,8 +346,8 @@ export class ThumbnailGenerator {
     // 创建一个简化的对象表示用于哈希
     const simplified = canvasObjects.map(obj => ({
       type: obj.type,
-      left: obj.left,
-      top: obj.top,
+      x: obj.x,
+      y: obj.y,
       width: obj.width,
       height: obj.height,
       src: obj.src,

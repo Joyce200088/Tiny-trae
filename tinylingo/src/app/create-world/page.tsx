@@ -63,7 +63,7 @@ const mockStickers: StickerData[] = [
     phonetic: '/ˈdaɪvɪŋ mæsk/',
     category: 'Diving Equipment',
     partOfSpeech: 'noun',
-    thumbnailUrl: '/Diving Mask.png',
+    // thumbnailUrl: '/Diving Mask.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.'
@@ -103,7 +103,7 @@ const mockStickers: StickerData[] = [
     phonetic: '/ˈkælɪndər/',
     category: 'Daily Items',
     partOfSpeech: 'noun',
-    thumbnailUrl: '/Calendar.png',
+    // thumbnailUrl: '/Calendar.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.'
@@ -143,7 +143,7 @@ const mockStickers: StickerData[] = [
     phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
     category: 'Furniture',
     partOfSpeech: 'noun',
-    thumbnailUrl: '/Industrial Shelving.png',
+    // thumbnailUrl: '/Industrial Shelving.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.'
@@ -183,7 +183,7 @@ const mockStickers: StickerData[] = [
     phonetic: '/səˈræmɪk mʌɡ/',
     category: 'Kitchenware',
     partOfSpeech: 'noun',
-    thumbnailUrl: '/Ceramic Mug.png',
+    // thumbnailUrl: '/Ceramic Mug.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.'
@@ -790,9 +790,31 @@ function CreateWorldPageContent() {
             });
             
             if (canvas instanceof HTMLCanvasElement) {
+              // 准备世界数据用于缩略图生成
+              const worldDataForThumbnail: WorldData = {
+                id: currentWorldId || Date.now().toString(),
+                name: documentName,
+                description: '',
+                thumbnail: '', // 将由generateThumbnail填充
+                canvasData: {
+                  objects: canvasObjects,
+                  background: selectedBackground
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                isPublic: false,
+                tags: [],
+                stats: {
+                  totalStickers: canvasObjects.filter((obj: CanvasObject) => obj.stickerData).length,
+                  uniqueWords: new Set(canvasObjects.filter((obj: CanvasObject) => obj.stickerData).map((obj: CanvasObject) => obj.stickerData?.word)).size,
+                  categories: Array.from(new Set(canvasObjects.filter((obj: CanvasObject) => obj.stickerData).map((obj: CanvasObject) => obj.stickerData?.tags?.[0] || 'Uncategorized')))
+                }
+              };
+              
               thumbnailDataUrl = await generateThumbnail(
                 currentWorldId || Date.now().toString(),
-                canvas
+                canvas,
+                worldDataForThumbnail
               );
               console.log('✅ 缩略图生成成功:', thumbnailDataUrl ? '有数据' : '无数据');
             } else {
@@ -1019,11 +1041,11 @@ function CreateWorldPageContent() {
 
   // 添加贴纸到画布 - 增强实时保存触发
   const handleAddSticker = (sticker: StickerData) => {
-    console.log('🎨 添加贴纸到画布:', sticker.name);
+    console.log('🎨 添加贴纸到画布:', sticker.word || sticker.name);
     const newObject = {
       id: `sticker-${Date.now()}`,
       type: 'sticker',
-      src: sticker.thumbnailUrl,
+      src: sticker.image, // 使用标准的 image 字段而不是 thumbnailUrl
       x: 100,
       y: 100,
       width: 100,
@@ -1201,23 +1223,24 @@ function CreateWorldPageContent() {
       const content = await identifyImageAndGenerateContent(transparentImage || generatedImage!);
       
       // 创建贴纸数据
+      // EnglishLearningContent 只包含: english, chinese, example, exampleChinese, pronunciation?
       const stickerData: StickerData = {
         id: Date.now().toString(),
-        word: content.word,
-        cn: content.cn,
-        pos: content.pos as 'noun' | 'verb' | 'adj' | 'adv',
+        word: content.english, // 使用 english 字段
+        cn: content.chinese,   // 使用 chinese 字段
+        pos: 'noun' as const,  // 默认为名词，因为 EnglishLearningContent 不包含词性信息
         image: transparentImage || generatedImage!,
         audio: {
-          uk: `/audio/${content.word.toLowerCase().replace(/\s+/g, '-')}-uk.mp3`,
-          us: `/audio/${content.word.toLowerCase().replace(/\s+/g, '-')}-us.mp3`
+          uk: `/audio/${content.english.toLowerCase().replace(/\s+/g, '-')}-uk.mp3`,
+          us: `/audio/${content.english.toLowerCase().replace(/\s+/g, '-')}-us.mp3`
         },
-        examples: content.examples || [
-          { en: `This is a ${content.word}.`, cn: `这是一个${content.cn}。` },
-          { en: `I like this ${content.word}.`, cn: `我喜欢这个${content.cn}。` }
+        examples: [
+          { en: content.example, cn: content.exampleChinese }, // 使用 AI 生成的例句
+          { en: `I like this ${content.english}.`, cn: `我喜欢这个${content.chinese}。` }
         ],
-        mnemonic: content.mnemonic || [`${content.word}的记忆方法`],
+        mnemonic: [`${content.english}的记忆方法`], // 生成默认记忆方法
         masteryStatus: 'new' as const,
-        tags: [...(content.tags || []), 'Ai-generated'],
+        tags: ['AI-generated'], // 默认标签
         relatedWords: [
           { word: 'use', pos: 'verb' as const },
           { word: 'make', pos: 'verb' as const },
@@ -1231,16 +1254,15 @@ function CreateWorldPageContent() {
           { word: 'well', pos: 'adv' as const }
         ],
         // 兼容性字段
-        name: content.word,
-        chinese: content.cn,
-        phonetic: content.phonetic || '',
-        category: content.tags?.[0] || 'AI Generated',
-        partOfSpeech: content.pos,
-        thumbnailUrl: transparentImage || generatedImage!,
+        name: content.english,
+        chinese: content.chinese,
+        phonetic: content.pronunciation || '', // 使用 pronunciation 字段
+        category: 'AI Generated',
+        partOfSpeech: 'noun', // 默认词性
         createdAt: new Date().toISOString().split('T')[0],
         sorted: false,
-        notes: content.examples?.[0]?.en || '',
-        mnemonic: content.mnemonic?.[0] || ''
+        notes: content.example || '', // 使用 AI 生成的例句作为备注
+        mnemonic: `${content.english}的记忆方法` // 单个字符串格式的记忆方法
       };
       
       // 使用StickerDataUtils保存到localStorage（支持图片持久化）
@@ -1314,7 +1336,6 @@ function CreateWorldPageContent() {
       name: documentName,
       description: '',
       thumbnail: '', // 将在下面生成
-      coverUrl: '',
       wordCount: canvasObjects.filter(obj => obj.stickerData).length,
       stickerCount: canvasObjects.filter(obj => obj.stickerData).length,
       likes: 0,
@@ -1324,8 +1345,7 @@ function CreateWorldPageContent() {
         objects: canvasObjects,
         background: selectedBackground
       },
-      canvasObjects: canvasObjects,
-      selectedBackground: selectedBackground,
+      tags: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       lastModified: new Date().toISOString()
@@ -1622,6 +1642,7 @@ function CreateWorldPageContent() {
               // 点击画布空白区域时收起右侧面板
               setIsRightPanelVisible(false);
             }}
+            onToolChange={setActiveTool} // 添加缺失的onToolChange属性
           />
         </div>
 
