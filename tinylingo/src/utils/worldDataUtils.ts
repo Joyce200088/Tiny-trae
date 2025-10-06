@@ -2,6 +2,7 @@
 
 import { WorldData } from '@/types/world';
 import { UserDataManager } from '@/lib/supabase/userClient';
+import { StorageUtils } from '@/utils/storageUtils';
 
 /**
  * 世界数据工具类
@@ -89,23 +90,26 @@ export class WorldDataUtils {
   /**
    * 添加新世界
    * 优先保存到localStorage，然后尝试同步到Supabase
-   * 支持用户数据隔离
+   * 支持用户数据隔离和图片上传到Storage
    */
   static async addWorld(world: WorldData): Promise<void> {
     try {
+      // 处理世界图片，上传到Supabase Storage
+      const processedWorld = await this.processWorldImages(world);
+      
       const worlds = await this.loadWorldData();
       
       // 检查是否已存在相同ID的世界
-      const existingIndex = worlds.findIndex(w => w.id === world.id);
+      const existingIndex = worlds.findIndex(w => w.id === processedWorld.id);
       if (existingIndex !== -1) {
         // 如果存在，更新现有世界
-        worlds[existingIndex] = { ...world, needsSync: true };
-        console.log('更新现有世界:', world.name);
+        worlds[existingIndex] = { ...processedWorld, needsSync: true };
+        console.log('更新现有世界:', processedWorld.name);
       } else {
         // 如果不存在，添加新世界
-        const newWorld = { ...world, needsSync: true };
+        const newWorld = { ...processedWorld, needsSync: true };
         worlds.push(newWorld);
-        console.log('添加新世界:', world.name);
+        console.log('添加新世界:', processedWorld.name);
       }
       
       // 保存到localStorage
@@ -113,7 +117,7 @@ export class WorldDataUtils {
       
       // 尝试同步到Supabase
       try {
-        await UserDataManager.syncWorldsToSupabase([world]);
+        await UserDataManager.syncWorldsToSupabase([processedWorld]);
         console.log('世界数据已同步到Supabase');
       } catch (syncError) {
         console.warn('同步到Supabase失败，数据已保存到本地:', syncError);
@@ -126,26 +130,29 @@ export class WorldDataUtils {
 
   /**
    * 更新世界数据
-   * 支持用户数据隔离
+   * 支持用户数据隔离和图片上传到Storage
    */
   static async updateWorld(updatedWorld: WorldData): Promise<void> {
     try {
+      // 处理世界图片，上传到Supabase Storage
+      const processedWorld = await this.processWorldImages(updatedWorld);
+      
       const worlds = await this.loadWorldData();
-      const index = worlds.findIndex(w => w.id === updatedWorld.id);
+      const index = worlds.findIndex(w => w.id === processedWorld.id);
       
       if (index !== -1) {
-        worlds[index] = { ...updatedWorld, needsSync: true };
+        worlds[index] = { ...processedWorld, needsSync: true };
         await this.saveWorldData(worlds);
-        console.log('更新世界:', updatedWorld.name);
+        console.log('更新世界:', processedWorld.name);
         
         // 尝试同步到Supabase
         try {
-          await UserDataManager.syncWorldsToSupabase([updatedWorld]);
+          await UserDataManager.syncWorldsToSupabase([processedWorld]);
         } catch (syncError) {
           console.warn('同步到Supabase失败:', syncError);
         }
       } else {
-        throw new Error(`未找到ID为 ${updatedWorld.id} 的世界`);
+        throw new Error(`未找到ID为 ${processedWorld.id} 的世界`);
       }
     } catch (error) {
       console.error('更新世界失败:', error);
@@ -365,6 +372,120 @@ export class WorldDataUtils {
       console.error('清空世界数据失败:', error);
       throw error;
     }
+  }
+
+  /**
+   * 处理世界图片，上传到Supabase Storage并返回URL
+   * 支持thumbnail、coverUrl、previewImage字段
+   */
+  static async processWorldImages(world: WorldData): Promise<WorldData> {
+    try {
+      const processedWorld = { ...world };
+      
+      // 处理缩略图 (thumbnail)
+      if (world.thumbnail && this.isBase64OrBlobUrl(world.thumbnail)) {
+        try {
+          const imageBlob = world.thumbnail.startsWith('blob:') 
+            ? await this.blobUrlToBlob(world.thumbnail)
+            : this.base64ToBlob(world.thumbnail);
+            
+          const result = await StorageUtils.uploadWorldImage(
+            world.id,
+            imageBlob,
+            'thumbnail'
+          );
+          
+          if (result.success && result.publicUrl) {
+            processedWorld.thumbnail = result.publicUrl;
+            console.log('世界缩略图已上传到Storage:', result.publicUrl);
+          }
+        } catch (error) {
+          console.warn('上传缩略图失败，保持原始数据:', error);
+          // 如果上传失败，保持原始的Base64数据作为fallback
+        }
+      }
+      
+      // 处理封面图 (coverUrl)
+      if (world.coverUrl && this.isBase64OrBlobUrl(world.coverUrl)) {
+        try {
+          const imageBlob = world.coverUrl.startsWith('blob:') 
+            ? await this.blobUrlToBlob(world.coverUrl)
+            : this.base64ToBlob(world.coverUrl);
+            
+          const result = await StorageUtils.uploadWorldImage(
+            world.id,
+            imageBlob,
+            'cover'
+          );
+          
+          if (result.success && result.publicUrl) {
+            processedWorld.coverUrl = result.publicUrl;
+            console.log('世界封面图已上传到Storage:', result.publicUrl);
+          }
+        } catch (error) {
+          console.warn('上传封面图失败，保持原始数据:', error);
+        }
+      }
+      
+      // 处理预览图 (previewImage)
+      if (world.previewImage && this.isBase64OrBlobUrl(world.previewImage)) {
+        try {
+          const imageBlob = world.previewImage.startsWith('blob:') 
+            ? await this.blobUrlToBlob(world.previewImage)
+            : this.base64ToBlob(world.previewImage);
+            
+          const result = await StorageUtils.uploadWorldImage(
+            world.id,
+            imageBlob,
+            'preview'
+          );
+          
+          if (result.success && result.publicUrl) {
+            processedWorld.previewImage = result.publicUrl;
+            console.log('世界预览图已上传到Storage:', result.publicUrl);
+          }
+        } catch (error) {
+          console.warn('上传预览图失败，保持原始数据:', error);
+        }
+      }
+      
+      return processedWorld;
+    } catch (error) {
+      console.error('处理世界图片失败:', error);
+      return world; // 返回原始数据作为fallback
+    }
+  }
+
+  /**
+   * 检查是否为Base64或Blob URL
+   */
+  private static isBase64OrBlobUrl(str: string): boolean {
+    return str.startsWith('data:') || str.startsWith('blob:');
+  }
+
+  /**
+   * 将Base64字符串转换为Blob对象
+   */
+  private static base64ToBlob(base64: string): Blob {
+    // 移除data:image/png;base64,前缀
+    const base64Data = base64.split(',')[1] || base64;
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: 'image/png' });
+  }
+
+  /**
+   * 将Blob URL转换为Blob对象
+   */
+  private static async blobUrlToBlob(blobUrl: string): Promise<Blob> {
+    const response = await fetch(blobUrl);
+    return response.blob();
   }
 
   /**

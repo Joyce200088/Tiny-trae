@@ -5,6 +5,7 @@
 
 import { BackgroundData, BackgroundStorageData } from '@/types/background';
 import { ImageUtils } from './imageUtils';
+import { StorageUtils } from './storageUtils';
 
 // 默认背景数据
 const mockBackgrounds: BackgroundData[] = [
@@ -308,20 +309,62 @@ export class BackgroundDataUtils {
   }
 
   /**
-   * 处理背景图片（转换Blob URL为Base64用于持久化存储）
+   * 处理背景图片（上传到Supabase Storage并获取公开URL）
    */
   private static async processBackgroundImages(background: BackgroundData): Promise<BackgroundData> {
     const processedBackground = { ...background };
 
     try {
-      // 处理主图片
+      // 处理主图片 - 优先使用Supabase Storage
       if (background.imageUrl && ImageUtils.isBlobUrl(background.imageUrl)) {
-        processedBackground.imageUrl = await ImageUtils.blobUrlToBase64(background.imageUrl);
+        try {
+          // 转换Blob URL为Blob对象
+          const imageBlob = await this.blobUrlToBlob(background.imageUrl);
+          
+          // 上传到Supabase Storage
+          const uploadResult = await StorageUtils.uploadBackgroundImage(
+            background.id,
+            imageBlob
+          );
+          
+          if (uploadResult.success && uploadResult.publicUrl) {
+            processedBackground.imageUrl = uploadResult.publicUrl;
+          } else {
+            // 如果Storage上传失败，回退到Base64存储
+            console.warn('Storage上传失败，使用Base64存储:', uploadResult.error);
+            processedBackground.imageUrl = await ImageUtils.blobUrlToBase64(background.imageUrl);
+          }
+        } catch (storageError) {
+          // 如果Storage上传出错，回退到Base64存储
+          console.warn('Storage上传出错，使用Base64存储:', storageError);
+          processedBackground.imageUrl = await ImageUtils.blobUrlToBase64(background.imageUrl);
+        }
       }
 
-      // 处理缩略图
+      // 处理缩略图 - 优先使用Supabase Storage
       if (background.thumbnailUrl && ImageUtils.isBlobUrl(background.thumbnailUrl)) {
-        processedBackground.thumbnailUrl = await ImageUtils.blobUrlToBase64(background.thumbnailUrl);
+        try {
+          // 转换Blob URL为Blob对象
+          const thumbnailBlob = await this.blobUrlToBlob(background.thumbnailUrl);
+          
+          // 上传到Supabase Storage (使用同一个方法，文件名会自动区分)
+          const uploadResult = await StorageUtils.uploadBackgroundImage(
+            `${background.id}_thumbnail`,
+            thumbnailBlob
+          );
+          
+          if (uploadResult.success && uploadResult.publicUrl) {
+            processedBackground.thumbnailUrl = uploadResult.publicUrl;
+          } else {
+            // 如果Storage上传失败，回退到Base64存储
+            console.warn('Storage缩略图上传失败，使用Base64存储:', uploadResult.error);
+            processedBackground.thumbnailUrl = await ImageUtils.blobUrlToBase64(background.thumbnailUrl);
+          }
+        } catch (storageError) {
+          // 如果Storage上传出错，回退到Base64存储
+          console.warn('Storage缩略图上传出错，使用Base64存储:', storageError);
+          processedBackground.thumbnailUrl = await ImageUtils.blobUrlToBase64(background.thumbnailUrl);
+        }
       }
 
       return processedBackground;
@@ -329,6 +372,14 @@ export class BackgroundDataUtils {
       console.error('处理背景图片失败:', error);
       return background;
     }
+  }
+
+  /**
+   * 将Blob URL转换为Blob对象的辅助方法
+   */
+  private static async blobUrlToBlob(blobUrl: string): Promise<Blob> {
+    const response = await fetch(blobUrl);
+    return await response.blob();
   }
 
   /**

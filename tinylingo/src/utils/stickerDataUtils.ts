@@ -2,8 +2,8 @@
 
 import { StickerData, StickerStorageData } from '@/types/sticker';
 import { ImageUtils } from './imageUtils';
+import { StorageUtils } from './storageUtils';
 import { UserDataManager } from '@/lib/supabase/userClient';
-
 /**
  * 贴纸数据工具类
  * 统一处理localStorage中的贴纸数据操作，并支持Supabase同步
@@ -318,27 +318,70 @@ export class StickerDataUtils {
 
   /**
    * 处理贴纸图片的持久化存储
-   * 将Blob URL转换为Base64存储到localStorage
+   * 现在上传到Supabase Storage并获取公共URL，而不是转换为Base64
    */
   private static async processStickerImages(sticker: StickerData): Promise<StickerData> {
     const processedSticker = { ...sticker };
 
     try {
-      // 处理主图片URL
+      // 处理主图片URL - 上传到Supabase Storage
       if (sticker.imageUrl && ImageUtils.isBlobUrl(sticker.imageUrl)) {
-        processedSticker.imageUrl = await ImageUtils.blobUrlToBase64(sticker.imageUrl);
+        const uploadResult = await StorageUtils.uploadStickerImage(
+          sticker.id || `sticker_${Date.now()}`,
+          await this.blobUrlToBlob(sticker.imageUrl),
+          'main'
+        );
+        
+        if (uploadResult.success && uploadResult.publicUrl) {
+          processedSticker.imageUrl = uploadResult.publicUrl;
+        } else {
+          console.warn('主图片上传失败，回退到Base64存储:', uploadResult.error);
+          // 回退到Base64存储
+          processedSticker.imageUrl = await ImageUtils.blobUrlToBase64(sticker.imageUrl);
+        }
       }
 
-      // 处理缩略图URL
+      // 处理缩略图URL - 上传到Supabase Storage
       if (sticker.thumbnailUrl && ImageUtils.isBlobUrl(sticker.thumbnailUrl)) {
-        processedSticker.thumbnailUrl = await ImageUtils.blobUrlToBase64(sticker.thumbnailUrl);
+        const uploadResult = await StorageUtils.uploadStickerImage(
+          sticker.id || `sticker_${Date.now()}`,
+          await this.blobUrlToBlob(sticker.thumbnailUrl),
+          'thumbnail'
+        );
+        
+        if (uploadResult.success && uploadResult.publicUrl) {
+          processedSticker.thumbnailUrl = uploadResult.publicUrl;
+        } else {
+          console.warn('缩略图上传失败，回退到Base64存储:', uploadResult.error);
+          // 回退到Base64存储
+          processedSticker.thumbnailUrl = await ImageUtils.blobUrlToBase64(sticker.thumbnailUrl);
+        }
       }
     } catch (error) {
       console.error('处理贴纸图片失败:', error);
-      // 如果转换失败，保持原URL（可能会在刷新后丢失，但不会阻止保存）
+      // 如果Storage上传失败，尝试Base64存储作为回退方案
+      try {
+        if (sticker.imageUrl && ImageUtils.isBlobUrl(sticker.imageUrl)) {
+          processedSticker.imageUrl = await ImageUtils.blobUrlToBase64(sticker.imageUrl);
+        }
+        if (sticker.thumbnailUrl && ImageUtils.isBlobUrl(sticker.thumbnailUrl)) {
+          processedSticker.thumbnailUrl = await ImageUtils.blobUrlToBase64(sticker.thumbnailUrl);
+        }
+      } catch (fallbackError) {
+        console.error('Base64回退存储也失败:', fallbackError);
+        // 保持原URL（可能会在刷新后丢失，但不会阻止保存）
+      }
     }
 
     return processedSticker;
+  }
+
+  /**
+   * 将Blob URL转换为Blob对象的辅助方法
+   */
+  private static async blobUrlToBlob(blobUrl: string): Promise<Blob> {
+    const response = await fetch(blobUrl);
+    return await response.blob();
   }
 
   /**

@@ -1,5 +1,8 @@
+import { StorageUtils } from './storageUtils';
+
 /**
  * 图片工具类 - 处理图片的Base64转换和持久化存储
+ * 现在支持Supabase Storage上传功能
  */
 export class ImageUtils {
   /**
@@ -140,5 +143,226 @@ export class ImageUtils {
         URL.revokeObjectURL(url);
       }
     });
+  }
+
+  /**
+   * 上传Blob到Supabase Storage并返回公共URL
+   * @param blob 图片Blob对象
+   * @param bucket Storage bucket名称
+   * @param filePath 文件路径
+   * @param options 上传选项
+   * @returns Promise<{success: boolean, publicUrl?: string, error?: string}>
+   */
+  static async uploadBlobToStorage(
+    blob: Blob,
+    bucket: string,
+    filePath: string,
+    options?: {
+      contentType?: string;
+      cacheControl?: string;
+      upsert?: boolean;
+    }
+  ): Promise<{
+    success: boolean;
+    publicUrl?: string;
+    error?: string;
+  }> {
+    try {
+      return await StorageUtils.uploadFile(bucket, filePath, blob, options);
+    } catch (error) {
+      console.error('上传Blob到Storage失败:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '上传失败'
+      };
+    }
+  }
+
+  /**
+   * 将Blob URL上传到Supabase Storage
+   * @param blobUrl Blob URL
+   * @param bucket Storage bucket名称
+   * @param filePath 文件路径
+   * @param options 上传选项
+   * @returns Promise<{success: boolean, publicUrl?: string, error?: string}>
+   */
+  static async uploadBlobUrlToStorage(
+    blobUrl: string,
+    bucket: string,
+    filePath: string,
+    options?: {
+      contentType?: string;
+      cacheControl?: string;
+      upsert?: boolean;
+    }
+  ): Promise<{
+    success: boolean;
+    publicUrl?: string;
+    error?: string;
+  }> {
+    try {
+      // 将Blob URL转换为Blob对象
+      const response = await fetch(blobUrl);
+      const blob = await response.blob();
+      
+      // 上传到Storage
+      return await this.uploadBlobToStorage(blob, bucket, filePath, options);
+    } catch (error) {
+      console.error('上传Blob URL到Storage失败:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '上传失败'
+      };
+    }
+  }
+
+  /**
+   * 将Base64图片上传到Supabase Storage
+   * @param base64 Base64图片字符串
+   * @param bucket Storage bucket名称
+   * @param filePath 文件路径
+   * @param options 上传选项
+   * @returns Promise<{success: boolean, publicUrl?: string, error?: string}>
+   */
+  static async uploadBase64ToStorage(
+    base64: string,
+    bucket: string,
+    filePath: string,
+    options?: {
+      contentType?: string;
+      cacheControl?: string;
+      upsert?: boolean;
+    }
+  ): Promise<{
+    success: boolean;
+    publicUrl?: string;
+    error?: string;
+  }> {
+    try {
+      // 将Base64转换为Blob对象
+      const [header, data] = base64.split(',');
+      const mimeMatch = header.match(/data:([^;]+)/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+      
+      const binaryString = atob(data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const blob = new Blob([bytes], { type: mimeType });
+      
+      // 设置默认contentType
+      const uploadOptions = {
+        ...options,
+        contentType: options?.contentType || mimeType
+      };
+      
+      // 上传到Storage
+      return await this.uploadBlobToStorage(blob, bucket, filePath, uploadOptions);
+    } catch (error) {
+      console.error('上传Base64到Storage失败:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '上传失败'
+      };
+    }
+  }
+
+  /**
+   * 智能上传图片到Storage（自动检测输入类型）
+   * @param imageInput 图片输入（可以是Base64、Blob URL或Blob对象）
+   * @param bucket Storage bucket名称
+   * @param filePath 文件路径
+   * @param options 上传选项
+   * @returns Promise<{success: boolean, publicUrl?: string, error?: string}>
+   */
+  static async uploadImageToStorage(
+    imageInput: string | Blob,
+    bucket: string,
+    filePath: string,
+    options?: {
+      contentType?: string;
+      cacheControl?: string;
+      upsert?: boolean;
+    }
+  ): Promise<{
+    success: boolean;
+    publicUrl?: string;
+    error?: string;
+  }> {
+    try {
+      if (imageInput instanceof Blob) {
+        // 直接是Blob对象
+        return await this.uploadBlobToStorage(imageInput, bucket, filePath, options);
+      } else if (this.isBlobUrl(imageInput)) {
+        // 是Blob URL
+        return await this.uploadBlobUrlToStorage(imageInput, bucket, filePath, options);
+      } else if (this.isBase64(imageInput)) {
+        // 是Base64字符串
+        return await this.uploadBase64ToStorage(imageInput, bucket, filePath, options);
+      } else {
+        // 不支持的格式
+        return {
+          success: false,
+          error: '不支持的图片格式'
+        };
+      }
+    } catch (error) {
+      console.error('智能上传图片到Storage失败:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '上传失败'
+      };
+    }
+  }
+
+  /**
+   * 批量上传图片到Storage
+   * @param images 图片列表
+   * @returns Promise<批量上传结果>
+   */
+  static async batchUploadImagesToStorage(
+    images: Array<{
+      imageInput: string | Blob;
+      bucket: string;
+      filePath: string;
+      options?: {
+        contentType?: string;
+        cacheControl?: string;
+        upsert?: boolean;
+      };
+    }>
+  ): Promise<{
+    success: boolean;
+    results: Array<{
+      filePath: string;
+      success: boolean;
+      publicUrl?: string;
+      error?: string;
+    }>;
+  }> {
+    const results = await Promise.all(
+      images.map(async (image) => {
+        const result = await this.uploadImageToStorage(
+          image.imageInput,
+          image.bucket,
+          image.filePath,
+          image.options
+        );
+        
+        return {
+          filePath: image.filePath,
+          success: result.success,
+          publicUrl: result.publicUrl,
+          error: result.error,
+        };
+      })
+    );
+
+    const successCount = results.filter(r => r.success).length;
+    const success = successCount > 0;
+
+    return { success, results };
   }
 }

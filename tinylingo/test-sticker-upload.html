@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贴纸上传功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #FFFBF5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #0056b3;
+            background-color: #f8f9fa;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .file-input {
+            display: none;
+        }
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .preview-item {
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            width: 150px;
+            height: 150px;
+        }
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .preview-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            font-size: 12px;
+        }
+        .upload-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .upload-button:hover {
+            background: #0056b3;
+        }
+        .upload-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            transition: width 0.3s ease;
+        }
+        .test-steps {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🖼️ 贴纸上传功能测试</h1>
+        
+        <div class="test-steps">
+            <h3>测试步骤：</h3>
+            <ol>
+                <li>选择或拖拽图片文件到上传区域</li>
+                <li>预览选中的图片</li>
+                <li>点击"模拟上传到Supabase"测试上传流程</li>
+                <li>观察上传结果和Storage URL生成</li>
+                <li>验证图片是否能正常显示</li>
+            </ol>
+        </div>
+
+        <!-- 文件上传区域 -->
+        <div class="upload-area" id="uploadArea">
+            <div>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7,10 12,15 17,10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <h3>拖拽图片到此处或点击选择文件</h3>
+                <p>支持 PNG, JPG, WebP 格式</p>
+            </div>
+            <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+        </div>
+
+        <!-- 图片预览区域 -->
+        <div id="previewContainer" class="preview-container"></div>
+
+        <!-- 操作按钮 -->
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="upload-button" id="uploadBtn" disabled>模拟上传到Supabase Storage</button>
+            <button class="upload-button" onclick="clearAll()">清空所有</button>
+        </div>
+
+        <!-- 进度条 -->
+        <div id="progressContainer" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div id="progressText">准备上传...</div>
+        </div>
+
+        <!-- 结果显示区域 -->
+        <div id="resultContainer"></div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+        
+        // DOM元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const resultContainer = document.getElementById('resultContainer');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        // 事件监听器
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadBtn.addEventListener('click', simulateUpload);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = Array.from(e.dataTransfer.files);
+            const imageFiles = files.filter(file => file.type.startsWith('image/'));
+            
+            if (imageFiles.length > 0) {
+                addFiles(imageFiles);
+            } else {
+                showResult('请选择有效的图片文件', 'error');
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            addFiles(files);
+        }
+
+        function addFiles(files) {
+            files.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    selectedFiles.push(file);
+                    createPreview(file);
+                }
+            });
+            
+            updateUploadButton();
+        }
+
+        function createPreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                previewItem.innerHTML = `
+                    <img src="${e.target.result}" class="preview-image" alt="预览">
+                    <div class="preview-info">
+                        ${file.name}<br>
+                        ${(file.size / 1024).toFixed(1)} KB
+                    </div>
+                `;
+                previewContainer.appendChild(previewItem);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateUploadButton() {
+            uploadBtn.disabled = selectedFiles.length === 0;
+        }
+
+        function clearAll() {
+            selectedFiles = [];
+            previewContainer.innerHTML = '';
+            resultContainer.innerHTML = '';
+            progressContainer.style.display = 'none';
+            updateUploadButton();
+        }
+
+        async function simulateUpload() {
+            if (selectedFiles.length === 0) return;
+
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            uploadBtn.disabled = true;
+            
+            try {
+                showResult('开始模拟上传流程...', 'info');
+                
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const progress = ((i + 1) / selectedFiles.length) * 100;
+                    
+                    // 更新进度
+                    progressFill.style.width = progress + '%';
+                    progressText.textContent = `正在处理 ${file.name} (${i + 1}/${selectedFiles.length})`;
+                    
+                    // 模拟上传过程
+                    await simulateStickerUpload(file);
+                    
+                    // 等待一下，模拟真实上传时间
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }
+                
+                showResult('✅ 所有图片上传模拟完成！', 'success');
+                
+            } catch (error) {
+                showResult(`❌ 上传过程中出现错误: ${error.message}`, 'error');
+            } finally {
+                progressContainer.style.display = 'none';
+                uploadBtn.disabled = false;
+            }
+        }
+
+        async function simulateStickerUpload(file) {
+            const stickerId = `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            try {
+                // 步骤1: 文件验证
+                showResult(`📋 验证文件: ${file.name}`, 'info');
+                
+                if (file.size > 5 * 1024 * 1024) { // 5MB限制
+                    throw new Error('文件大小超过5MB限制');
+                }
+                
+                // 步骤2: 创建Blob URL
+                const blobUrl = URL.createObjectURL(file);
+                showResult(`🔗 创建Blob URL: ${blobUrl.substring(0, 50)}...`, 'info');
+                
+                // 步骤3: 模拟转换为Blob对象
+                const response = await fetch(blobUrl);
+                const blob = await response.blob();
+                showResult(`📦 转换为Blob对象: ${blob.type}, ${blob.size} bytes`, 'info');
+                
+                // 步骤4: 模拟上传到Supabase Storage
+                const mockUploadResult = await mockSupabaseUpload(stickerId, blob, 'main');
+                
+                if (mockUploadResult.success) {
+                    showResult(`✅ 主图片上传成功!\n贴纸ID: ${stickerId}\nStorage URL: ${mockUploadResult.publicUrl}`, 'success');
+                    
+                    // 步骤5: 模拟缩略图上传
+                    const thumbnailResult = await mockSupabaseUpload(stickerId, blob, 'thumbnail');
+                    if (thumbnailResult.success) {
+                        showResult(`✅ 缩略图上传成功!\nThumbnail URL: ${thumbnailResult.publicUrl}`, 'success');
+                    }
+                    
+                    // 步骤6: 模拟贴纸数据保存
+                    const stickerData = {
+                        id: stickerId,
+                        word: 'test-object',
+                        cn: '测试物品',
+                        pos: 'noun',
+                        imageUrl: mockUploadResult.publicUrl,
+                        thumbnailUrl: thumbnailResult.publicUrl,
+                        audio: { uk: '', us: '' },
+                        examples: [{ en: 'This is a test object', cn: '这是一个测试物品' }],
+                        mnemonic: ['测试记忆法'],
+                        masteryStatus: 'new',
+                        tags: ['uploaded', 'test'],
+                        relatedWords: []
+                    };
+                    
+                    showResult(`💾 贴纸数据结构创建完成:\n${JSON.stringify(stickerData, null, 2)}`, 'info');
+                    
+                } else {
+                    throw new Error(mockUploadResult.error || '上传失败');
+                }
+                
+                // 清理Blob URL
+                URL.revokeObjectURL(blobUrl);
+                
+            } catch (error) {
+                showResult(`❌ 处理 ${file.name} 失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // 模拟Supabase Storage上传
+        async function mockSupabaseUpload(stickerId, blob, imageType) {
+            // 模拟网络延迟
+            await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+            
+            // 模拟上传过程
+            const fileName = `${stickerId}_${imageType}.png`;
+            const bucketName = 'sticker-images';
+            
+            showResult(`📤 上传到Supabase Storage:\n- Bucket: ${bucketName}\n- 文件名: ${fileName}\n- 大小: ${blob.size} bytes`, 'info');
+            
+            // 模拟成功率（95%成功）
+            if (Math.random() < 0.95) {
+                const mockPublicUrl = `https://knizbnlzwcuniceqvmvd.supabase.co/storage/v1/object/public/${bucketName}/${fileName}`;
+                return {
+                    success: true,
+                    publicUrl: mockPublicUrl
+                };
+            } else {
+                return {
+                    success: false,
+                    error: '模拟网络错误或Storage服务暂时不可用'
+                };
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resultContainer.appendChild(resultDiv);
+            
+            // 自动滚动到最新结果
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 页面加载完成后显示说明
+        window.onload = function() {
+            showResult('🚀 贴纸上传测试系统已就绪\n请选择图片文件开始测试上传流程', 'info');
+        };
+    </script>
+</body>
+</html>

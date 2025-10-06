@@ -627,6 +627,7 @@ function CreateWorldPageContent() {
             thumbnail: '', // 页面关闭时跳过缩略图生成
             coverUrl: '', // 个人主页世界库期望的字段名
             wordCount: canvasObjects.length,
+            stickerCount: canvasObjects.length, // 添加必需的stickerCount字段
             likes: 0,
             favorites: 0,
             isPublic: false,
@@ -634,6 +635,7 @@ function CreateWorldPageContent() {
               objects: canvasObjects,
               background: selectedBackground
             },
+            tags: [], // 添加必需的tags字段
             createdAt: currentWorldId ? 
               ((await WorldDataUtils.loadWorldData()).find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
               new Date().toISOString(),
@@ -746,6 +748,7 @@ function CreateWorldPageContent() {
         canvasObjects: canvasObjects, // 保存画布对象数组，用于统计计算
         canvasData: canvasData, // 保留原有的画布数据
         selectedBackground: selectedBackground, // 保存背景信息
+        tags: [], // 添加必需的tags字段
         createdAt: createdAt,
         updatedAt: new Date().toISOString(),
         lastModified: new Date().toISOString() // 个人主页世界库期望的字段名
