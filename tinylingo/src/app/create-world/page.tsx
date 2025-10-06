@@ -698,6 +698,10 @@ function CreateWorldPageContent() {
   // 保存世界数据（保留原有逻辑，添加自动保存支持）
   const saveWorldData = async (isAutoSave = false) => {
     try {
+      console.log('🔄 开始保存世界数据...', { isAutoSave, currentWorldId, documentName });
+      console.log('📊 当前画布对象数量:', canvasObjects.length);
+      console.log('🖼️ 当前背景:', selectedBackground);
+      
       if (isAutoSave) {
         setAutoSaveStatus('saving');
         isAutoSavingRef.current = true;
@@ -711,8 +715,12 @@ function CreateWorldPageContent() {
         background: selectedBackground
       };
       
+      console.log('📋 画布数据:', canvasData);
+      
       // 生成缩略图
+      console.log('🖼️ 开始生成缩略图...');
       const thumbnailDataUrl = await generateThumbnail();
+      console.log('✅ 缩略图生成完成:', thumbnailDataUrl ? '成功' : '失败');
       
       // 计算统计信息
       const stickerObjects = canvasObjects.filter((obj: CanvasObject) => obj.stickerData);
@@ -723,6 +731,8 @@ function CreateWorldPageContent() {
           .filter(Boolean)
           .map((word: string) => word.toLowerCase().trim())
       ).size;
+      
+      console.log('📈 统计信息:', { stickerCount, uniqueWords });
       
       // 获取创建时间（如果是更新现有世界）
       let createdAt = new Date().toISOString();
@@ -756,15 +766,27 @@ function CreateWorldPageContent() {
       
       // 使用WorldDataUtils保存世界数据（支持Supabase同步）
       try {
+        console.log('🔄 调用WorldDataUtils保存方法...');
         if (currentWorldId) {
           // 更新现有世界
+          console.log('📝 更新现有世界:', currentWorldId);
           await WorldDataUtils.updateWorld(worldData);
+          console.log('✅ 世界更新成功');
         } else {
           // 添加新世界
-          await WorldDataUtils.addWorld(worldData);
+          console.log('➕ 添加新世界');
+          const result = await WorldDataUtils.addWorld(worldData);
+          console.log('✅ 世界添加成功:', result);
+          
+          // 如果返回了新的ID，更新当前世界ID
+          if (result && result.id) {
+            setCurrentWorldId(result.id);
+            console.log('🆔 设置新的世界ID:', result.id);
+          }
         }
       } catch (error) {
-        console.error('保存世界数据失败:', error);
+        console.error('❌ 保存世界数据失败:', error);
+        console.error('错误详情:', error.message, error.stack);
         if (isAutoSave) {
           setAutoSaveStatus('error');
         } else {
@@ -788,10 +810,11 @@ function CreateWorldPageContent() {
       }
       setHasUnsavedChanges(false);
       
-      console.log('世界数据已保存:', worldData);
+      console.log('🎉 世界数据保存成功:', worldData);
       
     } catch (error) {
-      console.error('保存失败:', error);
+      console.error('❌ 保存过程中发生错误:', error);
+      console.error('错误详情:', error.message, error.stack);
       if (isAutoSave) {
         setAutoSaveStatus('error');
         isAutoSavingRef.current = false;

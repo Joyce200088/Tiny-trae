@@ -87,7 +87,9 @@ function MyWorldsTab({
   markForSync?: (dataType: 'worlds' | 'stickers' | 'backgrounds') => void;
 }) {
   // 确保 setShowInlineWorldCreation 有默认值
-  const setShowInlineWorldCreation = parentSetShowInlineWorldCreation || (() => {});
+  const setShowInlineWorldCreation: (show: boolean) => void = parentSetShowInlineWorldCreation || (() => {});
+  // 确保 setShowCreateModal 有默认值
+  const setShowCreateModalSafe: (show: boolean) => void = setShowCreateModal || (() => {});
   const [sortBy, setSortBy] = useState('lastModified');
   const [savedWorlds, setSavedWorlds] = useState<WorldData[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldId: string } | null>(null);
@@ -384,7 +386,7 @@ function MyWorldsTab({
         <WorldsGrid 
           worlds={sortedWorlds}
           showCreateCard={true}
-          onCreateWorld={() => setShowCreateModal(true)}
+          onCreateWorld={() => setShowCreateModalSafe(true)}
           onWorldSelect={handleWorldSelect}
           selectedWorlds={selectedWorlds}
           isMultiSelectMode={isMultiSelectMode}
@@ -394,7 +396,7 @@ function MyWorldsTab({
           showInlineWorldCreation={parentShowInlineWorldCreation || false}
           setShowInlineWorldCreation={setShowInlineWorldCreation}
           worldCreationStep={worldCreationStep}
-          setShowCreateModal={setShowCreateModal}
+          setShowCreateModal={setShowCreateModalSafe}
         />
       )}
 

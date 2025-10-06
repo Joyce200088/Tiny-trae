@@ -6,21 +6,41 @@ import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X, Play, Pause, Rotate
 import { WorldData } from '@/types/world';
 import { WorldDataUtils } from '@/utils/worldDataUtils';
 
-// 贴纸数据接口
+// 完整的贴纸数据接口 - 符合项目规范
 interface StickerData {
+  // 必需字段
   id: string;
-  name: string;
+  word: string;
+  cn: string;
+  pos: "noun" | "verb" | "adj" | "adv";
+  image: string;
+  audio: {
+    uk: string;
+    us: string;
+  };
+  examples: {
+    en: string;
+    cn: string;
+  }[];
+  mnemonic: string[];
+  masteryStatus: "new" | "fuzzy" | "mastered";
+  tags: string[];
+  relatedWords: {
+    word: string;
+    pos: "noun" | "verb" | "adj" | "adv";
+  }[];
+  // 兼容性字段
+  name?: string;
   chinese?: string;
   phonetic?: string;
   category?: string;
-  partOfSpeech?: string; // 词性标签，如：noun, verb, adjective等
-  tags?: string[];
+  partOfSpeech?: string;
   thumbnailUrl?: string;
   imageUrl?: string;
   createdAt?: string;
   sorted?: boolean;
   notes?: string;
-  mnemonic?: string;
+  // 已废弃字段（保留兼容性）
   example?: string;
   exampleChinese?: string;
 }
@@ -116,17 +136,43 @@ const mockWorlds = [
         name: 'Ceramic Mug',
         stickerData: {
           id: '4',
+          word: 'Ceramic Mug',
+          cn: '陶瓷杯',
+          pos: 'noun' as const,
+          image: '/Ceramic Mug.png',
+          audio: {
+            uk: '/audio/ceramic-mug-uk.mp3',
+            us: '/audio/ceramic-mug-us.mp3'
+          },
+          examples: [
+            { en: 'I drink coffee from my ceramic mug every morning.', cn: '我每天早上用陶瓷杯喝咖啡。' },
+            { en: 'The ceramic mug keeps my tea warm longer.', cn: '陶瓷杯能让我的茶保温更久。' }
+          ],
+          mnemonic: ['Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮品杯'],
+          masteryStatus: 'new' as const,
+          tags: ['Cartoon', 'Ai-generated'],
+          relatedWords: [
+            { word: 'drink', pos: 'verb' as const },
+            { word: 'hold', pos: 'verb' as const },
+            { word: 'wash', pos: 'verb' as const },
+            { word: 'coffee', pos: 'noun' as const },
+            { word: 'hot', pos: 'adj' as const },
+            { word: 'smooth', pos: 'adj' as const },
+            { word: 'tea', pos: 'noun' as const },
+            { word: 'decorative', pos: 'adj' as const },
+            { word: 'handle', pos: 'noun' as const },
+            { word: 'carefully', pos: 'adv' as const }
+          ],
+          // 兼容性字段
           name: 'Ceramic Mug',
           chinese: '陶瓷杯',
           phonetic: '/sɪˈræmɪk mʌɡ/',
           category: 'Kitchenware',
           partOfSpeech: 'noun',
-          tags: ['Cartoon', 'Ai-generated'],
           thumbnailUrl: '/Ceramic Mug.png',
           createdAt: '2024-01-15',
           sorted: true,
-          notes: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea.',
-          mnemonic: ['Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮品杯']
+          notes: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea.'
         }
       },
       {
@@ -147,17 +193,43 @@ const mockWorlds = [
         name: 'Calendar',
         stickerData: {
           id: '2',
+          word: 'calendar',
+          cn: '日历',
+          pos: 'noun' as const,
+          image: '/Calendar.png',
+          audio: {
+            uk: '/audio/calendar-uk.mp3',
+            us: '/audio/calendar-us.mp3'
+          },
+          examples: [
+            { en: 'I marked the important date on my calendar.', cn: '我在日历上标记了重要的日期。' },
+            { en: 'The calendar shows all the holidays this year.', cn: '日历显示了今年所有的节假日。' }
+          ],
+          mnemonic: ['来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'],
+          masteryStatus: 'new' as const,
+          tags: ['Cartoon', 'Ai-generated'],
+          relatedWords: [
+            { word: 'mark', pos: 'verb' as const },
+            { word: 'check', pos: 'verb' as const },
+            { word: 'schedule', pos: 'verb' as const },
+            { word: 'date', pos: 'noun' as const },
+            { word: 'monthly', pos: 'adj' as const },
+            { word: 'organized', pos: 'adj' as const },
+            { word: 'time', pos: 'noun' as const },
+            { word: 'important', pos: 'adj' as const },
+            { word: 'appointment', pos: 'noun' as const },
+            { word: 'regularly', pos: 'adv' as const }
+          ],
+          // 兼容性字段
           name: 'Calendar',
           chinese: '日历',
           phonetic: '/ˈkælɪndər/',
           category: 'Daily Items',
           partOfSpeech: 'noun',
-          tags: ['Cartoon', 'Ai-generated'],
           thumbnailUrl: '/Calendar.png',
           createdAt: '2024-01-15',
           sorted: true,
-          notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
-          mnemonic: ['来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子']
+          notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.'
         }
       }
     ]
@@ -199,17 +271,43 @@ const mockWorlds = [
         name: 'Diving Mask',
         stickerData: {
           id: '1',
+          word: 'diving mask',
+          cn: '潜水镜',
+          pos: 'noun' as const,
+          image: '/Diving Mask.png',
+          audio: {
+            uk: '/audio/diving-mask-uk.mp3',
+            us: '/audio/diving-mask-us.mp3'
+          },
+          examples: [
+            { en: 'The diving mask allows you to see clearly underwater.', cn: '潜水镜让你在水下看得清楚。' },
+            { en: 'Make sure your diving mask fits properly before diving.', cn: '潜水前确保潜水镜佩戴合适。' }
+          ],
+          mnemonic: ['Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'],
+          masteryStatus: 'new' as const,
+          tags: ['Pixel', 'Ai-generated'],
+          relatedWords: [
+            { word: 'wear', pos: 'verb' as const },
+            { word: 'adjust', pos: 'verb' as const },
+            { word: 'clean', pos: 'verb' as const },
+            { word: 'underwater', pos: 'adj' as const },
+            { word: 'transparent', pos: 'adj' as const },
+            { word: 'waterproof', pos: 'adj' as const },
+            { word: 'equipment', pos: 'noun' as const },
+            { word: 'protective', pos: 'adj' as const },
+            { word: 'vision', pos: 'noun' as const },
+            { word: 'safely', pos: 'adv' as const }
+          ],
+          // 兼容性字段
           name: 'Diving Mask',
           chinese: '潜水镜',
           phonetic: '/ˈdaɪvɪŋ mæsk/',
           category: 'Diving Equipment',
           partOfSpeech: 'noun',
-          tags: ['Pixel', 'Ai-generated'],
           thumbnailUrl: '/Diving Mask.png',
           createdAt: '2024-01-15',
           sorted: true,
-          notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
-          mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+          notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.'
         }
       }
     ]
@@ -251,80 +349,234 @@ const mockWorlds = [
         name: 'Industrial Shelving',
         stickerData: {
           id: '3',
+          word: 'industrial shelving',
+          cn: '工业货架',
+          pos: 'noun' as const,
+          image: '/Industrial Shelving.png',
+          audio: {
+            uk: '/audio/industrial-shelving-uk.mp3',
+            us: '/audio/industrial-shelving-us.mp3'
+          },
+          examples: [
+            { en: 'The warehouse uses industrial shelving to store heavy equipment.', cn: '仓库使用工业货架来存放重型设备。' },
+            { en: 'Industrial shelving can support much more weight than regular shelves.', cn: '工业货架比普通货架能承受更多重量。' }
+          ],
+          mnemonic: ['Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'],
+          masteryStatus: 'new' as const,
+          tags: ['Cartoon', 'Ai-generated'],
+          relatedWords: [
+            { word: 'install', pos: 'verb' as const },
+            { word: 'organize', pos: 'verb' as const },
+            { word: 'load', pos: 'verb' as const },
+            { word: 'warehouse', pos: 'noun' as const },
+            { word: 'heavy-duty', pos: 'adj' as const },
+            { word: 'durable', pos: 'adj' as const },
+            { word: 'storage', pos: 'noun' as const },
+            { word: 'metallic', pos: 'adj' as const },
+            { word: 'capacity', pos: 'noun' as const },
+            { word: 'efficiently', pos: 'adv' as const }
+          ],
+          // 兼容性字段
           name: 'Industrial Shelving',
           chinese: '工业货架',
           phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
           category: 'Furniture',
           partOfSpeech: 'noun',
-          tags: ['Cartoon', 'Ai-generated'],
           thumbnailUrl: '/Industrial Shelving.png',
           createdAt: '2024-01-15',
           sorted: true,
-          notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
-          mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+          notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.'
         }
       }
     ]
   }
 ];
 
-// 模拟贴纸数据
+// 模拟贴纸数据 - 符合标准StickerData接口
 const mockStickers: StickerData[] = [
   {
     id: '1',
+    word: 'Diving Mask',                    // 核心英文单词
+    cn: '潜水镜',                          // 简洁准确的中文释义
+    pos: 'noun',                           // 词性
+    image: '/Diving Mask.png',             // 透明背景贴纸图标
+    audio: {
+      uk: '/audio/diving-mask-uk.mp3',     // 英音
+      us: '/audio/diving-mask-us.mp3'      // 美音
+    },
+    examples: [                            // 2条例句
+      {
+        en: 'The diving mask allows divers to see clearly underwater.',
+        cn: '潜水镜让潜水员在水下能够看得清楚。'
+      },
+      {
+        en: 'Make sure your diving mask fits properly before entering the water.',
+        cn: '下水前确保你的潜水镜佩戴合适。'
+      }
+    ],
+    mnemonic: ['Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'], // 词根词缀巧记方法
+    masteryStatus: 'new',                  // 掌握状态
+    tags: ['Pixel', 'Ai-generated'],       // 主题分类
+    relatedWords: [                        // 10个相关词
+      { word: 'wear', pos: 'verb' },       // 前3个必须是动词
+      { word: 'adjust', pos: 'verb' },
+      { word: 'remove', pos: 'verb' },
+      { word: 'snorkel', pos: 'noun' },    // 其余7个可以是名词、形容词、副词
+      { word: 'goggles', pos: 'noun' },
+      { word: 'underwater', pos: 'adj' },
+      { word: 'clear', pos: 'adj' },
+      { word: 'waterproof', pos: 'adj' },
+      { word: 'equipment', pos: 'noun' },
+      { word: 'vision', pos: 'noun' }
+    ],
+    // 兼容性字段
     name: 'Diving Mask',
     chinese: '潜水镜',
     phonetic: '/ˈdaɪvɪŋ mæsk/',
     category: 'Diving Equipment',
     partOfSpeech: 'noun',
-    tags: ['Pixel', 'Ai-generated'],
     thumbnailUrl: '/Diving Mask.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
-    mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+    notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.'
   },
   {
     id: '2',
+    word: 'Calendar',                      // 核心英文单词
+    cn: '日历',                           // 简洁准确的中文释义
+    pos: 'noun',                          // 词性
+    image: '/Calendar.png',               // 透明背景贴纸图标
+    audio: {
+      uk: '/audio/calendar-uk.mp3',       // 英音
+      us: '/audio/calendar-us.mp3'        // 美音
+    },
+    examples: [                           // 2条例句
+      {
+        en: 'I marked the important date on my calendar.',
+        cn: '我在日历上标记了重要的日期。'
+      },
+      {
+        en: 'The calendar shows that today is Monday.',
+        cn: '日历显示今天是星期一。'
+      }
+    ],
+    mnemonic: ['来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'], // 词根词缀巧记方法
+    masteryStatus: 'new',                 // 掌握状态
+    tags: ['Cartoon', 'Ai-generated'],    // 主题分类
+    relatedWords: [                       // 10个相关词
+      { word: 'mark', pos: 'verb' },      // 前3个必须是动词
+      { word: 'check', pos: 'verb' },
+      { word: 'schedule', pos: 'verb' },
+      { word: 'date', pos: 'noun' },      // 其余7个可以是名词、形容词、副词
+      { word: 'month', pos: 'noun' },
+      { word: 'year', pos: 'noun' },
+      { word: 'daily', pos: 'adj' },
+      { word: 'weekly', pos: 'adj' },
+      { word: 'appointment', pos: 'noun' },
+      { word: 'time', pos: 'noun' }
+    ],
+    // 兼容性字段
     name: 'Calendar',
     chinese: '日历',
     phonetic: '/ˈkælɪndər/',
     category: 'Daily Items',
     partOfSpeech: 'noun',
-    tags: ['Cartoon', 'Ai-generated'],
     thumbnailUrl: '/Calendar.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
-    mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+    notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.'
   },
   {
-    id: '3', 
+    id: '3',
+    word: 'Industrial Shelving',          // 核心英文单词
+    cn: '工业货架',                      // 简洁准确的中文释义
+    pos: 'noun',                         // 词性
+    image: '/Industrial Shelving.png',   // 透明背景贴纸图标
+    audio: {
+      uk: '/audio/industrial-shelving-uk.mp3', // 英音
+      us: '/audio/industrial-shelving-us.mp3'  // 美音
+    },
+    examples: [                          // 2条例句
+      {
+        en: 'The warehouse uses industrial shelving to store heavy equipment.',
+        cn: '仓库使用工业货架来存放重型设备。'
+      },
+      {
+        en: 'Industrial shelving can support up to 500 pounds per shelf.',
+        cn: '工业货架每层可以承重500磅。'
+      }
+    ],
+    mnemonic: ['Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'], // 词根词缀巧记方法
+    masteryStatus: 'new',                // 掌握状态
+    tags: ['Cartoon', 'Ai-generated'],   // 主题分类
+    relatedWords: [                      // 10个相关词
+      { word: 'install', pos: 'verb' },  // 前3个必须是动词
+      { word: 'load', pos: 'verb' },
+      { word: 'organize', pos: 'verb' },
+      { word: 'warehouse', pos: 'noun' }, // 其余7个可以是名词、形容词、副词
+      { word: 'storage', pos: 'noun' },
+      { word: 'steel', pos: 'noun' },
+      { word: 'heavy', pos: 'adj' },
+      { word: 'durable', pos: 'adj' },
+      { word: 'equipment', pos: 'noun' },
+      { word: 'capacity', pos: 'noun' }
+    ],
+    // 兼容性字段
     name: 'Industrial Shelving',
     chinese: '工业货架',
     phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
     category: 'Furniture',
     partOfSpeech: 'noun',
-    tags: ['Cartoon', 'Ai-generated'],
     thumbnailUrl: '/Industrial Shelving.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
-    mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+    notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.'
   },
   {
     id: '4',
+    word: 'Ceramic Mug',                 // 核心英文单词
+    cn: '陶瓷杯',                       // 简洁准确的中文释义
+    pos: 'noun',                        // 词性
+    image: '/Ceramic Mug.png',          // 透明背景贴纸图标
+    audio: {
+      uk: '/audio/ceramic-mug-uk.mp3',  // 英音
+      us: '/audio/ceramic-mug-us.mp3'   // 美音
+    },
+    examples: [                         // 2条例句
+      {
+        en: 'I drink my morning coffee from a ceramic mug.',
+        cn: '我用陶瓷杯喝早晨的咖啡。'
+      },
+      {
+        en: 'The ceramic mug keeps the tea warm for longer.',
+        cn: '陶瓷杯能让茶保温更久。'
+      }
+    ],
+    mnemonic: ['Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷材料制成的饮用杯'], // 词根词缀巧记方法
+    masteryStatus: 'new',               // 掌握状态
+    tags: ['Cartoon', 'Ai-generated'],  // 主题分类
+    relatedWords: [                     // 10个相关词
+      { word: 'drink', pos: 'verb' },   // 前3个必须是动词
+      { word: 'hold', pos: 'verb' },
+      { word: 'wash', pos: 'verb' },
+      { word: 'coffee', pos: 'noun' },  // 其余7个可以是名词、形容词、副词
+      { word: 'tea', pos: 'noun' },
+      { word: 'handle', pos: 'noun' },
+      { word: 'hot', pos: 'adj' },
+      { word: 'smooth', pos: 'adj' },
+      { word: 'kitchen', pos: 'noun' },
+      { word: 'beverage', pos: 'noun' }
+    ],
+    // 兼容性字段
     name: 'Ceramic Mug',
     chinese: '陶瓷杯',
     phonetic: '/sɪˈræmɪk mʌɡ/',
     category: 'Kitchenware',
     partOfSpeech: 'noun',
-    tags: ['Cartoon', 'Ai-generated'],
     thumbnailUrl: '/Ceramic Mug.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea.',
-    mnemonic: 'Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮品杯'
+    notes: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea.'
   }
 ];
 

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世界保存功能完整测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #FFFBF5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .canvas-preview {
+            border: 2px dashed #ccc;
+            min-height: 200px;
+            padding: 20px;
+            text-align: center;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>世界保存功能完整测试</h1>
+        
+        <div class="section">
+            <h2>测试控制面板</h2>
+            <button class="button" onclick="clearAllData()">清空所有数据</button>
+            <button class="button" onclick="checkCurrentState()">检查当前状态</button>
+            <button class="button" onclick="simulateWorldCreation()">模拟创建世界</button>
+            <button class="button" onclick="testSaveFunction()">测试保存功能</button>
+            <button class="button" onclick="testSupabaseSync()">测试Supabase同步</button>
+        </div>
+
+        <div class="grid">
+            <div class="section">
+                <h2>创建新世界</h2>
+                <div class="form-group">
+                    <label>世界名称:</label>
+                    <input type="text" id="worldName" value="测试世界" />
+                </div>
+                <div class="form-group">
+                    <label>世界描述:</label>
+                    <textarea id="worldDescription" rows="3">这是一个测试世界，用于验证保存功能</textarea>
+                </div>
+                <div class="form-group">
+                    <label>选择背景:</label>
+                    <select id="backgroundSelect">
+                        <option value="">无背景</option>
+                        <option value="kitchen">厨房</option>
+                        <option value="garden">花园</option>
+                        <option value="classroom">教室</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>添加贴纸 (JSON格式):</label>
+                    <textarea id="stickerData" rows="5" placeholder='{"word": "apple", "cn": "苹果", "pos": "noun", ...}'></textarea>
+                </div>
+                <button class="button" onclick="createTestWorld()">创建测试世界</button>
+            </div>
+
+            <div class="section">
+                <h2>画布预览</h2>
+                <div class="canvas-preview" id="canvasPreview">
+                    <p>画布内容将在这里显示</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>保存状态</h2>
+            <div id="saveStatus" class="status info">等待操作...</div>
+        </div>
+
+        <div class="section">
+            <h2>localStorage 数据</h2>
+            <div id="localStorageData" class="log">等待检查...</div>
+        </div>
+
+        <div class="section">
+            <h2>操作日志</h2>
+            <div id="operationLog" class="log">日志将在这里显示...</div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟 WorldDataUtils 类
+        class MockWorldDataUtils {
+            static async addWorld(worldData) {
+                log('🔄 调用 addWorld 方法');
+                log('📝 世界数据:', JSON.stringify(worldData, null, 2));
+                
+                try {
+                    // 获取用户ID (模拟)
+                    const userId = 'joyce'; // 模拟用户ID
+                    const storageKey = `tinylingo_worlds_${userId}`;
+                    
+                    // 获取现有数据
+                    let existingWorlds = [];
+                    const existingData = localStorage.getItem(storageKey);
+                    if (existingData) {
+                        existingWorlds = JSON.parse(existingData);
+                        log('📚 现有世界数量:', existingWorlds.length);
+                    }
+                    
+                    // 生成新的世界ID
+                    const newId = Date.now().toString();
+                    worldData.id = newId;
+                    worldData.createdAt = new Date().toISOString();
+                    worldData.updatedAt = new Date().toISOString();
+                    
+                    // 添加到数组
+                    existingWorlds.push(worldData);
+                    
+                    // 保存到 localStorage
+                    localStorage.setItem(storageKey, JSON.stringify(existingWorlds));
+                    log('✅ 世界已保存到 localStorage');
+                    
+                    // 触发存储事件
+                    window.dispatchEvent(new StorageEvent('storage', {
+                        key: storageKey,
+                        newValue: JSON.stringify(existingWorlds),
+                        oldValue: existingData
+                    }));
+                    
+                    // 模拟 Supabase 同步
+                    await this.mockSupabaseSync(worldData);
+                    
+                    return { success: true, id: newId };
+                } catch (error) {
+                    log('❌ 保存失败:', error.message);
+                    return { success: false, error: error.message };
+                }
+            }
+            
+            static async updateWorld(worldData) {
+                log('🔄 调用 updateWorld 方法');
+                log('📝 更新数据:', JSON.stringify(worldData, null, 2));
+                
+                try {
+                    const userId = 'joyce';
+                    const storageKey = `tinylingo_worlds_${userId}`;
+                    
+                    let existingWorlds = [];
+                    const existingData = localStorage.getItem(storageKey);
+                    if (existingData) {
+                        existingWorlds = JSON.parse(existingData);
+                    }
+                    
+                    // 查找并更新
+                    const index = existingWorlds.findIndex(w => w.id === worldData.id);
+                    if (index !== -1) {
+                        worldData.updatedAt = new Date().toISOString();
+                        existingWorlds[index] = { ...existingWorlds[index], ...worldData };
+                        
+                        localStorage.setItem(storageKey, JSON.stringify(existingWorlds));
+                        log('✅ 世界已更新');
+                        
+                        // 模拟 Supabase 同步
+                        await this.mockSupabaseSync(worldData);
+                        
+                        return { success: true };
+                    } else {
+                        log('⚠️ 未找到要更新的世界');
+                        return { success: false, error: '世界不存在' };
+                    }
+                } catch (error) {
+                    log('❌ 更新失败:', error.message);
+                    return { success: false, error: error.message };
+                }
+            }
+            
+            static async mockSupabaseSync(worldData) {
+                log('🔄 模拟 Supabase 同步...');
+                
+                // 模拟网络延迟
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 模拟成功率 (90%)
+                if (Math.random() > 0.1) {
+                    log('✅ Supabase 同步成功');
+                    return { success: true };
+                } else {
+                    log('❌ Supabase 同步失败 (模拟网络错误)');
+                    return { success: false, error: '网络错误' };
+                }
+            }
+        }
+
+        // 日志函数
+        function log(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('operationLog');
+            const logMessage = `[${timestamp}] ${message}`;
+            
+            if (data) {
+                logElement.textContent += logMessage + '\n' + JSON.stringify(data, null, 2) + '\n\n';
+            } else {
+                logElement.textContent += logMessage + '\n';
+            }
+            
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(logMessage, data);
+        }
+
+        // 更新状态显示
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('saveStatus');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        // 清空所有数据
+        function clearAllData() {
+            localStorage.clear();
+            document.getElementById('operationLog').textContent = '';
+            document.getElementById('localStorageData').textContent = '';
+            updateStatus('所有数据已清空', 'warning');
+            log('🗑️ 所有数据已清空');
+        }
+
+        // 检查当前状态
+        function checkCurrentState() {
+            log('🔍 检查当前状态...');
+            
+            const userId = 'joyce';
+            const storageKey = `tinylingo_worlds_${userId}`;
+            const worldsData = localStorage.getItem(storageKey);
+            
+            const localStorageElement = document.getElementById('localStorageData');
+            
+            if (worldsData) {
+                try {
+                    const worlds = JSON.parse(worldsData);
+                    localStorageElement.textContent = JSON.stringify(worlds, null, 2);
+                    updateStatus(`找到 ${worlds.length} 个世界`, 'success');
+                    log(`📊 当前有 ${worlds.length} 个世界`);
+                } catch (error) {
+                    localStorageElement.textContent = '数据解析错误: ' + error.message;
+                    updateStatus('数据解析错误', 'error');
+                    log('❌ 数据解析错误:', error.message);
+                }
+            } else {
+                localStorageElement.textContent = '没有找到世界数据';
+                updateStatus('没有世界数据', 'info');
+                log('📭 没有找到世界数据');
+            }
+        }
+
+        // 模拟世界创建
+        function simulateWorldCreation() {
+            log('🎮 开始模拟世界创建...');
+            
+            const testWorld = {
+                name: '模拟测试世界',
+                description: '这是一个模拟创建的测试世界',
+                selectedBackground: 'kitchen',
+                canvasObjects: [
+                    {
+                        type: 'sticker',
+                        word: 'apple',
+                        cn: '苹果',
+                        pos: 'noun',
+                        x: 100,
+                        y: 100,
+                        width: 80,
+                        height: 80
+                    },
+                    {
+                        type: 'sticker',
+                        word: 'banana',
+                        cn: '香蕉',
+                        pos: 'noun',
+                        x: 200,
+                        y: 150,
+                        width: 80,
+                        height: 80
+                    }
+                ],
+                stickerCount: 2,
+                uniqueWordCount: 2,
+                thumbnail: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                needsSupabaseSync: true
+            };
+            
+            updateCanvasPreview(testWorld);
+            updateStatus('模拟世界已创建，准备保存...', 'info');
+            
+            // 自动保存
+            setTimeout(() => {
+                MockWorldDataUtils.addWorld(testWorld).then(result => {
+                    if (result.success) {
+                        updateStatus('模拟世界保存成功!', 'success');
+                        checkCurrentState();
+                    } else {
+                        updateStatus('模拟世界保存失败: ' + result.error, 'error');
+                    }
+                });
+            }, 1000);
+        }
+
+        // 创建测试世界
+        function createTestWorld() {
+            log('🏗️ 创建用户定义的测试世界...');
+            
+            const name = document.getElementById('worldName').value;
+            const description = document.getElementById('worldDescription').value;
+            const background = document.getElementById('backgroundSelect').value;
+            const stickerDataText = document.getElementById('stickerData').value;
+            
+            let stickerData = null;
+            if (stickerDataText.trim()) {
+                try {
+                    stickerData = JSON.parse(stickerDataText);
+                } catch (error) {
+                    updateStatus('贴纸数据格式错误: ' + error.message, 'error');
+                    log('❌ 贴纸数据解析失败:', error.message);
+                    return;
+                }
+            }
+            
+            const testWorld = {
+                name: name || '未命名世界',
+                description: description || '无描述',
+                selectedBackground: background,
+                canvasObjects: [],
+                stickerCount: 0,
+                uniqueWordCount: 0,
+                thumbnail: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                needsSupabaseSync: true
+            };
+            
+            // 添加贴纸到画布
+            if (stickerData) {
+                testWorld.canvasObjects.push({
+                    type: 'sticker',
+                    ...stickerData,
+                    x: 100,
+                    y: 100,
+                    width: 80,
+                    height: 80
+                });
+                testWorld.stickerCount = 1;
+                testWorld.uniqueWordCount = 1;
+            }
+            
+            updateCanvasPreview(testWorld);
+            updateStatus('测试世界已创建，正在保存...', 'info');
+            
+            MockWorldDataUtils.addWorld(testWorld).then(result => {
+                if (result.success) {
+                    updateStatus('测试世界保存成功!', 'success');
+                    checkCurrentState();
+                } else {
+                    updateStatus('测试世界保存失败: ' + result.error, 'error');
+                }
+            });
+        }
+
+        // 更新画布预览
+        function updateCanvasPreview(worldData) {
+            const preview = document.getElementById('canvasPreview');
+            let content = `<h3>${worldData.name}</h3>`;
+            content += `<p>${worldData.description}</p>`;
+            
+            if (worldData.selectedBackground) {
+                content += `<p><strong>背景:</strong> ${worldData.selectedBackground}</p>`;
+            }
+            
+            if (worldData.canvasObjects && worldData.canvasObjects.length > 0) {
+                content += `<p><strong>对象数量:</strong> ${worldData.canvasObjects.length}</p>`;
+                content += '<div style="text-align: left;">';
+                worldData.canvasObjects.forEach((obj, index) => {
+                    if (obj.type === 'sticker') {
+                        content += `<p>贴纸 ${index + 1}: ${obj.word} (${obj.cn})</p>`;
+                    }
+                });
+                content += '</div>';
+            }
+            
+            preview.innerHTML = content;
+        }
+
+        // 测试保存功能
+        function testSaveFunction() {
+            log('🧪 测试保存功能...');
+            
+            const testCases = [
+                {
+                    name: '基础世界',
+                    data: {
+                        name: '基础测试',
+                        description: '基础功能测试',
+                        canvasObjects: [],
+                        stickerCount: 0,
+                        uniqueWordCount: 0
+                    }
+                },
+                {
+                    name: '带背景的世界',
+                    data: {
+                        name: '背景测试',
+                        description: '背景功能测试',
+                        selectedBackground: 'garden',
+                        canvasObjects: [],
+                        stickerCount: 0,
+                        uniqueWordCount: 0
+                    }
+                },
+                {
+                    name: '带贴纸的世界',
+                    data: {
+                        name: '贴纸测试',
+                        description: '贴纸功能测试',
+                        canvasObjects: [
+                            {
+                                type: 'sticker',
+                                word: 'test',
+                                cn: '测试',
+                                pos: 'noun',
+                                x: 50,
+                                y: 50
+                            }
+                        ],
+                        stickerCount: 1,
+                        uniqueWordCount: 1
+                    }
+                }
+            ];
+            
+            let successCount = 0;
+            let totalTests = testCases.length;
+            
+            async function runTests() {
+                for (let i = 0; i < testCases.length; i++) {
+                    const testCase = testCases[i];
+                    log(`🧪 测试案例 ${i + 1}: ${testCase.name}`);
+                    
+                    try {
+                        const result = await MockWorldDataUtils.addWorld(testCase.data);
+                        if (result.success) {
+                            log(`✅ 测试案例 ${i + 1} 成功`);
+                            successCount++;
+                        } else {
+                            log(`❌ 测试案例 ${i + 1} 失败: ${result.error}`);
+                        }
+                    } catch (error) {
+                        log(`❌ 测试案例 ${i + 1} 异常: ${error.message}`);
+                    }
+                    
+                    // 短暂延迟
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+                
+                const successRate = (successCount / totalTests * 100).toFixed(1);
+                updateStatus(`测试完成: ${successCount}/${totalTests} 成功 (${successRate}%)`, 
+                    successCount === totalTests ? 'success' : 'warning');
+                
+                checkCurrentState();
+            }
+            
+            runTests();
+        }
+
+        // 测试 Supabase 同步
+        function testSupabaseSync() {
+            log('☁️ 测试 Supabase 同步功能...');
+            
+            const testWorld = {
+                name: 'Supabase 同步测试',
+                description: '测试 Supabase 同步功能',
+                canvasObjects: [],
+                stickerCount: 0,
+                uniqueWordCount: 0,
+                needsSupabaseSync: true
+            };
+            
+            MockWorldDataUtils.mockSupabaseSync(testWorld).then(result => {
+                if (result.success) {
+                    updateStatus('Supabase 同步测试成功', 'success');
+                } else {
+                    updateStatus('Supabase 同步测试失败: ' + result.error, 'error');
+                }
+            });
+        }
+
+        // 页面加载时检查状态
+        window.addEventListener('load', () => {
+            log('📱 页面已加载，开始初始化...');
+            checkCurrentState();
+        });
+
+        // 监听存储变化
+        window.addEventListener('storage', (e) => {
+            if (e.key && e.key.startsWith('tinylingo_worlds_')) {
+                log('📡 检测到存储变化:', e.key);
+                checkCurrentState();
+            }
+        });
+    </script>
+</body>
+</html>

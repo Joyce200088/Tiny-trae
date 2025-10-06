@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Supabase 集成验证测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFFBF5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .test-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        .test-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .test-card h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .icon {
+            font-size: 1.5rem;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .result {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #28a745;
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+        .error {
+            color: #dc3545;
+            border-color: #dc3545;
+            background: #fff8f8;
+        }
+        .warning {
+            color: #ffc107;
+            border-color: #ffc107;
+            background: #fffef8;
+        }
+        .info {
+            color: #17a2b8;
+            border-color: #17a2b8;
+            background: #f8feff;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-pending { 
+            background: #ffc107; 
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .summary-card h2 {
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+        .config-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Supabase 集成验证测试</h1>
+            <p>全面验证 Supabase 数据库连接、存储桶配置和 RLS 策略</p>
+        </div>
+
+        <div class="content">
+            <!-- 配置信息 -->
+            <div class="config-info" id="configInfo">
+                <strong>当前配置:</strong><br>
+                URL: 加载中...<br>
+                Key: 加载中...<br>
+                状态: 初始化中...
+            </div>
+
+            <!-- 测试网格 -->
+            <div class="test-grid">
+                <!-- 数据库连接测试 -->
+                <div class="test-card">
+                    <h3><span class="icon">🔗</span>数据库连接测试</h3>
+                    <button class="btn" onclick="testDatabaseConnection()">测试数据库连接</button>
+                    <div class="result" id="dbResult">点击按钮开始测试数据库连接...</div>
+                </div>
+
+                <!-- 存储桶测试 -->
+                <div class="test-card">
+                    <h3><span class="icon">🗂️</span>存储桶验证</h3>
+                    <button class="btn" onclick="testStorageBuckets()">检查存储桶</button>
+                    <div class="result" id="storageResult">点击按钮检查存储桶配置...</div>
+                </div>
+
+                <!-- RLS 策略测试 -->
+                <div class="test-card">
+                    <h3><span class="icon">🔒</span>RLS 策略测试</h3>
+                    <button class="btn" onclick="testRLSPolicies()">测试 RLS 策略</button>
+                    <div class="result" id="rlsResult">点击按钮测试行级安全策略...</div>
+                </div>
+
+                <!-- 文件上传测试 -->
+                <div class="test-card">
+                    <h3><span class="icon">📤</span>文件上传测试</h3>
+                    <button class="btn" onclick="testFileUpload()">测试文件上传</button>
+                    <div class="result" id="uploadResult">点击按钮测试文件上传功能...</div>
+                </div>
+
+                <!-- 数据表测试 -->
+                <div class="test-card">
+                    <h3><span class="icon">📊</span>数据表验证</h3>
+                    <button class="btn" onclick="testDatabaseTables()">检查数据表</button>
+                    <div class="result" id="tablesResult">点击按钮检查数据表结构...</div>
+                </div>
+
+                <!-- 权限测试 -->
+                <div class="test-card">
+                    <h3><span class="icon">👤</span>用户权限测试</h3>
+                    <button class="btn" onclick="testUserPermissions()">测试用户权限</button>
+                    <div class="result" id="permissionsResult">点击按钮测试用户权限配置...</div>
+                </div>
+            </div>
+
+            <!-- 综合测试 -->
+            <div class="test-card">
+                <h3><span class="icon">🚀</span>综合集成测试</h3>
+                <button class="btn" onclick="runFullIntegrationTest()">运行完整测试</button>
+                <div class="result" id="fullTestResult">点击按钮运行完整的集成测试...</div>
+            </div>
+
+            <!-- 测试结果汇总 -->
+            <div class="summary-card" id="summaryCard" style="display: none;">
+                <h2>📋 测试结果汇总</h2>
+                <div id="summaryContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://knizbnlzwcuniceqvmvd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaXpibmx6d2N1bmljZXF2bXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NjQ3ODQsImV4cCI6MjA3NTI0MDc4NH0.NJxl1MvhdG2vFUoMkCClV4VkLtjfok7eJ6zxzqSzuHQ';
+
+        // 初始化 Supabase 客户端
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true,
+                flowType: 'pkce',
+            },
+        });
+
+        // 测试结果存储
+        let testResults = {};
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            updateConfigInfo();
+        });
+
+        // 更新配置信息显示
+        function updateConfigInfo() {
+            const configDiv = document.getElementById('configInfo');
+            configDiv.innerHTML = `
+                <strong>当前配置:</strong><br>
+                URL: ${SUPABASE_URL}<br>
+                Key: ${SUPABASE_ANON_KEY.substring(0, 20)}...<br>
+                状态: 已配置 ✅
+            `;
+        }
+
+        // 日志函数
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            
+            if (element.innerHTML === '点击按钮开始测试数据库连接...' || 
+                element.innerHTML.includes('点击按钮')) {
+                element.innerHTML = '';
+            }
+            
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        // 1. 测试数据库连接
+        async function testDatabaseConnection() {
+            log('dbResult', '开始测试数据库连接...', 'info');
+            
+            try {
+                // 测试基本连接
+                const { data, error } = await supabaseClient
+                    .from('preset_categories')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    log('dbResult', `连接失败: ${error.message}`, 'error');
+                    testResults.database = false;
+                    return;
+                }
+                
+                log('dbResult', '数据库连接成功 ✅', 'success');
+                
+                // 测试查询功能
+                const { data: categories, error: queryError } = await supabaseClient
+                    .from('preset_categories')
+                    .select('*')
+                    .limit(3);
+                
+                if (queryError) {
+                    log('dbResult', `查询测试失败: ${queryError.message}`, 'error');
+                    testResults.database = false;
+                    return;
+                }
+                
+                log('dbResult', `查询测试成功，找到 ${categories.length} 个分类`, 'success');
+                testResults.database = true;
+                
+            } catch (error) {
+                log('dbResult', `连接异常: ${error.message}`, 'error');
+                testResults.database = false;
+            }
+        }
+
+        // 2. 测试存储桶
+        async function testStorageBuckets() {
+            log('storageResult', '开始检查存储桶配置...', 'info');
+            
+            const requiredBuckets = ['sticker-images', 'background-images', 'world-thumbnails', 'user-uploads'];
+            
+            try {
+                // 首先尝试 listBuckets()
+                const { data: buckets, error } = await supabaseClient.storage.listBuckets();
+                
+                if (error) {
+                    log('storageResult', `listBuckets() 失败: ${error.message}`, 'warning');
+                    log('storageResult', '尝试通过直接访问测试存储桶...', 'info');
+                    
+                    // 如果 listBuckets() 失败，通过直接访问测试存储桶
+                    let allBucketsExist = true;
+                    
+                    for (const bucket of requiredBuckets) {
+                        try {
+                            const { data, error: listError } = await supabaseClient.storage
+                                .from(bucket)
+                                .list('', { limit: 1 });
+                            
+                            if (listError) {
+                                log('storageResult', `❌ ${bucket} 存储桶不可访问: ${listError.message}`, 'error');
+                                allBucketsExist = false;
+                            } else {
+                                log('storageResult', `✅ ${bucket} 存储桶存在且可访问`, 'success');
+                            }
+                        } catch (err) {
+                            log('storageResult', `❌ ${bucket} 存储桶测试失败: ${err.message}`, 'error');
+                            allBucketsExist = false;
+                        }
+                    }
+                    
+                    testResults.storage = allBucketsExist;
+                    return;
+                }
+                
+                log('storageResult', `找到 ${buckets.length} 个存储桶`, 'info');
+                
+                // 如果 listBuckets() 返回空数组，也使用直接访问方法
+                if (buckets.length === 0) {
+                    log('storageResult', 'listBuckets() 返回空数组，可能是认证问题', 'warning');
+                    log('storageResult', '尝试通过直接访问测试存储桶...', 'info');
+                    
+                    let allBucketsExist = true;
+                    
+                    for (const bucket of requiredBuckets) {
+                        try {
+                            const { data, error: listError } = await supabaseClient.storage
+                                .from(bucket)
+                                .list('', { limit: 1 });
+                            
+                            if (listError) {
+                                log('storageResult', `❌ ${bucket} 存储桶不可访问: ${listError.message}`, 'error');
+                                allBucketsExist = false;
+                            } else {
+                                log('storageResult', `✅ ${bucket} 存储桶存在且可访问`, 'success');
+                            }
+                        } catch (err) {
+                            log('storageResult', `❌ ${bucket} 存储桶测试失败: ${err.message}`, 'error');
+                            allBucketsExist = false;
+                        }
+                    }
+                    
+                    if (allBucketsExist) {
+                        log('storageResult', '所有必需的存储桶都已配置 ✅', 'success');
+                        testResults.storage = true;
+                    } else {
+                        log('storageResult', '部分存储桶缺失，请检查 Supabase 配置', 'warning');
+                        testResults.storage = false;
+                    }
+                    return;
+                }
+                
+                const existingBuckets = buckets.map(b => b.id);
+                let allBucketsExist = true;
+                
+                for (const bucket of requiredBuckets) {
+                    if (existingBuckets.includes(bucket)) {
+                        log('storageResult', `✅ ${bucket} 存储桶存在`, 'success');
+                    } else {
+                        log('storageResult', `❌ ${bucket} 存储桶缺失`, 'error');
+                        allBucketsExist = false;
+                    }
+                }
+                
+                if (allBucketsExist) {
+                    log('storageResult', '所有必需的存储桶都已配置 ✅', 'success');
+                    testResults.storage = true;
+                } else {
+                    log('storageResult', '部分存储桶缺失，请运行 storage-setup.sql', 'warning');
+                    testResults.storage = false;
+                }
+                
+            } catch (error) {
+                log('storageResult', `存储桶检查异常: ${error.message}`, 'error');
+                testResults.storage = false;
+            }
+        }
+
+        // 3. 测试 RLS 策略
+        async function testRLSPolicies() {
+            log('rlsResult', '开始测试 RLS 策略...', 'info');
+            
+            try {
+                // 测试公开数据访问
+                const { data: publicData, error: publicError } = await supabaseClient
+                    .from('preset_worlds')
+                    .select('*')
+                    .eq('is_public', true)
+                    .limit(1);
+                
+                if (publicError) {
+                    log('rlsResult', `公开数据访问失败: ${publicError.message}`, 'error');
+                    testResults.rls = false;
+                    return;
+                }
+                
+                log('rlsResult', '公开数据访问正常 ✅', 'success');
+                
+                // 测试管理员权限表访问
+                const { data: adminData, error: adminError } = await supabaseClient
+                    .from('preset_world_admins')
+                    .select('*')
+                    .limit(1);
+                
+                if (adminError) {
+                    log('rlsResult', `管理员数据访问: ${adminError.message}`, 'warning');
+                } else {
+                    log('rlsResult', '管理员数据访问正常 ✅', 'success');
+                }
+                
+                log('rlsResult', 'RLS 策略测试完成', 'success');
+                testResults.rls = true;
+                
+            } catch (error) {
+                log('rlsResult', `RLS 测试异常: ${error.message}`, 'error');
+                testResults.rls = false;
+            }
+        }
+
+        // 4. 测试文件上传
+        async function testFileUpload() {
+            log('uploadResult', '开始测试文件上传功能...', 'info');
+            
+            try {
+                // 创建一个测试图片文件（PNG格式）
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                
+                // 绘制一个简单的测试图案
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '20px Arial';
+                ctx.fillText('TEST', 25, 55);
+                
+                // 转换为 Blob
+                const testFile = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png');
+                });
+                const fileName = `test-${Date.now()}.png`;
+                
+                // 尝试上传到 sticker-images 存储桶
+                const { data, error } = await supabaseClient.storage
+                    .from('sticker-images')
+                    .upload(fileName, testFile);
+                
+                if (error) {
+                    log('uploadResult', `文件上传失败: ${error.message}`, 'error');
+                    testResults.upload = false;
+                    return;
+                }
+                
+                log('uploadResult', `文件上传成功: ${data.path}`, 'success');
+                
+                // 获取公开 URL
+                const { data: urlData } = supabaseClient.storage
+                    .from('sticker-images')
+                    .getPublicUrl(fileName);
+                
+                log('uploadResult', `公开 URL: ${urlData.publicUrl}`, 'info');
+                
+                // 清理测试文件
+                await supabaseClient.storage
+                    .from('sticker-images')
+                    .remove([fileName]);
+                
+                log('uploadResult', '测试文件已清理 ✅', 'success');
+                testResults.upload = true;
+                
+            } catch (error) {
+                log('uploadResult', `上传测试异常: ${error.message}`, 'error');
+                testResults.upload = false;
+            }
+        }
+
+        // 5. 测试数据表
+        async function testDatabaseTables() {
+            log('tablesResult', '开始检查数据表结构...', 'info');
+            
+            const requiredTables = [
+                'preset_worlds',
+                'preset_categories', 
+                'preset_world_admins',
+                'preset_world_usage'
+            ];
+            
+            let allTablesExist = true;
+            
+            for (const table of requiredTables) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from(table)
+                        .select('*')
+                        .limit(1);
+                    
+                    if (error) {
+                        log('tablesResult', `❌ ${table} 表不存在或无权限访问`, 'error');
+                        allTablesExist = false;
+                    } else {
+                        log('tablesResult', `✅ ${table} 表存在`, 'success');
+                    }
+                } catch (error) {
+                    log('tablesResult', `❌ ${table} 检查异常: ${error.message}`, 'error');
+                    allTablesExist = false;
+                }
+            }
+            
+            if (allTablesExist) {
+                log('tablesResult', '所有必需的数据表都存在 ✅', 'success');
+                testResults.tables = true;
+            } else {
+                log('tablesResult', '部分数据表缺失，请执行 supabase-setup-complete.sql', 'warning');
+                testResults.tables = false;
+            }
+        }
+
+        // 6. 测试用户权限
+        async function testUserPermissions() {
+            log('permissionsResult', '开始测试用户权限...', 'info');
+            
+            try {
+                // 检查当前用户状态
+                const { data: user, error: userError } = await supabaseClient.auth.getUser();
+                
+                if (userError) {
+                    log('permissionsResult', '未登录用户，测试匿名访问权限', 'info');
+                } else {
+                    log('permissionsResult', `当前用户: ${user.user?.email || '匿名'}`, 'info');
+                }
+                
+                // 测试管理员权限检查
+                const { data: adminCheck, error: adminError } = await supabaseClient
+                    .from('preset_world_admins')
+                    .select('*')
+                    .eq('user_id', 'admin-user-1')
+                    .single();
+                
+                if (adminError) {
+                    log('permissionsResult', `管理员权限检查: ${adminError.message}`, 'warning');
+                } else {
+                    log('permissionsResult', `找到管理员用户: ${adminCheck.user_email}`, 'success');
+                }
+                
+                log('permissionsResult', '用户权限测试完成 ✅', 'success');
+                testResults.permissions = true;
+                
+            } catch (error) {
+                log('permissionsResult', `权限测试异常: ${error.message}`, 'error');
+                testResults.permissions = false;
+            }
+        }
+
+        // 运行完整集成测试
+        async function runFullIntegrationTest() {
+            log('fullTestResult', '开始运行完整集成测试...', 'info');
+            
+            testResults = {};
+            
+            // 依次运行所有测试
+            await testDatabaseConnection();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testStorageBuckets();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testRLSPolicies();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testFileUpload();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testDatabaseTables();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testUserPermissions();
+            
+            // 显示汇总结果
+            showTestSummary();
+        }
+
+        // 显示测试结果汇总
+        function showTestSummary() {
+            const summaryCard = document.getElementById('summaryCard');
+            const summaryContent = document.getElementById('summaryContent');
+            
+            const totalTests = Object.keys(testResults).length;
+            const passedTests = Object.values(testResults).filter(result => result === true).length;
+            const failedTests = totalTests - passedTests;
+            
+            let summaryHtml = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold;">${totalTests}</div>
+                        <div>总测试数</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #90EE90;">${passedTests}</div>
+                        <div>通过测试</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #FFB6C1;">${failedTests}</div>
+                        <div>失败测试</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; text-align: left;">
+                    <h3>详细结果:</h3>
+                    <ul style="margin-top: 10px;">
+            `;
+            
+            const testNames = {
+                database: '数据库连接',
+                storage: '存储桶配置',
+                rls: 'RLS 策略',
+                upload: '文件上传',
+                tables: '数据表结构',
+                permissions: '用户权限'
+            };
+            
+            for (const [key, result] of Object.entries(testResults)) {
+                const status = result ? '✅' : '❌';
+                const name = testNames[key] || key;
+                summaryHtml += `<li>${status} ${name}</li>`;
+            }
+            
+            summaryHtml += '</ul></div>';
+            
+            if (failedTests === 0) {
+                summaryHtml += '<div style="margin-top: 20px; padding: 15px; background: rgba(144, 238, 144, 0.2); border-radius: 8px;"><strong>🎉 所有测试通过！Supabase 集成配置正常。</strong></div>';
+            } else {
+                summaryHtml += '<div style="margin-top: 20px; padding: 15px; background: rgba(255, 182, 193, 0.2); border-radius: 8px;"><strong>⚠️ 部分测试失败，请检查配置并执行相应的设置脚本。</strong></div>';
+            }
+            
+            summaryContent.innerHTML = summaryHtml;
+            summaryCard.style.display = 'block';
+            
+            // 滚动到汇总区域
+            summaryCard.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

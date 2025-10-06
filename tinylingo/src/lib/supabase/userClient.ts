@@ -368,52 +368,86 @@ export class UserDataManager {
   }
 
   /**
-   * 同步贴纸数据到Supabase
+   * 修复版本：同步贴纸数据到Supabase
+   * 解决RLS策略和数组格式问题
    */
   static async syncStickersToSupabase(stickers: StickerData[]): Promise<boolean> {
     const userId = await this.getCurrentUserId();
-    if (!userId) return false;
+    if (!userId) {
+      console.error('用户ID未找到，无法同步贴纸数据');
+      return false;
+    }
 
     try {
-      // 设置用户上下文
+      // 设置用户上下文 - 修复RLS问题
       await this.setUserContext(userId);
       
       // 确保用户存在
       await this.upsertUser({});
 
-      // 转换贴纸数据格式
-      const userStickers: Omit<DatabaseUserSticker, 'id' | 'created_at' | 'updated_at'>[] = stickers.map(sticker => ({
-        user_id: userId,
-        sticker_id: sticker.id,
-        word: sticker.word,
-        cn: sticker.cn,
-        pos: sticker.pos,
-        image: sticker.image,
-        audio: sticker.audio,
-        examples: sticker.examples,
-        mnemonic: sticker.mnemonic,
-        mastery_status: sticker.masteryStatus,
-        tags: sticker.tags,
-        related_words: sticker.relatedWords,
-        is_deleted: false,
-      }));
+      // 转换贴纸数据格式 - 修复数组格式问题
+      const userStickers = stickers.map(sticker => {
+        // 确保所有数组字段格式正确
+        const processedSticker = {
+          user_id: userId,
+          sticker_id: sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          word: sticker.word || '',
+          cn: sticker.cn || '',
+          pos: sticker.pos || 'noun',
+          image: sticker.image || '',
+          
+          // 修复audio字段 - 确保是有效的JSONB对象
+          audio: this.validateAudioField(sticker.audio),
+          
+          // 修复examples字段 - 确保是有效的JSONB数组
+          examples: this.validateExamplesField(sticker.examples),
+          
+          // 修复mnemonic字段 - 确保是有效的TEXT[]数组
+          mnemonic: this.validateMnemonicField(sticker.mnemonic),
+          
+          mastery_status: sticker.masteryStatus || 'new',
+          
+          // 修复tags字段 - 确保是有效的TEXT[]数组
+          tags: this.validateTagsField(sticker.tags),
+          
+          // 修复related_words字段 - 确保是有效的JSONB数组
+          related_words: this.validateRelatedWordsField(sticker.relatedWords),
+          
+          is_deleted: false,
+        };
+        
+        return processedSticker;
+      });
 
-      // 批量插入或更新
-      const { error } = await supabase
+      console.log('准备同步的贴纸数据:', JSON.stringify(userStickers[0], null, 2));
+
+      // 批量插入或更新 - 使用更安全的upsert
+      const { data, error } = await supabase
         .from(USER_TABLES.USER_STICKERS)
         .upsert(userStickers, {
-          onConflict: 'user_id,sticker_id'
-        });
+          onConflict: 'user_id,sticker_id',
+          ignoreDuplicates: false
+        })
+        .select();
 
       if (error) {
-        console.error('同步贴纸数据失败:', error);
+        console.error('同步贴纸数据失败:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // 提供详细的错误分析
+        this.analyzeError(error);
         return false;
       }
 
       // 更新同步状态
       await this.updateSyncStatus('stickers');
       
-      console.log(`成功同步 ${stickers.length} 个贴纸到Supabase`);
+      console.log(`✅ 成功同步 ${stickers.length} 个贴纸到Supabase`);
+      console.log('同步结果:', data);
       return true;
     } catch (error) {
       console.error('同步贴纸数据异常:', error);
@@ -570,6 +604,117 @@ export class UserDataManager {
   static isOnline(): boolean {
     if (typeof window === 'undefined') return false;
     return navigator.onLine;
+  }
+
+  /**
+   * 验证和修复audio字段
+   */
+  private static validateAudioField(audio: any): { uk: string; us: string } {
+    if (!audio || typeof audio !== 'object') {
+      return { uk: '', us: '' };
+    }
+    
+    return {
+      uk: typeof audio.uk === 'string' ? audio.uk : '',
+      us: typeof audio.us === 'string' ? audio.us : ''
+    };
+  }
+
+  /**
+   * 验证和修复examples字段
+   */
+  private static validateExamplesField(examples: any): Array<{ en: string; cn: string }> {
+    if (!Array.isArray(examples)) {
+      return [];
+    }
+    
+    return examples
+      .filter(ex => ex && typeof ex === 'object')
+      .map(ex => ({
+        en: typeof ex.en === 'string' ? ex.en : '',
+        cn: typeof ex.cn === 'string' ? ex.cn : ''
+      }));
+  }
+
+  /**
+   * 验证和修复mnemonic字段
+   */
+  private static validateMnemonicField(mnemonic: any): string[] {
+    if (!Array.isArray(mnemonic)) {
+      return [];
+    }
+    
+    return mnemonic
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(item => item.length > 0);
+  }
+
+  /**
+   * 验证和修复tags字段
+   */
+  private static validateTagsField(tags: any): string[] {
+    if (!Array.isArray(tags)) {
+      return [];
+    }
+    
+    return tags
+      .filter(tag => typeof tag === 'string')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+  }
+
+  /**
+   * 验证和修复related_words字段
+   */
+  private static validateRelatedWordsField(relatedWords: any): Array<{ word: string; pos: string }> {
+    if (!Array.isArray(relatedWords)) {
+      return [];
+    }
+    
+    return relatedWords
+      .filter(rw => rw && typeof rw === 'object')
+      .map(rw => ({
+        word: typeof rw.word === 'string' ? rw.word : '',
+        pos: typeof rw.pos === 'string' ? rw.pos : 'noun'
+      }))
+      .filter(rw => rw.word.length > 0);
+  }
+
+  /**
+   * 分析错误类型并提供解决方案
+   */
+  private static analyzeError(error: any): void {
+    console.log('\n🔍 错误分析:');
+    
+    switch (error.code) {
+      case '42501':
+        console.log('❌ RLS策略违规 - 用户权限问题');
+        console.log('解决方案:');
+        console.log('1. 检查用户是否已正确设置上下文');
+        console.log('2. 确认RLS策略配置正确');
+        console.log('3. 验证JWT token是否有效');
+        break;
+        
+      case '22P02':
+        console.log('❌ 数组格式错误 - malformed array literal');
+        console.log('解决方案:');
+        console.log('1. 检查数组字段是否为空字符串');
+        console.log('2. 确保数组格式符合PostgreSQL要求');
+        console.log('3. 验证JSONB字段格式');
+        break;
+        
+      case '23505':
+        console.log('❌ 唯一约束违规 - 重复数据');
+        console.log('解决方案:');
+        console.log('1. 使用upsert而不是insert');
+        console.log('2. 检查唯一键冲突');
+        break;
+        
+      default:
+        console.log(`❌ 未知错误类型: ${error.code}`);
+        console.log('建议检查Supabase日志获取更多信息');
+    }
   }
 
   /**
