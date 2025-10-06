@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 连接测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { margin: 5px; padding: 10px 15px; }
+    </style>
+</head>
+<body>
+    <h1>Supabase 连接测试</h1>
+    
+    <div id="config-info" class="test-result info">
+        <h3>配置信息</h3>
+        <p>URL: <span id="supabase-url"></span></p>
+        <p>Key: <span id="supabase-key"></span></p>
+    </div>
+
+    <div>
+        <button onclick="testConnection()">测试基本连接</button>
+        <button onclick="testAuth()">测试认证状态</button>
+        <button onclick="testDatabase()">测试数据库访问</button>
+        <button onclick="clearResults()">清除结果</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://knizbnlzwcuniceqvmvd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaXpibmx6d2N1bmljZXF2bXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NjQ3ODQsImV4cCI6MjA3NTI0MDc4NH0.NJxl1MvhdG2vFUoMkCClV4VkLtjfok7eJ6zxzqSzuHQ';
+
+        // 显示配置信息
+        document.getElementById('supabase-url').textContent = SUPABASE_URL;
+        document.getElementById('supabase-key').textContent = SUPABASE_ANON_KEY.substring(0, 20) + '...';
+
+        // 创建 Supabase 客户端
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+
+        async function testConnection() {
+            addResult('开始测试基本连接...', 'info');
+            
+            try {
+                // 测试网络连接
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+                
+                if (response.ok) {
+                    addResult('✅ 基本网络连接正常', 'success');
+                } else {
+                    addResult(`❌ 网络连接失败: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ 连接错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAuth() {
+            addResult('开始测试认证状态...', 'info');
+            
+            try {
+                // 获取当前用户
+                const { data: user, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    addResult(`❌ 认证错误: ${error.message}`, 'error');
+                } else if (user.user) {
+                    addResult(`✅ 用户已登录: ${user.user.email}`, 'success');
+                } else {
+                    addResult('ℹ️ 用户未登录', 'info');
+                }
+
+                // 获取会话信息
+                const { data: session } = await supabase.auth.getSession();
+                if (session.session) {
+                    addResult('✅ 会话存在', 'success');
+                } else {
+                    addResult('ℹ️ 无活动会话', 'info');
+                }
+                
+            } catch (error) {
+                addResult(`❌ 认证测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDatabase() {
+            addResult('开始测试数据库访问...', 'info');
+            
+            try {
+                // 测试访问一个简单的表或视图
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    addResult(`❌ 数据库访问错误: ${error.message}`, 'error');
+                } else {
+                    addResult('✅ 数据库访问正常', 'success');
+                }
+            } catch (error) {
+                addResult(`❌ 数据库测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            addResult('页面加载完成，开始自动测试...', 'info');
+            setTimeout(testConnection, 1000);
+        };
+    </script>
+</body>
+</html>

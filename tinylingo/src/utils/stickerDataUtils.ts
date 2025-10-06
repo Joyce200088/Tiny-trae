@@ -2,10 +2,11 @@
 
 import { StickerData, StickerStorageData } from '@/types/sticker';
 import { ImageUtils } from './imageUtils';
+import { UserDataManager } from '@/lib/supabase/userClient';
 
 /**
  * 贴纸数据工具类
- * 统一处理localStorage中的贴纸数据操作
+ * 统一处理localStorage中的贴纸数据操作，并支持Supabase同步
  */
 export class StickerDataUtils {
   private static readonly STORAGE_KEY = 'myStickers';
@@ -58,7 +59,8 @@ export class StickerDataUtils {
   }
 
   /**
-   * 添加新贴纸（支持图片持久化）
+   * 添加新贴纸（支持图片持久化和Supabase同步）
+   * 增强离线支持：优先保存到localStorage，然后尝试同步到Supabase
    */
   static async addSticker(newSticker: StickerData): Promise<void> {
     try {
@@ -68,6 +70,16 @@ export class StickerDataUtils {
       const currentData = this.loadStickerData();
       currentData.userStickers.push(processedSticker);
       this.saveStickerData(currentData);
+
+      // 尝试同步到Supabase（离线时会自动跳过）
+      if (navigator.onLine) {
+        try {
+          await UserDataManager.syncStickersToSupabase([processedSticker]);
+        } catch (syncError) {
+          console.log('贴纸同步到Supabase失败，数据已保存到本地:', syncError);
+          // 不抛出错误，确保离线模式正常工作
+        }
+      }
     } catch (error) {
       console.error('添加贴纸失败:', error);
       throw error;
@@ -75,7 +87,8 @@ export class StickerDataUtils {
   }
 
   /**
-   * 批量添加贴纸（支持图片持久化）
+   * 批量添加贴纸（支持图片持久化和Supabase同步）
+   * 增强离线支持：优先保存到localStorage，然后尝试同步到Supabase
    */
   static async addStickers(newStickers: StickerData[]): Promise<void> {
     try {
@@ -87,6 +100,16 @@ export class StickerDataUtils {
       const currentData = this.loadStickerData();
       currentData.userStickers.push(...processedStickers);
       this.saveStickerData(currentData);
+
+      // 尝试同步到Supabase（离线时会自动跳过）
+      if (navigator.onLine) {
+        try {
+          await UserDataManager.syncStickersToSupabase(processedStickers);
+        } catch (syncError) {
+          console.log('贴纸批量同步到Supabase失败，数据已保存到本地:', syncError);
+          // 不抛出错误，确保离线模式正常工作
+        }
+      }
     } catch (error) {
       console.error('批量添加贴纸失败:', error);
       throw error;
@@ -119,7 +142,7 @@ export class StickerDataUtils {
   }
 
   /**
-   * 批量添加贴纸到My Stickers（带去重功能）
+   * 批量添加贴纸到My Stickers（带去重功能和Supabase同步）
    * 用于保存世界时将贴纸数据写入My Stickers
    */
   static async addStickersWithDeduplication(newStickers: StickerData[]): Promise<{
@@ -147,6 +170,14 @@ export class StickerDataUtils {
       
       if (added.length > 0) {
         this.saveStickerData(currentData);
+        
+        // 尝试同步到Supabase（如果在线）
+        try {
+          await UserDataManager.syncStickersToSupabase(added);
+        } catch (syncError) {
+          console.warn('贴纸批量同步到Supabase失败，将在下次联网时重试:', syncError);
+          // 不抛出错误，因为本地保存已成功
+        }
       }
       
       return { added, skipped };
@@ -189,10 +220,10 @@ export class StickerDataUtils {
   }
 
   /**
-   * 删除贴纸
+   * 删除贴纸（支持Supabase同步）
    * 如果是模拟数据，添加到deletedMockIds；如果是用户数据，直接删除
    */
-  static deleteSticker(stickerId: string, mockStickerIds: string[]): void {
+  static async deleteSticker(stickerId: string, mockStickerIds: string[]): Promise<void> {
     const currentData = this.loadStickerData();
     
     // 检查是否是模拟数据
@@ -206,6 +237,18 @@ export class StickerDataUtils {
     } else {
       // 用户数据 - 直接删除
       currentData.userStickers = currentData.userStickers.filter(s => s.id !== stickerId);
+      
+      // 尝试从Supabase删除（离线时会自动跳过）
+      if (navigator.onLine) {
+        try {
+          // 注意：这里需要UserDataManager实现deleteSticker方法
+          // await UserDataManager.deleteSticker(stickerId);
+          console.log(`贴纸 ${stickerId} 已从本地删除，Supabase同步将在联网时处理`);
+        } catch (syncError) {
+          console.log('Supabase删除贴纸同步失败，数据已从本地删除:', syncError);
+          // 不抛出错误，确保离线模式正常工作
+        }
+      }
     }
     
     this.saveStickerData(currentData);

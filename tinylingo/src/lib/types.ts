@@ -53,6 +53,14 @@ export type Board = {
   createdAt: string;
 };
 
+// 背景类型定义
+export interface Background {
+  id: string;
+  name: string;
+  url: string;
+  category: string;
+}
+
 // 世界与画布节点
 export type World = {
   id: string;

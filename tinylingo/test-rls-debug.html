@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RLS 权限调试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>RLS 权限调试工具</h1>
+    
+    <div class="test-section">
+        <h2>1. Supabase 连接测试</h2>
+        <button onclick="testConnection()">测试连接</button>
+        <div id="connection-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 用户认证测试</h2>
+        <div>
+            <input type="email" id="test-email" placeholder="测试邮箱" value="test@example.com">
+            <input type="password" id="test-password" placeholder="密码" value="123456">
+            <input type="text" id="test-username" placeholder="用户名" value="testuser">
+        </div>
+        <br>
+        <button onclick="testSignUp()">注册测试用户</button>
+        <button onclick="testSignIn()">登录测试用户</button>
+        <button onclick="testSignOut()">登出</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 数据库权限测试</h2>
+        <button onclick="testUsersTable()">测试 users 表权限</button>
+        <button onclick="testUserWorldsTable()">测试 user_worlds 表权限</button>
+        <button onclick="testDirectInsert()">直接插入测试</button>
+        <div id="db-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. RLS 策略检查</h2>
+        <button onclick="checkRLSPolicies()">检查 RLS 策略</button>
+        <div id="rls-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>调试日志</h2>
+        <button onclick="clearLog()">清空日志</button>
+        <div id="debug-log" class="log"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://knizbnlzwcuniceqvmvd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaXpibmx6d2N1bmljZXF2bXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NjQ3ODQsImV4cCI6MjA3NTI0MDc4NH0.NJxl1MvhdG2vFUoMkCClV4VkLtjfok7eJ6zxzqSzuHQ';
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('debug-log').innerHTML = '';
+        }
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            try {
+                log('开始测试 Supabase 连接...');
+                
+                // 测试基本连接
+                const { data, error } = await supabaseClient.from('users').select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                resultDiv.innerHTML = '<div class="success">✅ Supabase 连接成功</div>';
+                log('Supabase 连接测试成功', 'success');
+                
+                // 检查当前用户状态
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) {
+                    log(`当前用户: ${user.email} (ID: ${user.id})`, 'info');
+                } else {
+                    log('当前未登录', 'warning');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 连接失败: ${error.message}</div>`;
+                log(`连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSignUp() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            const username = document.getElementById('test-username').value;
+            const resultDiv = document.getElementById('auth-result');
+            
+            try {
+                log(`开始注册用户: ${email}`, 'info');
+                
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            display_name: username
+                        }
+                    }
+                });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                resultDiv.innerHTML = '<div class="success">✅ 用户注册成功</div>';
+                log(`用户注册成功: ${JSON.stringify(data.user)}`, 'success');
+                
+                // 尝试保存用户信息到 users 表
+                if (data.user) {
+                    await testUserDataSave(data.user, username);
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 注册失败: ${error.message}</div>`;
+                log(`注册失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testUserDataSave(user, username) {
+            try {
+                log('尝试保存用户数据到 users 表...', 'info');
+                
+                const userData = {
+                    user_id: user.id,
+                    username: username || user.email?.split('@')[0] || 'unknown',
+                    email: user.email,
+                    avatar_url: user.user_metadata?.avatar_url || null,
+                    preferences: {},
+                    last_login: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabaseClient
+                    .from('users')
+                    .upsert(userData, {
+                        onConflict: 'user_id'
+                    })
+                    .select();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log(`用户数据保存成功: ${JSON.stringify(data)}`, 'success');
+                
+            } catch (error) {
+                log(`用户数据保存失败: ${error.message} (Code: ${error.code})`, 'error');
+                
+                // 详细错误分析
+                if (error.code === '42501') {
+                    log('错误分析: RLS 策略阻止了数据写入', 'warning');
+                    log('建议: 需要执行 fix-user-rls-policies.sql 修复权限', 'warning');
+                }
+            }
+        }
+
+        async function testSignIn() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            const resultDiv = document.getElementById('auth-result');
+            
+            try {
+                log(`开始登录用户: ${email}`, 'info');
+                
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                resultDiv.innerHTML = '<div class="success">✅ 用户登录成功</div>';
+                log(`用户登录成功: ${JSON.stringify(data.user)}`, 'success');
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 登录失败: ${error.message}</div>`;
+                log(`登录失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSignOut() {
+            const resultDiv = document.getElementById('auth-result');
+            
+            try {
+                log('开始登出...', 'info');
+                
+                const { error } = await supabaseClient.auth.signOut();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                resultDiv.innerHTML = '<div class="success">✅ 用户登出成功</div>';
+                log('用户登出成功', 'success');
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 登出失败: ${error.message}</div>`;
+                log(`登出失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testUsersTable() {
+            const resultDiv = document.getElementById('db-result');
+            
+            try {
+                log('测试 users 表权限...', 'info');
+                
+                // 测试读取权限
+                const { data: readData, error: readError } = await supabaseClient
+                    .from('users')
+                    .select('*')
+                    .limit(1);
+                
+                if (readError) {
+                    log(`读取 users 表失败: ${readError.message}`, 'error');
+                } else {
+                    log(`读取 users 表成功，返回 ${readData.length} 条记录`, 'success');
+                }
+                
+                // 测试当前用户信息
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) {
+                    const { data: userData, error: userError } = await supabaseClient
+                        .from('users')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .single();
+                    
+                    if (userError) {
+                        log(`获取当前用户数据失败: ${userError.message}`, 'error');
+                    } else {
+                        log(`当前用户数据: ${JSON.stringify(userData)}`, 'info');
+                    }
+                }
+                
+                resultDiv.innerHTML = '<div class="info">📋 users 表测试完成，查看日志了解详情</div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ users 表测试失败: ${error.message}</div>`;
+                log(`users 表测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testUserWorldsTable() {
+            const resultDiv = document.getElementById('db-result');
+            
+            try {
+                log('测试 user_worlds 表权限...', 'info');
+                
+                const { data, error } = await supabaseClient
+                    .from('user_worlds')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) {
+                    log(`user_worlds 表测试失败: ${error.message}`, 'error');
+                } else {
+                    log(`user_worlds 表测试成功，返回 ${data.length} 条记录`, 'success');
+                }
+                
+                resultDiv.innerHTML = '<div class="info">📋 user_worlds 表测试完成，查看日志了解详情</div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ user_worlds 表测试失败: ${error.message}</div>`;
+                log(`user_worlds 表测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDirectInsert() {
+            const resultDiv = document.getElementById('db-result');
+            
+            try {
+                log('测试直接插入数据...', 'info');
+                
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    throw new Error('请先登录');
+                }
+                
+                const testData = {
+                    user_id: user.id,
+                    username: 'test_direct_insert',
+                    email: user.email,
+                    avatar_url: null,
+                    preferences: { test: true },
+                    last_login: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabaseClient
+                    .from('users')
+                    .upsert(testData, { onConflict: 'user_id' })
+                    .select();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log(`直接插入成功: ${JSON.stringify(data)}`, 'success');
+                resultDiv.innerHTML = '<div class="success">✅ 直接插入测试成功</div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 直接插入失败: ${error.message}</div>`;
+                log(`直接插入失败: ${error.message} (Code: ${error.code})`, 'error');
+            }
+        }
+
+        async function checkRLSPolicies() {
+            const resultDiv = document.getElementById('rls-result');
+            
+            try {
+                log('检查 RLS 策略...', 'info');
+                
+                // 查询 RLS 策略信息
+                const { data, error } = await supabaseClient.rpc('get_table_policies', {
+                    table_name: 'users'
+                });
+                
+                if (error) {
+                    log(`RLS 策略查询失败: ${error.message}`, 'error');
+                } else {
+                    log(`RLS 策略信息: ${JSON.stringify(data)}`, 'info');
+                }
+                
+                resultDiv.innerHTML = '<div class="info">📋 RLS 策略检查完成，查看日志了解详情</div>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ RLS 策略检查失败: ${error.message}</div>`;
+                log(`RLS 策略检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时自动测试连接
+        window.onload = function() {
+            log('页面加载完成，开始自动测试...', 'info');
+            testConnection();
+        };
+    </script>
+</body>
+</html>

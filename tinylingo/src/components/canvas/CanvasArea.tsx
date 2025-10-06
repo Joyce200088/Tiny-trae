@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Stage, Layer, Image as KonvaImage, Transformer, Rect, Group, Text, Line } from 'react-konva';
+import Konva from 'konva';
 import useImage from 'use-image';
 import { StickerData } from '@/types/sticker';
 import CanvasObject from './CanvasObject';
@@ -553,6 +554,7 @@ const CanvasArea = forwardRef<{
                 rotation: obj.rotation || 0,
                 scaleX: obj.scaleX || 1,
                 scaleY: obj.scaleY || 1,
+                image: undefined, // 初始化image属性
               });
               
               // 创建图片加载Promise
@@ -589,7 +591,7 @@ const CanvasArea = forwardRef<{
             }
             
             if (konvaNode) {
-              offscreenLayer.add(konvaNode);
+              offscreenLayer.add(konvaNode as Konva.Shape);
             }
           });
           

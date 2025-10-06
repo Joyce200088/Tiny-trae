@@ -1,25 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Lock, 
-  Unlock, 
+  Settings, 
+  Palette, 
+  Type, 
+  Move, 
+  RotateCcw, 
   Eye, 
   EyeOff, 
-  Move3D, 
-  Palette, 
-  Volume2,
-  ChevronDown,
-  ChevronRight,
+  Lock, 
+  Unlock,
   Copy,
   Trash2,
-  Link,
-  Unlink,
-  Type,
   AlignLeft,
   AlignCenter,
-  AlignRight
+  AlignRight,
+  Bold,
+  Italic,
+  Underline
 } from 'lucide-react';
+import { CanvasObject } from '@/lib/types';
 
 // 贴纸数据接口
 interface Sticker {
@@ -42,54 +52,6 @@ interface Sticker {
     word: string;
     pos: "noun" | "verb" | "adj" | "adv";
   }[];
-}
-
-// 画布对象接口
-interface CanvasObject {
-  id: string;
-  type: 'sticker' | 'text' | 'shape' | 'line' | 'arrow' | 'group' | 'background';
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  scaleX: number;
-  scaleY: number;
-  opacity: number;
-  visible: boolean;
-  locked: boolean;
-  zIndex: number;
-  aspectRatioLocked?: boolean;
-  
-  // 样式属性
-  fill?: string;
-  stroke?: string;
-  strokeWidth?: number;
-  shadow?: {
-    color: string;
-    blur: number;
-    offsetX: number;
-    offsetY: number;
-  };
-  cornerRadius?: number;
-  
-  // 文字属性
-  text?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  fontWeight?: string;
-  textAlign?: 'left' | 'center' | 'right';
-  lineHeight?: number;
-  
-  // 贴纸数据
-  stickerData?: Sticker;
-  
-  // 背景数据
-  backgroundData?: any;
-  backgroundMode?: 'cover' | 'contain' | 'tile'; // 背景显示模式
-  
-  // 分组
-  children?: string[];
 }
 
 interface PropertiesPanelProps {

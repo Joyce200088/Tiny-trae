@@ -9,12 +9,14 @@ interface AIStickerGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onStickerGenerated?: (sticker: StickerData) => void;
+  onStickerCreated?: (sticker: StickerData) => void;  // 添加onStickerCreated属性以支持单个贴纸创建
 }
 
 export default function AIStickerGeneratorModal({ 
   isOpen, 
   onClose, 
-  onStickerGenerated 
+  onStickerGenerated,
+  onStickerCreated 
 }: AIStickerGeneratorModalProps) {
   // AI生成相关状态
   const [aiGenerationOptions, setAiGenerationOptions] = useState<ImageGenerationOptions>({
@@ -108,6 +110,23 @@ export default function AIStickerGeneratorModal({
           // 创建新贴纸
           const newSticker: StickerData = {
             id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            word: learningContent.english || aiGenerationOptions.word,
+            cn: learningContent.chinese,
+            pos: "noun", // 默认词性
+            image: imageToSave,
+            audio: {
+              uk: '',
+              us: ''
+            },
+            examples: [{
+              en: learningContent.example || '',
+              cn: learningContent.exampleChinese || ''
+            }],
+            mnemonic: [],
+            masteryStatus: "new",
+            tags: ['Ai-generated', aiGenerationOptions.style || 'Cartoon', aiGenerationOptions.viewpoint || 'front', ...(useTransparent ? ['transparent'] : [])],
+            relatedWords: [],
+            // 兼容性字段
             name: learningContent.english || aiGenerationOptions.word,
             chinese: learningContent.chinese,
             phonetic: learningContent.pronunciation,
@@ -116,7 +135,6 @@ export default function AIStickerGeneratorModal({
             imageUrl: imageToSave,
             thumbnailUrl: imageToSave,
             category: null,
-            tags: ['Ai-generated', aiGenerationOptions.style || 'Cartoon', aiGenerationOptions.viewpoint || 'front', ...(useTransparent ? ['transparent'] : [])],
             createdAt: new Date().toISOString().split('T')[0],
             sorted: false
           };
@@ -148,12 +166,25 @@ export default function AIStickerGeneratorModal({
           // 即使识别失败，也保存基本信息
           const newSticker: StickerData = {
             id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            word: aiGenerationOptions.word,
+            cn: '',
+            pos: "noun", // 默认词性
+            image: imageToSave,
+            audio: {
+              uk: '',
+              us: ''
+            },
+            examples: [],
+            mnemonic: [],
+            masteryStatus: "new",
+            tags: ['Ai-generated', aiGenerationOptions.style || 'cartoon', ...(useTransparent ? ['transparent'] : [])],
+            relatedWords: [],
+            // 兼容性字段
             name: aiGenerationOptions.word,
             chinese: '',
             imageUrl: imageToSave,
             thumbnailUrl: imageToSave,
             category: null,
-            tags: ['Ai-generated', aiGenerationOptions.style || 'cartoon', ...(useTransparent ? ['transparent'] : [])],
             createdAt: new Date().toISOString().split('T')[0],
             sorted: false
           };

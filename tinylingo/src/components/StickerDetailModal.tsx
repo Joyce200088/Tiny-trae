@@ -179,10 +179,10 @@ function StickerDetailModal({
     try {
       // 准备请求数据
       const request: WordAnalysisRequest = {
-        word: sticker.name,
-        currentChinese: sticker.chinese,
-        currentPartOfSpeech: sticker.partOfSpeech,
-        currentExamples: sticker.examples?.map(ex => ex.english) || [],
+        word: sticker.word,
+        currentChinese: sticker.cn,
+        currentPartOfSpeech: sticker.pos,
+        currentExamples: sticker.examples?.map(ex => ex.en) || [],
         currentMnemonic: sticker.mnemonic,
         currentTags: sticker.tags,
         currentRelatedWords: sticker.relatedWords
@@ -197,31 +197,31 @@ function StickerDetailModal({
       
       // 如果API调用失败，使用备用建议
       const fallbackSuggestions = {
-        word: sticker.name,
-        cn: sticker.chinese || "AI建议的中文释义",
-        pos: sticker.partOfSpeech || "noun",
-        image: `建议使用更清晰的${sticker.name}图片`,
-        audio: "建议添加标准美式发音",
+        word: sticker.word,
+        cn: sticker.cn || "AI建议的中文释义",
+        pos: sticker.pos || "noun",
+        image: `建议使用更清晰的${sticker.word}图片`,
+        audio: { uk: "", us: "" },
         examples: [
           {
-            english: `This is an example sentence with ${sticker.name}.`,
-            chinese: `这是一个包含${sticker.name}的例句。`
+            en: `This is an example sentence with ${sticker.word}.`,
+            cn: `这是一个包含${sticker.word}的例句。`
           },
           {
-            english: `The ${sticker.name} is very useful in daily life.`,
-            chinese: `${sticker.name}在日常生活中非常有用。`
+            en: `The ${sticker.word} is very useful in daily life.`,
+            cn: `${sticker.word}在日常生活中非常有用。`
           }
         ],
         mnemonic: [
-          `${sticker.name} 的记忆方法建议`,
-          `联想记忆：${sticker.name} 的特点和用途`
+          `${sticker.word} 的记忆方法建议`,
+          `联想记忆：${sticker.word} 的特点和用途`
         ],
-        masteryStatus: "mastered",
-        tags: ["General", "Common", "Useful"],
+        masteryStatus: "new" as const,
+        tags: sticker.tags || [],
         relatedWords: [
-          { word: "related1", chinese: "相关词1", partOfSpeech: "noun" },
-          { word: "related2", chinese: "相关词2", partOfSpeech: "verb" },
-          { word: "related3", chinese: "相关词3", partOfSpeech: "adjective" }
+          { word: "related1", cn: "相关词1", pos: "noun" },
+          { word: "related2", cn: "相关词2", pos: "verb" },
+          { word: "related3", cn: "相关词3", pos: "adj" }
         ]
       };
       
@@ -237,9 +237,9 @@ function StickerDetailModal({
     
     const updatedSticker = {
       ...sticker,
-      name: aiSuggestions.word,
-      chinese: aiSuggestions.cn,
-      partOfSpeech: aiSuggestions.pos,
+      word: aiSuggestions.word,
+      cn: aiSuggestions.cn,
+      pos: aiSuggestions.pos,
       examples: aiSuggestions.examples,
       mnemonic: aiSuggestions.mnemonic,
       masteryStatus: aiSuggestions.masteryStatus,
@@ -259,13 +259,13 @@ function StickerDetailModal({
     // 根据字段类型进行特殊处理
     switch (field) {
       case 'word':
-        updatedSticker = { ...sticker, name: value };
+        updatedSticker = { ...sticker, word: value };
         break;
       case 'cn':
-        updatedSticker = { ...sticker, chinese: value };
+        updatedSticker = { ...sticker, cn: value };
         break;
       case 'pos':
-        updatedSticker = { ...sticker, partOfSpeech: value };
+        updatedSticker = { ...sticker, pos: value };
         break;
       case 'examples':
         updatedSticker = { ...sticker, examples: value };
@@ -458,13 +458,13 @@ function StickerDetailModal({
             <div className="flex-1 p-3 space-y-3 overflow-y-auto">
               {/* 英文单词 */}
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 break-words">{sticker.name}</h2>
+                <h2 className="text-2xl font-bold text-gray-900 break-words">{sticker.word}</h2>
               </div>
 
               {/* 中文翻译 */}
               <div className="text-center">
-                {sticker.chinese && (
-                  <div className="text-base text-gray-700 font-medium">{sticker.chinese}</div>
+                {sticker.cn && (
+                  <div className="text-base text-gray-700 font-medium">{sticker.cn}</div>
                 )}
               </div>
 
@@ -478,7 +478,7 @@ function StickerDetailModal({
               {/* 发音按钮和词性标签 */}
               <div className="flex justify-center items-center space-x-2">
                 <button
-                  onClick={() => playAudio(sticker.name)}
+                  onClick={() => playAudio(sticker.word)}
                   disabled={isPlaying}
                   className="flex items-center justify-center w-12 h-8 text-gray-800 rounded-lg hover:opacity-80 disabled:opacity-50 transition-colors"
                   style={{ backgroundColor: '#FAF4ED' }}
@@ -487,18 +487,18 @@ function StickerDetailModal({
                 </button>
                 
                 {/* 词性标签 */}
-                {sticker.partOfSpeech && (
+                {sticker.pos && (
                   <div className="px-2 py-2 text-gray-800 text-sm font-medium rounded-lg w-12 h-8 flex items-center justify-center"
                        style={{ backgroundColor: '#FAF4ED' }}>
-                    {sticker.partOfSpeech === 'noun' ? '名词' : 
-                     sticker.partOfSpeech === 'verb' ? '动词' : 
-                     sticker.partOfSpeech === 'adjective' ? '形容词' : 
-                     sticker.partOfSpeech === 'adverb' ? '副词' : 
-                     sticker.partOfSpeech === 'preposition' ? '介词' : 
-                     sticker.partOfSpeech === 'conjunction' ? '连词' : 
-                     sticker.partOfSpeech === 'pronoun' ? '代词' : 
-                     sticker.partOfSpeech === 'interjection' ? '感叹词' : 
-                     sticker.partOfSpeech}
+                    {sticker.pos === 'noun' ? '名词' : 
+                     sticker.pos === 'verb' ? '动词' : 
+                     sticker.pos === 'adj' ? '形容词' : 
+                     sticker.pos === 'adv' ? '副词' : 
+                     sticker.pos === 'prep' ? '介词' : 
+                     sticker.pos === 'conj' ? '连词' : 
+                     sticker.pos === 'pron' ? '代词' : 
+                     sticker.pos === 'interj' ? '感叹词' : 
+                     sticker.pos}
                   </div>
                 )}
               </div>
@@ -607,16 +607,16 @@ function StickerDetailModal({
                 {sticker.relatedWords && sticker.relatedWords.length > 0 ? (
                   <div className="space-y-4">
                     {/* 按词性分组显示 */}
-                    {['noun', 'verb', 'adjective', 'adverb'].map(partOfSpeech => {
-                      const wordsOfType = sticker.relatedWords?.filter(word => word.partOfSpeech === partOfSpeech) || [];
+                    {['noun', 'verb', 'adj', 'adv'].map(pos => {
+                      const wordsOfType = sticker.relatedWords?.filter(word => word.pos === pos) || [];
                       if (wordsOfType.length === 0) return null;
                       
-                      const typeLabel = partOfSpeech === 'noun' ? '名词' :
-                                       partOfSpeech === 'verb' ? '动词' :
-                                       partOfSpeech === 'adjective' ? '形容词' : '副词';
+                      const typeLabel = pos === 'noun' ? '名词' :
+                                       pos === 'verb' ? '动词' :
+                                       pos === 'adj' ? '形容词' : '副词';
                       
                       return (
-                        <div key={partOfSpeech} className="space-y-2">
+                        <div key={pos} className="space-y-2">
                           <h4 className="text-xs font-normal" style={{ color: '#8F8F8F' }}>{typeLabel}区</h4>
                           <div className="flex flex-wrap gap-2">
                             {wordsOfType.map((word, index) => (
@@ -629,7 +629,7 @@ function StickerDetailModal({
                                 onClick={() => toggleWordHighlight(word.word)}
                               >
                                 <span className="text-gray-800 font-medium text-sm">{word.word}</span>
-                                <span className="text-gray-500 text-xs">{word.chinese}</span>
+                                <span className="text-gray-500 text-xs">{word.cn}</span>
                               </div>
                             ))}
                           </div>
@@ -652,16 +652,16 @@ function StickerDetailModal({
                 {sticker.examples && sticker.examples.length > 0 ? (
                   <div className="space-y-4">
                     {sticker.examples.map((example, index) => (
-                      <div key={`example-${example.english}-${index}`} className="space-y-2 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                      <div key={`example-${example.en}-${index}`} className="space-y-2 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 space-y-2">
-                            <div className="text-gray-800 italic">"{example.english}"</div>
-                            <div className="text-gray-600 text-sm">"{example.chinese}"</div>
+                            <div className="text-gray-800 italic">"{example.en}"</div>
+                            <div className="text-gray-600 text-sm">"{example.cn}"</div>
                           </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              playAudio(example.english);
+                              playAudio(example.en);
                             }}
                             disabled={isPlaying}
                             className="flex items-center space-x-1 text-sm px-2 py-1 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 ml-4 flex-shrink-0"
@@ -883,11 +883,11 @@ function StickerDetailModal({
                       </h4>
                       <div className="space-y-3">
                         {aiSuggestions.examples.map((example: any, index: number) => (
-                          <div key={`ai-example-${example.english}-${index}`} className="bg-white rounded-lg p-3 border">
+                          <div key={`ai-example-${example.en}-${index}`} className="bg-white rounded-lg p-3 border">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <p className="text-gray-800 mb-1">{example.english}</p>
-                                <p className="text-gray-600 text-sm">{example.chinese}</p>
+                                <p className="text-gray-800 mb-1">{example.en}</p>
+                                <p className="text-gray-600 text-sm">{example.cn}</p>
                               </div>
                               {showIndividualApply && (
                                 <button
@@ -967,11 +967,11 @@ function StickerDetailModal({
                           <div key={`ai-related-${word.word}-${index}`} className="bg-white rounded-lg p-3 border flex justify-between items-center">
                             <div>
                               <span className="font-medium text-gray-800">{word.word}</span>
-                              <span className="text-gray-600 ml-2">{word.chinese}</span>
+                              <span className="text-gray-600 ml-2">{word.cn}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                {word.partOfSpeech}
+                                {word.pos}
                               </span>
                               {showIndividualApply && (
                                 <button

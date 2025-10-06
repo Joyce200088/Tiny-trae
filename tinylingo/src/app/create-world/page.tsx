@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { StickerDataUtils } from '@/utils/stickerDataUtils';
+import { WorldDataUtils } from '@/utils/worldDataUtils';
 import { StickerData } from '@/types/sticker';
+import { CanvasObject } from '@/lib/types';
 import { identifyImageAndGenerateContent, generateImageWithGemini, type EnglishLearningContent, type ImageGenerationOptions } from '../../lib/geminiService';
 // 导入Konva相关组件
 import { Image as KonvaImage, Transformer } from 'react-konva';
 import useImage from 'use-image';
+// 导入自动同步功能
+import { useAutoSync } from '@/hooks/useAutoSync';
 
 // 导入新的组件
 import TopBar from '@/components/canvas/TopBar';
@@ -86,18 +90,7 @@ const mockBackgrounds = [
 ];
 
 // 可拖拽和变换的图片组件
-// 定义画布对象的类型接口
-interface CanvasObject {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  src: string;
-  rotation?: number;
-  locked?: boolean;
-  stickerData?: StickerData;
-}
+// 使用统一的CanvasObject类型定义
 
 // 定义上下文菜单的类型接口
 interface ContextMenu {
@@ -247,7 +240,20 @@ interface WorldData {
   lastModified: string;
 }
 
-export default function CreateWorldPage() {
+// 重命名主组件为Content组件，准备用Suspense包装
+function CreateWorldPageContent() {
+  // 集成自动同步功能
+  const { 
+    isOnline, 
+    isSyncing, 
+    syncError, 
+    lastSyncTime, 
+    markForSync 
+  } = useAutoSync({
+    syncInterval: 30000, // 30秒同步一次
+    enabled: true // 修复：使用enabled而不是enableAutoSync
+  });
+
   // 基础状态
   const [documentName, setDocumentName] = useState('未命名世界');
   const [currentWorldId, setCurrentWorldId] = useState<string | null>(null); // 新增：当前编辑世界的ID
@@ -470,8 +476,8 @@ export default function CreateWorldPage() {
     const templateId = searchParams.get('template');
     
     if (worldId) {
-      // 从localStorage加载世界数据
-      const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+      // 从WorldDataUtils加载世界数据
+      const savedWorlds = WorldDataUtils.loadWorldData();
       const world = savedWorlds.find((w: WorldData) => w.id === worldId);
       
       if (world) {
@@ -517,13 +523,13 @@ export default function CreateWorldPage() {
               background: selectedBackground
             },
             createdAt: currentWorldId ? 
-              (JSON.parse(localStorage.getItem('savedWorlds') || '[]').find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
+              (WorldDataUtils.loadWorldData().find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
               new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             lastModified: new Date().toISOString()
           };
           
-          const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
+          const savedWorlds = WorldDataUtils.loadWorldData();
           const existingIndex = savedWorlds.findIndex((world: WorldData) => world.id === worldData.id);
           
           if (existingIndex >= 0) {
@@ -532,7 +538,7 @@ export default function CreateWorldPage() {
             savedWorlds.push(worldData);
           }
           
-          localStorage.setItem('savedWorlds', JSON.stringify(savedWorlds));
+          WorldDataUtils.saveWorldData(savedWorlds);
         } catch (error) {
           console.error('页面关闭前保存失败:', error);
         }
@@ -621,30 +627,33 @@ export default function CreateWorldPage() {
         canvasData: canvasData, // 保留原有的画布数据
         selectedBackground: selectedBackground, // 保存背景信息
         createdAt: currentWorldId ? 
-          (JSON.parse(localStorage.getItem('savedWorlds') || '[]').find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
+          (WorldDataUtils.loadWorldData().find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
           new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastModified: new Date().toISOString() // 个人主页世界库期望的字段名
       };
       
-      // 保存到localStorage
-      const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
-      const existingIndex = savedWorlds.findIndex((world: WorldData) => world.id === worldData.id);
-      
-      if (existingIndex >= 0) {
-        // 更新现有世界
-        savedWorlds[existingIndex] = worldData;
-      } else {
-        // 添加新世界
-        savedWorlds.push(worldData);
+      // 使用WorldDataUtils保存世界数据（支持Supabase同步）
+      try {
+        if (currentWorldId) {
+          // 更新现有世界
+          await WorldDataUtils.updateWorld(worldData);
+        } else {
+          // 添加新世界
+          await WorldDataUtils.addWorld(worldData);
+        }
+      } catch (error) {
+        console.error('保存世界数据失败:', error);
+        if (isAutoSave) {
+          setAutoSaveStatus('error');
+        } else {
+          setSaveStatus('error');
+        }
+        return;
       }
       
-      localStorage.setItem('savedWorlds', JSON.stringify(savedWorlds));
-      
-      // 触发自定义事件通知其他页面更新
-      window.dispatchEvent(new CustomEvent('localStorageUpdate', {
-        detail: { key: 'savedWorlds', data: savedWorlds }
-      }));
+      // 标记需要同步到Supabase（WorldDataUtils已处理同步）
+      markForSync('worlds');
       
       // 更新当前世界ID
       setCurrentWorldId(worldData.id);
@@ -930,6 +939,9 @@ export default function CreateWorldPage() {
       // 使用StickerDataUtils保存到localStorage（支持图片持久化）
       await StickerDataUtils.addSticker(stickerData);
       
+      // 标记需要同步到Supabase
+      markForSync('stickers');
+      
       // 重置生成状态
       setGeneratedImage(null);
       setTransparentImage(null);
@@ -1176,6 +1188,10 @@ export default function CreateWorldPage() {
           onDocumentNameChange={setDocumentName}
           autoSaveStatus={autoSaveStatus}
           lastSavedTime={lastSavedTime}
+          isOnline={isOnline}
+          isSyncing={isSyncing}
+          syncError={syncError}
+          lastSyncTime={lastSyncTime}
           onExport={handleExportCanvas}
           onImport={handleImportCanvas}
           onPreview={handlePreview}
@@ -1395,5 +1411,21 @@ export default function CreateWorldPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// 导出包装了Suspense的组件
+export default function CreateWorldPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    }>
+      <CreateWorldPageContent />
+    </Suspense>
   );
 }

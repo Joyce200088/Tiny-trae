@@ -129,10 +129,10 @@ function useStickerData(): UseStickerDataReturn {
   }, []);
 
   // 删除单个贴纸
-  const deleteSticker = useCallback((id: string) => {
+  const deleteSticker = useCallback(async (id: string) => {
     // 获取预设贴纸的ID列表
     const mockStickerIds = mockStickers.map(s => s.id);
-    StickerDataUtils.deleteSticker(id, mockStickerIds);
+    await StickerDataUtils.deleteSticker(id, mockStickerIds);
     
     // 重新加载所有贴纸数据
     const allStickers = StickerDataUtils.getAllAvailableStickers(mockStickers);
@@ -140,9 +140,10 @@ function useStickerData(): UseStickerDataReturn {
   }, []);
 
   // 批量删除贴纸
-  const deleteStickers = useCallback((ids: string[]) => {
+  const deleteStickers = useCallback(async (ids: string[]) => {
     const mockStickerIds = mockStickers.map(s => s.id);
-    ids.forEach(id => StickerDataUtils.deleteSticker(id, mockStickerIds));
+    // 使用Promise.all并行删除以提高性能
+    await Promise.all(ids.map(id => StickerDataUtils.deleteSticker(id, mockStickerIds)));
     
     // 重新加载所有贴纸数据
     const allStickers = StickerDataUtils.getAllAvailableStickers(mockStickers);

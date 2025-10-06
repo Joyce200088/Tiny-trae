@@ -9,6 +9,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    // 要求邮箱确认后才能登录
+    detectSessionInUrl: true,
+    flowType: 'pkce',
   },
 });
 

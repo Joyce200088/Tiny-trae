@@ -1,30 +1,32 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Eye, EyeOff, Languages, Type } from 'lucide-react';
 
-// 贴纸数据接口
-interface StickerData {
-  id: string;
-  name: string;
-  chinese?: string;
-  phonetic?: string;
-  category?: string;
-  tags?: string[];
-  thumbnailUrl?: string;
-  imageUrl?: string;
-  createdAt?: string;
-  sorted?: boolean;
-  notes?: string;
-  mnemonic?: string;
-}
+// 导入类型定义
+import { WorldData } from '@/lib/types';
+import { WorldDataUtils } from '@/utils/worldDataUtils';
 
-// 画布对象组件
-const ViewImage = ({ imageObj }: { imageObj: any }) => {
+// 背景图片组件
+const BackgroundImage = ({ src, canvasSize }: { src: string; canvasSize: { width: number; height: number } }) => {
+  const [image] = useImage(src);
+  
+  return (
+    <KonvaImage
+      image={image}
+      width={canvasSize.width}
+      height={canvasSize.height}
+      listening={false}
+    />
+  );
+};
+
+// 贴纸图片组件
+const StickerImage = ({ imageObj }: { imageObj: any }) => {
   const [image] = useImage(imageObj.src);
   
   return (
@@ -34,15 +36,16 @@ const ViewImage = ({ imageObj }: { imageObj: any }) => {
       y={imageObj.y}
       width={imageObj.width}
       height={imageObj.height}
-      rotation={imageObj.rotation || 0}
-      scaleX={imageObj.scaleX || 1}
-      scaleY={imageObj.scaleY || 1}
+      draggable={false}
+      listening={false}
+      onClick={imageObj.onClick}
       onContextMenu={imageObj.onContextMenu}
     />
   );
 };
 
-export default function ViewWorldPage() {
+// 包装组件，使用Suspense边界
+function ViewWorldPageContent() {
   const searchParams = useSearchParams();
   const worldId = searchParams.get('worldId'); // 修改为worldId参数
   
@@ -459,5 +462,19 @@ export default function ViewWorldPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// 主导出组件，使用Suspense边界包装
+export default function ViewWorldPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+        <p className="text-gray-600">加载中...</p>
+      </div>
+    </div>}>
+      <ViewWorldPageContent />
+    </Suspense>
   );
 }

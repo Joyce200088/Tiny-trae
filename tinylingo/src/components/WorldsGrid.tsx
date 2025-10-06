@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-react';
+import { WorldData } from '@/types/world';
 
 /**
  * 世界网格组件
@@ -11,41 +12,43 @@ import { Search, Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-r
  * 输出：世界卡片网格界面
  */
 
-interface World {
-  id: string;
-  name: string;
-  description?: string;
-  coverUrl?: string;
-  previewImage?: string;
-  wordCount: number;
-  likes: number;
-  favorites: number;
-  isPublic: boolean;
-  createdAt: string;
-  lastModified: string;
-  isUserCreated?: boolean;
-}
-
 interface WorldsGridProps {
-  worlds?: World[];
+  worlds?: WorldData[];
   showCreateCard?: boolean;
   onCreateWorld?: () => void;
   showSearch?: boolean;
   showSort?: boolean;
+  onWorldSelect?: (world: WorldData) => void;
+  selectedWorlds?: string[];
+  isMultiSelectMode?: boolean;
+  onContextMenu?: (worldId: string, x: number, y: number) => void;
+  deletingWorldId?: string | null;
+  onDeleteWorld?: (worldId: string) => void;
+  showInlineWorldCreation?: boolean;
+  setShowInlineWorldCreation?: (show: boolean) => void;
+  worldCreationStep?: 'template' | 'ai' | 'blank';
+  setShowCreateModal?: (show: boolean) => void;
 }
 
 // 模拟数据
-const defaultWorlds: World[] = [
+const defaultWorlds: WorldData[] = [
   {
     id: '1',
     name: 'Sweet Kitchen',
     description: 'A cozy kitchen filled with delicious treats',
     coverUrl: '/api/placeholder/400/300',
     wordCount: 24,
+    stickerCount: 24,
     likes: 156,
     favorites: 32,
     isPublic: true,
+    canvasData: {
+      objects: [],
+      background: null
+    },
+    tags: ['food', 'cooking'],
     createdAt: '2024-01-15',
+    updatedAt: '2024-01-20',
     lastModified: '2024-01-20'
   },
   {
@@ -54,10 +57,17 @@ const defaultWorlds: World[] = [
     description: 'A wonderful world full of cute animals',
     coverUrl: '/api/placeholder/400/300',
     wordCount: 18,
+    stickerCount: 18,
     likes: 89,
     favorites: 21,
     isPublic: false,
+    canvasData: {
+      objects: [],
+      background: null
+    },
+    tags: ['animals', 'pets'],
     createdAt: '2024-01-10',
+    updatedAt: '2024-01-18',
     lastModified: '2024-01-18'
   },
   {
@@ -66,10 +76,17 @@ const defaultWorlds: World[] = [
     description: 'Beautiful garden with flowers and plants',
     coverUrl: '/api/placeholder/400/300',
     wordCount: 31,
+    stickerCount: 31,
     likes: 203,
     favorites: 45,
     isPublic: true,
+    canvasData: {
+      objects: [],
+      background: null
+    },
+    tags: ['nature', 'plants'],
     createdAt: '2024-01-05',
+    updatedAt: '2024-01-16',
     lastModified: '2024-01-16'
   }
 ];
@@ -79,7 +96,17 @@ export default function WorldsGrid({
   showCreateCard = true, 
   onCreateWorld,
   showSearch = true,
-  showSort = true
+  showSort = true,
+  onWorldSelect,
+  selectedWorlds = [],
+  isMultiSelectMode = false,
+  onContextMenu,
+  deletingWorldId,
+  onDeleteWorld,
+  showInlineWorldCreation = false,
+  setShowInlineWorldCreation,
+  worldCreationStep = 0,
+  setShowCreateModal
 }: WorldsGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'words' | 'likes'>('recent');
@@ -89,7 +116,6 @@ export default function WorldsGrid({
     y: number;
     worldId: string | null;
   }>({ visible: false, x: 0, y: 0, worldId: null });
-  const [deletingWorldId, setDeletingWorldId] = useState<string | null>(null);
 
   // 处理右键菜单关闭
   useEffect(() => {
@@ -166,10 +192,13 @@ export default function WorldsGrid({
 
   // 删除世界
   const deleteWorld = (worldId: string) => {
-    setDeletingWorldId(worldId);
+    if (onDeleteWorld) {
+      onDeleteWorld(worldId);
+    } else {
+      // 如果没有提供回调函数，使用默认行为
+      console.log('删除世界:', worldId);
+    }
     setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
-    // TODO: 实现删除逻辑
-    console.log('删除世界:', worldId);
   };
 
   // 过滤和排序世界

@@ -35,7 +35,8 @@ interface StickerData {
   likes?: number;
   favorites?: number;
   views?: number;
-  createdAt?: string;
+  createdAt: string; // 修改为必需字段，与 types/sticker.ts 保持一致
+  sorted: boolean; // 修改为必需字段，与 types/sticker.ts 保持一致
 }
 
 interface StickersGridProps {
@@ -48,6 +49,8 @@ interface StickersGridProps {
   onStickerClick?: (sticker: StickerData) => void;
   viewMode?: 'grid' | 'list';
   onViewModeChange?: (mode: 'grid' | 'list') => void;
+  selectedStickers?: string[]; // 添加选中贴纸属性
+  isMultiSelectMode?: boolean; // 添加多选模式属性
 }
 
 // 模拟数据
@@ -81,7 +84,8 @@ const defaultStickers: StickerData[] = [
     likes: 45,
     favorites: 12,
     views: 156,
-    createdAt: '2024-01-15'
+    createdAt: '2024-01-15',
+    sorted: false // 添加缺失的 sorted 属性
   },
   {
     id: '2',
@@ -112,7 +116,8 @@ const defaultStickers: StickerData[] = [
     likes: 32,
     favorites: 8,
     views: 89,
-    createdAt: '2024-01-12'
+    createdAt: '2024-01-12',
+    sorted: false // 添加缺失的 sorted 属性
   },
   {
     id: '3',
@@ -143,7 +148,8 @@ const defaultStickers: StickerData[] = [
     likes: 67,
     favorites: 23,
     views: 234,
-    createdAt: '2024-01-10'
+    createdAt: '2024-01-10',
+    sorted: false // 添加缺失的 sorted 属性
   }
 ];
 
@@ -156,7 +162,9 @@ export default function StickersGrid({
   onUpload,
   onStickerClick,
   viewMode = 'grid',
-  onViewModeChange
+  onViewModeChange,
+  selectedStickers = [], // 添加选中贴纸参数
+  isMultiSelectMode = false // 添加多选模式参数
 }: StickersGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);

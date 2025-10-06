@@ -5,11 +5,18 @@ import { segmentByBFS, regionToDataURL, regionToCanvas, getSegmentationStats, ty
 import { identifyImageAndGenerateContent, type EnglishLearningContent } from '../lib/geminiService';
 
 interface StickerGeneratorProps {
+  isOpen?: boolean;  // 添加isOpen属性以支持模态框模式
   onStickerGenerated?: (stickers: any[]) => void;
+  onStickerCreated?: (sticker: any) => void;  // 添加onStickerCreated属性以支持单个贴纸创建
   onClose?: () => void;
 }
 
-const StickerGenerator: React.FC<StickerGeneratorProps> = ({ onStickerGenerated, onClose }) => {
+const StickerGenerator: React.FC<StickerGeneratorProps> = ({ 
+  isOpen, 
+  onStickerGenerated, 
+  onStickerCreated, 
+  onClose 
+}) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);

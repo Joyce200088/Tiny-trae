@@ -32,6 +32,12 @@ interface TopBarProps {
   autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   lastSavedTime?: Date; // 最后保存时间
   
+  // 同步状态
+  isOnline?: boolean;
+  isSyncing?: boolean;
+  syncError?: string;
+  lastSyncTime?: Date;
+  
   // 导出功能
   onExport: (format: 'png' | 'svg' | 'webp' | 'json', options: ExportOptions) => void;
   
@@ -78,6 +84,10 @@ export default function TopBar({
   onDocumentNameChange,
   autoSaveStatus = 'idle',
   lastSavedTime,
+  isOnline = true,
+  isSyncing = false,
+  syncError,
+  lastSyncTime,
   onExport,
   onImport,
   onPreview,
@@ -156,6 +166,30 @@ export default function TopBar({
       handleNameCancel();
     }
   };
+
+  // 同步状态显示
+  const getSyncStatusDisplay = () => {
+    if (!isOnline) {
+      return { text: '离线模式', color: 'text-orange-600', icon: WifiOff };
+    }
+    
+    if (isSyncing) {
+      return { text: '正在同步...', color: 'text-blue-600', icon: null };
+    }
+    
+    if (syncError) {
+      return { text: '同步失败', color: 'text-red-600', icon: AlertCircle };
+    }
+    
+    if (lastSyncTime) {
+      const timeStr = lastSyncTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+      return { text: `已同步 (${timeStr})`, color: 'text-green-600', icon: Check };
+    }
+    
+    return null;
+  };
+
+  const syncStatusDisplay = getSyncStatusDisplay();
 
   // 自动保存状态显示
   const getAutoSaveStatusDisplay = () => {
@@ -246,51 +280,26 @@ export default function TopBar({
           )}
         </div>
 
-        {/* 自动保存状态显示 */}
-        {autoSaveStatusDisplay && (
+        {/* 自动保存状态显示 - 仅在错误时显示 */}
+        {autoSaveStatusDisplay && autoSaveStatus === 'error' && (
           <div className={`flex items-center space-x-1 text-xs ${autoSaveStatusDisplay.color}`}>
-            {autoSaveStatus === 'saving' && (
-              <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            )}
             <span>{autoSaveStatusDisplay.text}</span>
+          </div>
+        )}
+
+        {/* 同步状态显示 - 仅在错误时显示 */}
+        {syncStatusDisplay && syncError && (
+          <div className={`flex items-center space-x-1 text-xs ${syncStatusDisplay.color}`}>
+            {syncStatusDisplay.icon && (
+              <syncStatusDisplay.icon className="w-3 h-3" />
+            )}
+            <span>{syncStatusDisplay.text}</span>
           </div>
         )}
       </div>
 
-      {/* 中间：搜索 */}
-      <div className="flex-1 max-w-md mx-8">
-        {showSearch ? (
-          <form onSubmit={handleSearchSubmit} className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索对象名、贴纸内容、标签..."
-              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <button
-              type="button"
-              onClick={() => {
-                setShowSearch(false);
-                setSearchQuery('');
-              }}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </form>
-        ) : (
-          <button
-            onClick={() => setShowSearch(true)}
-            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Search className="w-4 h-4" />
-            <span>搜索...</span>
-          </button>
-        )}
-      </div>
+      {/* 中间：空白区域 */}
+      <div className="flex-1"></div>
 
       {/* 右侧：导出、通知、分享、用户菜单 */}
       <div className="flex items-center space-x-2">
@@ -300,6 +309,41 @@ export default function TopBar({
             {shareModeDisplay.text}
           </span>
         )}
+
+        {/* 搜索功能 - 移动到预览按钮左边 */}
+        <div className="flex items-center space-x-2">
+          {showSearch ? (
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索对象名、贴纸内容、标签..."
+                className="w-64 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSearch(false);
+                  setSearchQuery('');
+                }}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => setShowSearch(true)}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Search className="w-4 h-4" />
+              <span>搜索...</span>
+            </button>
+          )}
+        </div>
 
         {/* 预览按钮 */}
         {onPreview && (

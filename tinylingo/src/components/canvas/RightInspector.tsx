@@ -28,6 +28,8 @@ import PropertiesPanel from './panels/PropertiesPanel';
 import StickersPanel from './StickersPanel';
 import BackgroundPanel from './BackgroundPanel';
 import AIGeneratePanel from './AIGeneratePanel';
+import { CanvasObject } from '@/lib/types';
+
 // 贴纸数据结构接口
 interface Sticker {
   word: string;
@@ -49,53 +51,6 @@ interface Sticker {
     word: string;
     pos: "noun" | "verb" | "adj" | "adv";
   }[];
-}
-
-// 画布对象接口
-interface CanvasObject {
-  id: string;
-  type: 'sticker' | 'text' | 'shape' | 'line' | 'arrow' | 'group' | 'background';
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  scaleX: number;
-  scaleY: number;
-  opacity: number;
-  visible: boolean;
-  locked: boolean;
-  zIndex: number;
-  aspectRatioLocked?: boolean; // 宽高比锁定状态
-  
-  // 样式属性
-  fill?: string;
-  stroke?: string;
-  strokeWidth?: number;
-  shadow?: {
-    color: string;
-    blur: number;
-    offsetX: number;
-    offsetY: number;
-  };
-  cornerRadius?: number;
-  
-  // 文字属性
-  text?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  fontWeight?: string;
-  textAlign?: 'left' | 'center' | 'right';
-  lineHeight?: number;
-  
-  // 贴纸专属数据
-  stickerData?: Sticker;
-  
-  // 背景专属数据
-  backgroundData?: any;
-  
-  // 组合对象
-  children?: string[];
 }
 
 interface RightInspectorProps {
