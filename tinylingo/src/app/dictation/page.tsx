@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X, Play, Pause, RotateCcw } from 'lucide-react';
+import { WorldData } from '@/types/world';
+import { WorldDataUtils } from '@/utils/worldDataUtils';
 
 // 贴纸数据接口
 interface StickerData {
@@ -23,17 +25,8 @@ interface StickerData {
   exampleChinese?: string;
 }
 
-// 世界数据接口
-interface WorldData {
-  id: string;
-  name: string;
-  canvasObjects?: any[];
-  selectedBackground?: string;
-  canvasSize?: { width: number; height: number };
-  previewImage?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+// 世界数据接口 - 使用全局类型定义
+// interface WorldData 已从 @/types/world 导入
 
 // 单词数据接口
 interface WordData {
@@ -92,19 +85,33 @@ const mockWorlds = [
     description: 'A cozy kitchen filled with delicious treats',
     coverUrl: '/api/placeholder/400/300',
     wordCount: 24,
+    stickerCount: 2, // 添加贴纸数量
     likes: 156,
     favorites: 32,
     isPublic: true,
+    tags: ['Kitchen', 'Food'], // 添加标签
     createdAt: '2024-01-15',
     lastModified: '2024-01-20',
+    updatedAt: '2024-01-20', // 添加更新时间
+    canvasData: { // 添加画布数据结构
+      objects: [],
+      background: null
+    },
     canvasObjects: [
       {
         id: 'sticker-1',
-        type: 'sticker',
+        type: 'sticker' as const,
         x: 100,
         y: 100,
         width: 80,
         height: 80,
+        rotation: 0, // 添加旋转角度
+        scaleX: 1, // 添加X轴缩放
+        scaleY: 1, // 添加Y轴缩放
+        opacity: 1, // 添加透明度
+        visible: true, // 添加可见性
+        locked: false, // 添加锁定状态
+        zIndex: 1, // 添加层级
         src: '/Ceramic Mug.png',
         name: 'Ceramic Mug',
         stickerData: {
@@ -124,11 +131,18 @@ const mockWorlds = [
       },
       {
         id: 'sticker-2',
-        type: 'sticker',
+        type: 'sticker' as const,
         x: 200,
         y: 150,
         width: 80,
         height: 80,
+        rotation: 0, // 添加旋转角度
+        scaleX: 1, // 添加X轴缩放
+        scaleY: 1, // 添加Y轴缩放
+        opacity: 1, // 添加透明度
+        visible: true, // 添加可见性
+        locked: false, // 添加锁定状态
+        zIndex: 2, // 添加层级
         src: '/Calendar.png',
         name: 'Calendar',
         stickerData: {
@@ -154,19 +168,33 @@ const mockWorlds = [
     description: 'A wonderful world full of cute animals',
     coverUrl: '/api/placeholder/400/300',
     wordCount: 18,
+    stickerCount: 1, // 添加贴纸数量
     likes: 89,
     favorites: 21,
     isPublic: false,
+    tags: ['Pet', 'Animals'], // 添加标签
     createdAt: '2024-01-10',
     lastModified: '2024-01-18',
+    updatedAt: '2024-01-18', // 添加更新时间
+    canvasData: { // 添加画布数据结构
+      objects: [],
+      background: null
+    },
     canvasObjects: [
       {
         id: 'sticker-3',
-        type: 'sticker',
+        type: 'sticker' as const,
         x: 150,
         y: 120,
         width: 80,
         height: 80,
+        rotation: 0, // 添加旋转角度
+        scaleX: 1, // 添加X轴缩放
+        scaleY: 1, // 添加Y轴缩放
+        opacity: 1, // 添加透明度
+        visible: true, // 添加可见性
+        locked: false, // 添加锁定状态
+        zIndex: 1, // 添加层级
         src: '/Diving Mask.png',
         name: 'Diving Mask',
         stickerData: {
@@ -192,19 +220,33 @@ const mockWorlds = [
     description: 'Beautiful garden with flowers and plants',
     coverUrl: '/api/placeholder/400/300',
     wordCount: 31,
+    stickerCount: 0, // 添加贴纸数量
     likes: 203,
     favorites: 45,
     isPublic: true,
+    tags: ['Garden', 'Plants'], // 添加标签
     createdAt: '2024-01-05',
     lastModified: '2024-01-16',
+    updatedAt: '2024-01-16', // 添加更新时间
+    canvasData: { // 添加画布数据结构
+      objects: [],
+      background: null
+    },
     canvasObjects: [
       {
         id: 'sticker-4',
-        type: 'sticker',
+        type: 'sticker' as const,
         x: 180,
         y: 100,
         width: 80,
         height: 80,
+        rotation: 0, // 添加旋转角度
+        scaleX: 1, // 添加X轴缩放
+        scaleY: 1, // 添加Y轴缩放
+        opacity: 1, // 添加透明度
+        visible: true, // 添加可见性
+        locked: false, // 添加锁定状态
+        zIndex: 1, // 添加层级
         src: '/Industrial Shelving.png',
         name: 'Industrial Shelving',
         stickerData: {
@@ -320,17 +362,20 @@ function DictationPageContent() {
   const extractWordsFromWorld = (world: WorldData): WordData[] => {
     console.log('开始提取世界单词，世界数据:', world);
     
-    if (!world.canvasObjects || world.canvasObjects.length === 0) {
+    // 优先使用新的canvasData结构，兼容旧的canvasObjects
+    const canvasObjects = world.canvasData?.objects || world.canvasObjects || [];
+    
+    if (canvasObjects.length === 0) {
       console.log('世界中没有canvasObjects或为空数组');
       return []; // 如果没有canvasObjects，返回空数组而不是默认单词
     }
 
-    console.log('canvasObjects数量:', world.canvasObjects.length);
-    console.log('canvasObjects内容:', world.canvasObjects);
+    console.log('canvasObjects数量:', canvasObjects.length);
+    console.log('canvasObjects内容:', canvasObjects);
 
     const extractedWords: WordData[] = [];
     
-    world.canvasObjects.forEach((obj, index) => {
+    canvasObjects.forEach((obj, index) => {
       console.log(`检查对象 ${index}:`, obj);
       
       // 检查多种可能的数据结构
@@ -416,7 +461,7 @@ function DictationPageContent() {
     const worldId = searchParams.get('worldId');
     
     if (worldId) {
-      const loadWorldData = () => {
+      const loadWorldData = async () => {
         try {
           let targetWorld = null;
           

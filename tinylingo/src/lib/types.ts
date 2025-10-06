@@ -149,8 +149,16 @@ export type CanvasObject = {
   textAlign?: 'left' | 'center' | 'right';
   lineHeight?: number;
   
-  // 贴纸数据
+  // 贴纸数据 - 支持多种数据结构
   stickerData?: any;
+  sticker?: any;        // 兼容性字段：贴纸对象
+  imageObj?: any;       // 兼容性字段：图片对象
+  
+  // 单词信息 - 用于听写功能
+  name?: string;        // 英文单词名称
+  chinese?: string;     // 中文释义
+  phonetic?: string;    // 音标
+  src?: string;         // 图片源地址
   
   // 背景数据
   backgroundData?: any;

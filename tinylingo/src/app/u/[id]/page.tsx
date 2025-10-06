@@ -86,6 +86,8 @@ function MyWorldsTab({
   setShowCreateModal?: (show: boolean) => void;
   markForSync?: (dataType: 'worlds' | 'stickers' | 'backgrounds') => void;
 }) {
+  // 确保 setShowInlineWorldCreation 有默认值
+  const setShowInlineWorldCreation = parentSetShowInlineWorldCreation || (() => {});
   const [sortBy, setSortBy] = useState('lastModified');
   const [savedWorlds, setSavedWorlds] = useState<WorldData[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldId: string } | null>(null);
@@ -129,7 +131,7 @@ function MyWorldsTab({
   // 监听存储变化
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'tinylingo_worlds') {
+      if (e.key?.startsWith('tinylingo_worlds')) {
         // 重新加载世界数据
         const loadWorlds = async () => {
           try {
@@ -149,7 +151,7 @@ function MyWorldsTab({
     };
 
     const handleCustomStorageChange = (e: CustomEvent) => {
-      if (e.detail.key === 'tinylingo_worlds') {
+      if (e.detail?.key?.startsWith('tinylingo_worlds')) {
         // 重新加载世界数据
         const loadWorlds = async () => {
           try {
@@ -381,8 +383,8 @@ function MyWorldsTab({
           onContextMenu={handleContextMenu}
           deletingWorldId={deletingWorldId}
           onDeleteWorld={handleDeleteWorld}
-          showInlineWorldCreation={parentShowInlineWorldCreation}
-          setShowInlineWorldCreation={parentSetShowInlineWorldCreation || (() => {})}
+          showInlineWorldCreation={parentShowInlineWorldCreation || false}
+          setShowInlineWorldCreation={setShowInlineWorldCreation}
           worldCreationStep={worldCreationStep}
           setShowCreateModal={setShowCreateModal}
         />

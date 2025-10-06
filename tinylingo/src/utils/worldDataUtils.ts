@@ -100,12 +100,12 @@ export class WorldDataUtils {
       if (existingIndex !== -1) {
         // 如果存在，更新现有世界
         worlds[existingIndex] = { ...world, needsSync: true };
-        console.log('更新现有世界:', world.title);
+        console.log('更新现有世界:', world.name);
       } else {
         // 如果不存在，添加新世界
         const newWorld = { ...world, needsSync: true };
         worlds.push(newWorld);
-        console.log('添加新世界:', world.title);
+        console.log('添加新世界:', world.name);
       }
       
       // 保存到localStorage
@@ -113,7 +113,7 @@ export class WorldDataUtils {
       
       // 尝试同步到Supabase
       try {
-        await UserDataManager.syncWorldsToSupabase();
+        await UserDataManager.syncWorldsToSupabase([world]);
         console.log('世界数据已同步到Supabase');
       } catch (syncError) {
         console.warn('同步到Supabase失败，数据已保存到本地:', syncError);
@@ -136,11 +136,11 @@ export class WorldDataUtils {
       if (index !== -1) {
         worlds[index] = { ...updatedWorld, needsSync: true };
         await this.saveWorldData(worlds);
-        console.log('更新世界:', updatedWorld.title);
+        console.log('更新世界:', updatedWorld.name);
         
         // 尝试同步到Supabase
         try {
-          await UserDataManager.syncWorldsToSupabase();
+          await UserDataManager.syncWorldsToSupabase([updatedWorld]);
         } catch (syncError) {
           console.warn('同步到Supabase失败:', syncError);
         }
@@ -171,7 +171,7 @@ export class WorldDataUtils {
       
       // 尝试同步到Supabase
       try {
-        await UserDataManager.syncWorldsToSupabase();
+        await UserDataManager.syncWorldsToSupabase(filteredWorlds);
       } catch (syncError) {
         console.warn('同步到Supabase失败:', syncError);
       }
@@ -228,7 +228,7 @@ export class WorldDataUtils {
    */
   static async syncAllWorldsToSupabase(): Promise<boolean> {
     try {
-      const worlds = this.loadWorldData();
+      const worlds = await this.loadWorldData();
       if (worlds.length === 0) {
         return true; // 没有数据需要同步
       }
@@ -248,7 +248,7 @@ export class WorldDataUtils {
           ...world,
           needsSync: false
         }));
-        this.saveWorldData(updatedWorlds);
+        await this.saveWorldData(updatedWorlds);
         console.log(`成功同步 ${worlds.length} 个世界到Supabase`);
       }
       
@@ -273,7 +273,7 @@ export class WorldDataUtils {
   static async loadAndMergeFromSupabase(): Promise<WorldData[]> {
     try {
       const supabaseWorlds = await UserDataManager.loadWorldsFromSupabase();
-      const localWorlds = this.loadWorldData();
+      const localWorlds = await this.loadWorldData();
 
       // 简单的合并策略：以最新的updatedAt为准
       const mergedWorlds = new Map<string, WorldData>();
@@ -347,16 +347,18 @@ export class WorldDataUtils {
 
   /**
    * 清空所有世界数据
+   * 使用用户专属的存储键，确保数据隔离
    */
-  static clearAllWorlds(): void {
+  static async clearAllWorlds(): Promise<void> {
     try {
       if (typeof window === 'undefined') return;
       
-      localStorage.removeItem(this.STORAGE_KEY);
+      const storageKey = await this.getUserStorageKey();
+      localStorage.removeItem(storageKey);
       
       // 触发自定义事件通知其他组件更新
       window.dispatchEvent(new CustomEvent('localStorageUpdate', {
-        detail: { key: this.STORAGE_KEY, data: [] }
+        detail: { key: storageKey, data: [] }
       }));
     } catch (error) {
       console.error('清空世界数据失败:', error);
@@ -366,17 +368,20 @@ export class WorldDataUtils {
 
   /**
    * 添加存储变化监听器
+   * 使用用户专属的存储键，确保数据隔离
    */
   static addStorageListener(callback: (worlds: WorldData[]) => void): () => void {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === this.STORAGE_KEY) {
-        const worlds = this.loadWorldData();
+    const handleStorageChange = async (e: StorageEvent) => {
+      const storageKey = await this.getUserStorageKey();
+      if (e.key === storageKey) {
+        const worlds = await this.loadWorldData();
         callback(worlds);
       }
     };
 
-    const handleCustomStorageChange = (e: CustomEvent) => {
-      if (e.detail?.key === this.STORAGE_KEY) {
+    const handleCustomStorageChange = async (e: CustomEvent) => {
+      const storageKey = await this.getUserStorageKey();
+      if (e.detail?.key === storageKey) {
         callback(e.detail.data || []);
       }
     };

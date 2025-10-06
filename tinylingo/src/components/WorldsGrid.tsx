@@ -105,7 +105,7 @@ export default function WorldsGrid({
   onDeleteWorld,
   showInlineWorldCreation = false,
   setShowInlineWorldCreation,
-  worldCreationStep = 0,
+  worldCreationStep = 'template',
   setShowCreateModal
 }: WorldsGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
