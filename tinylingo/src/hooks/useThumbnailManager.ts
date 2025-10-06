@@ -56,6 +56,23 @@ export function useThumbnailManager(options: ThumbnailManagerOptions = {}) {
         { worldId, progress: 0, status: 'generating' }
       ]);
 
+      // 验证canvas对象的有效性
+      if (!canvas || typeof canvas !== 'object') {
+        throw new Error('Canvas对象无效：canvas参数为空或不是对象');
+      }
+
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error('Canvas对象无效：不是HTMLCanvasElement实例');
+      }
+
+      if (typeof canvas.toDataURL !== 'function') {
+        throw new Error('Canvas对象无效：缺少toDataURL方法');
+      }
+
+      if (canvas.width <= 0 || canvas.height <= 0) {
+        throw new Error('Canvas对象无效：尺寸无效');
+      }
+
       setGenerationProgress(prev => prev.map(p => 
         p.worldId === worldId ? { ...p, progress: 20 } : p
       ));
@@ -77,13 +94,35 @@ export function useThumbnailManager(options: ThumbnailManagerOptions = {}) {
 
       // 将Canvas转换为Blob
       const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((blob) => {
-          if (blob) {
+        // 检查canvas.toBlob是否可用
+        if (typeof canvas.toBlob === 'function') {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Canvas转换为Blob失败'));
+            }
+          }, 'image/png', 0.8);
+        } else {
+          // 回退方案：使用toDataURL转换为Blob
+          try {
+            const dataUrl = canvas.toDataURL('image/png', 0.8);
+            const arr = dataUrl.split(',');
+            const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
+            }
+            
+            const blob = new Blob([u8arr], { type: mime });
             resolve(blob);
-          } else {
-            reject(new Error('Canvas转换为Blob失败'));
+          } catch (error) {
+            reject(new Error('Canvas转换为Blob失败: ' + (error instanceof Error ? error.message : '未知错误')));
           }
-        }, 'image/png', 0.8);
+        }
       });
 
       setGenerationProgress(prev => prev.map(p => 

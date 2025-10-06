@@ -671,11 +671,22 @@ function CreateWorldPageContent() {
           if (canvasAreaRef.current?.getStageRef) {
             try {
               const stage = canvasAreaRef.current.getStageRef();
-              if (stage) {
-                thumbnailUrl = await generateThumbnail(stage, {
-                  worldId: currentWorldId || Date.now().toString(),
-                  worldName: documentName || '未命名世界'
+              if (stage && stage.toCanvas) {
+                // 从Konva Stage生成HTMLCanvasElement
+                const canvas = stage.toCanvas({
+                  width: 320,
+                  height: 180,
+                  pixelRatio: 1
                 });
+                
+                if (canvas instanceof HTMLCanvasElement) {
+                  thumbnailUrl = await generateThumbnail(
+                    currentWorldId || Date.now().toString(),
+                    canvas
+                  );
+                } else {
+                  console.warn('Stage.toCanvas()没有返回HTMLCanvasElement');
+                }
               }
             } catch (thumbnailError) {
               console.warn('缩略图生成失败，将在下次访问时重试:', thumbnailError);
@@ -770,12 +781,23 @@ function CreateWorldPageContent() {
       if (canvasAreaRef.current?.getStageRef) {
         try {
           const stage = canvasAreaRef.current.getStageRef();
-          if (stage) {
-            thumbnailDataUrl = await generateThumbnail(stage, {
-              worldId: currentWorldId || Date.now().toString(),
-              worldName: documentName || '未命名世界'
+          if (stage && stage.toCanvas) {
+            // 从Konva Stage生成HTMLCanvasElement
+            const canvas = stage.toCanvas({
+              width: 320,
+              height: 180,
+              pixelRatio: 1
             });
-            console.log('✅ 缩略图生成成功:', thumbnailDataUrl ? '有数据' : '无数据');
+            
+            if (canvas instanceof HTMLCanvasElement) {
+              thumbnailDataUrl = await generateThumbnail(
+                currentWorldId || Date.now().toString(),
+                canvas
+              );
+              console.log('✅ 缩略图生成成功:', thumbnailDataUrl ? '有数据' : '无数据');
+            } else {
+              console.warn('Stage.toCanvas()没有返回HTMLCanvasElement');
+            }
           }
         } catch (thumbnailError) {
           console.warn('缩略图生成失败，将在下次访问时重试:', thumbnailError);
@@ -873,6 +895,32 @@ function CreateWorldPageContent() {
       setHasUnsavedChanges(false);
       
       console.log('🎉 世界数据保存成功:', worldData);
+      
+      // 额外触发存储事件，确保用户页面能够及时更新
+      try {
+        const userId = await UserDataManager.getCurrentUserId();
+        const storageKey = `tinylingo_worlds_${userId || 'guest'}`;
+        const allWorlds = await WorldDataUtils.loadWorldData();
+        
+        // 触发标准存储事件
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: storageKey,
+          newValue: JSON.stringify(allWorlds),
+          storageArea: localStorage
+        }));
+        
+        // 触发自定义存储事件
+        window.dispatchEvent(new CustomEvent('localStorageUpdate', {
+          detail: {
+            key: storageKey,
+            newValue: JSON.stringify(allWorlds)
+          }
+        }));
+        
+        console.log('✅ 存储事件已触发，通知用户页面更新');
+      } catch (eventError) {
+        console.warn('触发存储事件失败:', eventError);
+      }
       
     } catch (error) {
       console.error('❌ 保存过程中发生错误:', error);
@@ -1285,10 +1333,30 @@ function CreateWorldPageContent() {
 
     // 使用useThumbnailManager生成并上传缩略图
     try {
-      const thumbnailUrl = await generateThumbnail(worldData);
-      if (thumbnailUrl) {
-        worldData.thumbnail = thumbnailUrl;
-        console.log('缩略图生成并上传成功:', thumbnailUrl);
+      if (canvasAreaRef.current?.getStageRef) {
+        const stage = canvasAreaRef.current.getStageRef();
+        if (stage && stage.toCanvas) {
+          // 从Konva Stage生成HTMLCanvasElement
+          const canvas = stage.toCanvas({
+            width: 320,
+            height: 180,
+            pixelRatio: 1
+          });
+          
+          if (canvas instanceof HTMLCanvasElement) {
+            const thumbnailUrl = await generateThumbnail(
+              previewWorldId,
+              canvas,
+              worldData
+            );
+            if (thumbnailUrl) {
+              worldData.thumbnail = thumbnailUrl;
+              console.log('缩略图生成并上传成功:', thumbnailUrl);
+            }
+          } else {
+            console.warn('Stage.toCanvas()没有返回HTMLCanvasElement');
+          }
+        }
       }
     } catch (thumbnailError) {
       console.warn('缩略图生成失败，将在下次访问时重试:', thumbnailError);
