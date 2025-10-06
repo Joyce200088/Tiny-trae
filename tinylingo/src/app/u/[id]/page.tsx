@@ -118,7 +118,7 @@ function MyWorldsTab({
         const worlds = await WorldDataUtils.getAllWorlds();
         setSavedWorlds(worlds);
       } catch (error) {
-        console.error('加载世界失败:', error);
+        console.error('加载世界数据失败:', error);
       }
     };
     

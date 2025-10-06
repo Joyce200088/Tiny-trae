@@ -76,46 +76,18 @@ function ViewWorldPageContent() {
 
   // 加载世界数据
   useEffect(() => {
-    if (isClient && worldId) {
-      const loadWorldData = () => {
-        try {
-          // 首先尝试从预览数据中加载（create-world保存的临时数据）
-          const previewData = localStorage.getItem(`world_${worldId}`);
-          console.log('Loading world data for worldId:', worldId);
-          if (previewData) {
-            const world = JSON.parse(previewData);
-            console.log('Loaded world data:', world);
-            console.log('Background info - selectedBackground:', world.selectedBackground);
-            console.log('Background info - canvasData.background:', world.canvasData?.background);
-            setWorldData(world);
-            setCanvasSize(world.canvasSize || { width: 800, height: 600 });
-            // 初始化贴纸分组和标签显示状态
-            initializeStickerGroups(world);
-            return;
-          }
-          
-          // 如果没有预览数据，则从savedWorlds中查找
-          const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
-          const world = savedWorlds.find((w: any) => w.id === worldId);
-          
-          if (world) {
-            setWorldData(world);
-            setCanvasSize(world.canvasSize || { width: 800, height: 600 });
-            // 初始化贴纸分组和标签显示状态
-            initializeStickerGroups(world);
-          } else {
-            console.error('世界未找到:', worldId);
-            // 设置默认的空世界数据，避免页面崩溃
-            setWorldData({
-              id: worldId,
-              name: '未找到的世界',
-              canvasObjects: [],
-              canvasSize: { width: 800, height: 600 },
-              selectedBackground: null
-            });
-          }
-        } catch (error) {
-          console.error('加载世界数据失败:', error);
+    const loadWorldData = async () => {
+      if (!isClient || !worldId) return;
+      
+      try {
+        const world = await WorldDataUtils.getWorldById(worldId);
+        if (world) {
+          setWorldData(world);
+          setCanvasSize(world.canvasSize || { width: 800, height: 600 });
+          // 初始化贴纸分组和标签显示状态
+          initializeStickerGroups(world);
+        } else {
+          console.error('世界未找到:', worldId);
           // 设置默认的空世界数据，避免页面崩溃
           setWorldData({
             id: worldId,
@@ -125,10 +97,20 @@ function ViewWorldPageContent() {
             selectedBackground: null
           });
         }
-      };
-      
-      loadWorldData();
-    }
+      } catch (error) {
+        console.error('加载世界数据失败:', error);
+        // 设置默认的空世界数据，避免页面崩溃
+        setWorldData({
+          id: worldId,
+          name: '未找到的世界',
+          canvasObjects: [],
+          canvasSize: { width: 800, height: 600 },
+          selectedBackground: null
+        });
+      }
+    };
+
+    loadWorldData();
   }, [isClient, worldId]);
 
   // 响应式更新画布尺寸

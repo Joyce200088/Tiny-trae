@@ -420,11 +420,12 @@ function DictationPageContent() {
         try {
           let targetWorld = null;
           
-          // 首先尝试从localStorage获取保存的世界数据
-          const savedWorlds = localStorage.getItem('savedWorlds');
-          if (savedWorlds) {
-            const worlds: WorldData[] = JSON.parse(savedWorlds);
+          // 首先尝试从WorldDataUtils获取保存的世界数据
+          try {
+            const worlds = await WorldDataUtils.getAllWorlds();
             targetWorld = worlds.find(world => world.id === worldId);
+          } catch (error) {
+            console.warn('从WorldDataUtils加载世界数据失败:', error);
           }
           
           // 如果在保存的世界中没找到，尝试从模拟世界数据中查找

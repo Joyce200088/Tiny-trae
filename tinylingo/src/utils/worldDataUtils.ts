@@ -6,24 +6,48 @@ import { UserDataManager } from '@/lib/supabase/userClient';
 /**
  * 世界数据工具类
  * 统一处理localStorage中的世界数据操作，并支持Supabase同步
+ * 支持用户数据隔离 - 每个用户使用独立的localStorage键
  */
 export class WorldDataUtils {
-  private static readonly STORAGE_KEY = 'savedWorlds';
+  private static readonly STORAGE_KEY_PREFIX = 'tinylingo_worlds';
+
+  /**
+   * 获取当前用户专属的存储键
+   * 格式：tinylingo_worlds_[userId] 或 tinylingo_worlds_guest（未登录用户）
+   */
+  private static async getUserStorageKey(): Promise<string> {
+    try {
+      // 优先获取认证用户ID
+      const userId = await UserDataManager.getCurrentUserId();
+      if (userId) {
+        return `${this.STORAGE_KEY_PREFIX}_${userId}`;
+      }
+    } catch (error) {
+      console.warn('获取用户ID失败，使用访客模式:', error);
+    }
+    
+    // 未登录用户使用访客键
+    return `${this.STORAGE_KEY_PREFIX}_guest`;
+  }
 
   /**
    * 从localStorage加载世界数据
+   * 使用用户专属的存储键，确保数据隔离
    */
-  static loadWorldData(): WorldData[] {
+  static async loadWorldData(): Promise<WorldData[]> {
     try {
       if (typeof window === 'undefined') return [];
       
-      const savedData = localStorage.getItem(this.STORAGE_KEY);
+      const storageKey = await this.getUserStorageKey();
+      const savedData = localStorage.getItem(storageKey);
       if (!savedData) {
         return [];
       }
 
       const parsedData = JSON.parse(savedData);
-      return Array.isArray(parsedData) ? parsedData : [];
+      const worlds = Array.isArray(parsedData) ? parsedData : [];
+      console.log(`从localStorage加载世界数据 (键: ${storageKey}):`, worlds.length, '个世界');
+      return worlds;
     } catch (error) {
       console.error('加载世界数据失败:', error);
       return [];
@@ -32,16 +56,21 @@ export class WorldDataUtils {
 
   /**
    * 保存世界数据到localStorage
+   * 使用用户专属的存储键，确保数据隔离
    */
-  static saveWorldData(worlds: WorldData[]): void {
+  static async saveWorldData(worlds: WorldData[]): Promise<void> {
     try {
       if (typeof window === 'undefined') return;
       
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(worlds));
+      const storageKey = await this.getUserStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(worlds));
+      console.log(`保存世界数据到localStorage (键: ${storageKey}):`, worlds.length, '个世界');
       
-      // 触发自定义事件通知其他组件更新
-      window.dispatchEvent(new CustomEvent('localStorageUpdate', {
-        detail: { key: this.STORAGE_KEY, data: worlds }
+      // 触发存储变化事件，通知其他组件更新
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: storageKey,
+        newValue: JSON.stringify(worlds),
+        storageArea: localStorage
       }));
     } catch (error) {
       console.error('保存世界数据失败:', error);
@@ -50,130 +79,105 @@ export class WorldDataUtils {
   }
 
   /**
-   * 获取所有世界数据（别名方法，与loadWorldData功能相同）
+   * 获取所有世界数据
+   * 支持用户数据隔离
    */
   static async getAllWorlds(): Promise<WorldData[]> {
-    return this.loadWorldData();
+    return await this.loadWorldData();
   }
 
   /**
    * 添加新世界
-   * 增强离线支持：优先保存到localStorage，然后尝试同步到Supabase
+   * 优先保存到localStorage，然后尝试同步到Supabase
+   * 支持用户数据隔离
    */
-  static async addWorld(world: WorldData): Promise<boolean> {
+  static async addWorld(world: WorldData): Promise<void> {
     try {
-      const worlds = this.loadWorldData();
+      const worlds = await this.loadWorldData();
       
       // 检查是否已存在相同ID的世界
       const existingIndex = worlds.findIndex(w => w.id === world.id);
       if (existingIndex !== -1) {
-        console.warn(`世界 ${world.id} 已存在，使用updateWorld方法更新`);
-        return this.updateWorld(world);
+        // 如果存在，更新现有世界
+        worlds[existingIndex] = { ...world, needsSync: true };
+        console.log('更新现有世界:', world.title);
+      } else {
+        // 如果不存在，添加新世界
+        const newWorld = { ...world, needsSync: true };
+        worlds.push(newWorld);
+        console.log('添加新世界:', world.title);
       }
-
-      // 添加到本地数据
-      const newWorld = {
-        ...world,
-        needsSync: true, // 标记需要同步
-        createdAt: world.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
       
-      worlds.push(newWorld);
-      this.saveWorldData(worlds);
-
-      // 尝试同步到Supabase（离线时会自动跳过）
-      if (navigator.onLine) {
-        try {
-          await this.syncSingleWorldToSupabase(newWorld);
-        } catch (error) {
-          console.log('Supabase同步失败，数据已保存到本地:', error);
-          // 不抛出错误，确保离线模式正常工作
-        }
+      // 保存到localStorage
+      await this.saveWorldData(worlds);
+      
+      // 尝试同步到Supabase
+      try {
+        await UserDataManager.syncWorldsToSupabase();
+        console.log('世界数据已同步到Supabase');
+      } catch (syncError) {
+        console.warn('同步到Supabase失败，数据已保存到本地:', syncError);
       }
-
-      return true;
     } catch (error) {
       console.error('添加世界失败:', error);
-      return false;
+      throw error;
     }
   }
 
   /**
-   * 更新现有世界
-   * 增强离线支持：优先保存到localStorage，然后尝试同步到Supabase
+   * 更新世界数据
+   * 支持用户数据隔离
    */
-  static async updateWorld(updatedWorld: WorldData): Promise<boolean> {
+  static async updateWorld(updatedWorld: WorldData): Promise<void> {
     try {
-      const worlds = this.loadWorldData();
+      const worlds = await this.loadWorldData();
       const index = worlds.findIndex(w => w.id === updatedWorld.id);
       
-      if (index === -1) {
-        console.warn(`世界 ${updatedWorld.id} 不存在，使用addWorld方法添加`);
-        return this.addWorld(updatedWorld);
-      }
-
-      // 更新本地数据
-      const worldToUpdate = {
-        ...updatedWorld,
-        needsSync: true, // 标记需要同步
-        updatedAt: new Date().toISOString(),
-        createdAt: worlds[index].createdAt || new Date().toISOString()
-      };
-      
-      worlds[index] = worldToUpdate;
-      this.saveWorldData(worlds);
-
-      // 尝试同步到Supabase（离线时会自动跳过）
-      if (navigator.onLine) {
+      if (index !== -1) {
+        worlds[index] = { ...updatedWorld, needsSync: true };
+        await this.saveWorldData(worlds);
+        console.log('更新世界:', updatedWorld.title);
+        
+        // 尝试同步到Supabase
         try {
-          await this.syncSingleWorldToSupabase(worldToUpdate);
-        } catch (error) {
-          console.log('Supabase同步失败，数据已保存到本地:', error);
-          // 不抛出错误，确保离线模式正常工作
+          await UserDataManager.syncWorldsToSupabase();
+        } catch (syncError) {
+          console.warn('同步到Supabase失败:', syncError);
         }
+      } else {
+        throw new Error(`未找到ID为 ${updatedWorld.id} 的世界`);
       }
-
-      return true;
     } catch (error) {
       console.error('更新世界失败:', error);
-      return false;
+      throw error;
     }
   }
 
   /**
    * 删除世界
-   * 增强离线支持：优先从localStorage删除，然后尝试同步到Supabase
+   * 支持用户数据隔离
    */
-  static async deleteWorld(worldId: string): Promise<boolean> {
+  static async deleteWorld(worldId: string): Promise<void> {
     try {
-      const currentWorlds = this.loadWorldData();
-      const filteredWorlds = currentWorlds.filter(world => world.id !== worldId);
+      const worlds = await this.loadWorldData();
+      const filteredWorlds = worlds.filter(w => w.id !== worldId);
       
-      if (currentWorlds.length === filteredWorlds.length) {
-        console.warn(`世界 ${worldId} 不存在`);
-        return false;
+      if (filteredWorlds.length === worlds.length) {
+        throw new Error(`未找到ID为 ${worldId} 的世界`);
       }
-
-      // 从本地删除
-      this.saveWorldData(filteredWorlds);
-
-      // 尝试从Supabase删除（离线时会自动跳过）
-      if (navigator.onLine) {
-        try {
-          // 注意：这里需要UserDataManager实现deleteWorld方法
-          // await UserDataManager.deleteWorld(worldId);
-          console.log(`世界 ${worldId} 已从本地删除，Supabase同步将在联网时处理`);
-        } catch (error) {
-          console.log('Supabase删除同步失败，数据已从本地删除:', error);
-          // 不抛出错误，确保离线模式正常工作
-        }
+      
+      await this.saveWorldData(filteredWorlds);
+      console.log('删除世界:', worldId);
+      
+      // 尝试同步到Supabase
+      try {
+        await UserDataManager.syncWorldsToSupabase();
+      } catch (syncError) {
+        console.warn('同步到Supabase失败:', syncError);
       }
-
-      return true;
     } catch (error) {
       console.error('删除世界失败:', error);
-      return false;
+      throw error;
     }
   }
 
@@ -298,6 +302,20 @@ export class WorldDataUtils {
     } catch (error) {
       console.error('从Supabase加载和合并世界数据失败:', error);
       return this.loadWorldData();
+    }
+  }
+
+  /**
+   * 根据ID获取世界
+   * 支持用户数据隔离
+   */
+  static async getWorldById(worldId: string): Promise<WorldData | null> {
+    try {
+      const worlds = await this.loadWorldData();
+      return worlds.find(w => w.id === worldId) || null;
+    } catch (error) {
+      console.error('获取世界失败:', error);
+      return null;
     }
   }
 

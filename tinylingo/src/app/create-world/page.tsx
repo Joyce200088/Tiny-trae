@@ -627,7 +627,7 @@ function CreateWorldPageContent() {
         canvasData: canvasData, // 保留原有的画布数据
         selectedBackground: selectedBackground, // 保存背景信息
         createdAt: currentWorldId ? 
-          (WorldDataUtils.loadWorldData().find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
+          ((await WorldDataUtils.loadWorldData()).find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
           new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastModified: new Date().toISOString() // 个人主页世界库期望的字段名

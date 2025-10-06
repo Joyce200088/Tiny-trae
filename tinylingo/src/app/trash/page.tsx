@@ -29,7 +29,17 @@ export default function TrashPage() {
 
   // 加载垃圾桶数据
   useEffect(() => {
-    loadTrashWorlds();
+    const loadDeletedWorlds = async () => {
+      try {
+        const worlds = await WorldDataUtils.getAllWorlds();
+        const deletedWorlds = worlds.filter(world => world.isDeleted);
+        setTrashWorlds(deletedWorlds);
+      } catch (error) {
+        console.error('加载已删除世界失败:', error);
+      }
+    };
+
+    loadDeletedWorlds();
     // 启动自动清理
     TrashCleanup.startAutoCleanup();
     
@@ -44,19 +54,25 @@ export default function TrashPage() {
   };
 
   // 还原世界
-  const restoreWorld = (worldId: string) => {
-    const worldToRestore = trashWorlds.find(w => w.id === worldId);
-    if (worldToRestore) {
-      // 从垃圾桶移除
-      const updatedTrash = trashWorlds.filter(w => w.id !== worldId);
-      setTrashWorlds(updatedTrash);
-      localStorage.setItem('trashWorlds', JSON.stringify(updatedTrash));
-
-      // 还原到原位置
-      const { deletedAt, originalLocation, ...restoredWorld } = worldToRestore;
-      const savedWorlds = JSON.parse(localStorage.getItem('savedWorlds') || '[]');
-      const updatedSavedWorlds = [...savedWorlds, restoredWorld];
-      localStorage.setItem('savedWorlds', JSON.stringify(updatedSavedWorlds));
+  const restoreWorld = async (worldId: string) => {
+    try {
+      const worlds = await WorldDataUtils.getAllWorlds();
+      const updatedWorlds = worlds.map(world => 
+        world.id === worldId 
+          ? { ...world, isDeleted: false, deletedAt: undefined }
+          : world
+      );
+      
+      await WorldDataUtils.saveWorldData(updatedWorlds);
+      
+      // 更新本地状态
+      const deletedWorlds = updatedWorlds.filter(world => world.isDeleted);
+      setTrashWorlds(deletedWorlds);
+      
+      toast.success('世界已恢复');
+    } catch (error) {
+      console.error('恢复世界失败:', error);
+      toast.error('恢复失败');
     }
   };
 
