@@ -26,59 +26,163 @@ import { PresetWorld } from '@/types/preset';
 const mockStickers: StickerData[] = [
   {
     id: '1',
+    word: 'Diving Mask',
+    cn: '潜水镜',
+    pos: 'noun' as const,
+    image: '/Diving Mask.png',
+    audio: {
+      uk: '/audio/diving-mask-uk.mp3',
+      us: '/audio/diving-mask-us.mp3'
+    },
+    examples: [
+      { en: 'I need a diving mask to see underwater.', cn: '我需要一个潜水镜来看清水下。' },
+      { en: 'The diving mask fits perfectly on my face.', cn: '这个潜水镜完美贴合我的脸部。' }
+    ],
+    mnemonic: ['Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'],
+    masteryStatus: 'new' as const,
+    tags: ['Pixel', 'Ai-generated'],
+    relatedWords: [
+      { word: 'wear', pos: 'verb' as const },
+      { word: 'adjust', pos: 'verb' as const },
+      { word: 'clean', pos: 'verb' as const },
+      { word: 'underwater', pos: 'adj' as const },
+      { word: 'transparent', pos: 'adj' as const },
+      { word: 'waterproof', pos: 'adj' as const },
+      { word: 'equipment', pos: 'noun' as const },
+      { word: 'goggles', pos: 'noun' as const },
+      { word: 'snorkel', pos: 'noun' as const },
+      { word: 'clearly', pos: 'adv' as const }
+    ],
+    // 兼容性字段
     name: 'Diving Mask',
     chinese: '潜水镜',
     phonetic: '/ˈdaɪvɪŋ mæsk/',
     category: 'Diving Equipment',
     partOfSpeech: 'noun',
-    tags: ['Pixel', 'Ai-generated'],
     thumbnailUrl: '/Diving Mask.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.',
-    mnemonic: 'Diving（潜水） + Mask（面罩） = 潜水时保护面部的装备'
+    notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.'
   },
   {
     id: '2',
+    word: 'Calendar',
+    cn: '日历',
+    pos: 'noun' as const,
+    image: '/Calendar.png',
+    audio: {
+      uk: '/audio/calendar-uk.mp3',
+      us: '/audio/calendar-us.mp3'
+    },
+    examples: [
+      { en: 'I marked the meeting on my calendar.', cn: '我在日历上标记了会议。' },
+      { en: 'The calendar shows all the holidays this year.', cn: '日历显示了今年所有的假期。' }
+    ],
+    mnemonic: ['来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'],
+    masteryStatus: 'new' as const,
+    tags: ['Cartoon', 'Ai-generated'],
+    relatedWords: [
+      { word: 'mark', pos: 'verb' as const },
+      { word: 'schedule', pos: 'verb' as const },
+      { word: 'check', pos: 'verb' as const },
+      { word: 'monthly', pos: 'adj' as const },
+      { word: 'yearly', pos: 'adj' as const },
+      { word: 'digital', pos: 'adj' as const },
+      { word: 'date', pos: 'noun' as const },
+      { word: 'appointment', pos: 'noun' as const },
+      { word: 'reminder', pos: 'noun' as const },
+      { word: 'daily', pos: 'adv' as const }
+    ],
+    // 兼容性字段
     name: 'Calendar',
     chinese: '日历',
     phonetic: '/ˈkælɪndər/',
     category: 'Daily Items',
     partOfSpeech: 'noun',
-    tags: ['Cartoon', 'Ai-generated'],
     thumbnailUrl: '/Calendar.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
-    mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+    notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.'
   },
   {
-    id: '3', 
+    id: '3',
+    word: 'Industrial Shelving',
+    cn: '工业货架',
+    pos: 'noun' as const,
+    image: '/Industrial Shelving.png',
+    audio: {
+      uk: '/audio/industrial-shelving-uk.mp3',
+      us: '/audio/industrial-shelving-us.mp3'
+    },
+    examples: [
+      { en: 'The warehouse uses industrial shelving for storage.', cn: '仓库使用工业货架进行存储。' },
+      { en: 'Industrial shelving can hold heavy equipment.', cn: '工业货架可以承载重型设备。' }
+    ],
+    mnemonic: ['Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'],
+    masteryStatus: 'new' as const,
+    tags: ['Cartoon', 'Ai-generated'],
+    relatedWords: [
+      { word: 'install', pos: 'verb' as const },
+      { word: 'organize', pos: 'verb' as const },
+      { word: 'store', pos: 'verb' as const },
+      { word: 'heavy-duty', pos: 'adj' as const },
+      { word: 'durable', pos: 'adj' as const },
+      { word: 'metal', pos: 'adj' as const },
+      { word: 'warehouse', pos: 'noun' as const },
+      { word: 'storage', pos: 'noun' as const },
+      { word: 'rack', pos: 'noun' as const },
+      { word: 'efficiently', pos: 'adv' as const }
+    ],
+    // 兼容性字段
     name: 'Industrial Shelving',
     chinese: '工业货架',
     phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
     category: 'Furniture',
     partOfSpeech: 'noun',
-    tags: ['Cartoon', 'Ai-generated'],
     thumbnailUrl: '/Industrial Shelving.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.',
-    mnemonic: 'Industrial（工业的） + Shelving（架子） = 用于工业环境的坚固存储架'
+    notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.'
   },
   {
     id: '4',
+    word: 'Ceramic Mug',
+    cn: '陶瓷杯',
+    pos: 'noun' as const,
+    image: '/Ceramic Mug.png',
+    audio: {
+      uk: '/audio/ceramic-mug-uk.mp3',
+      us: '/audio/ceramic-mug-us.mp3'
+    },
+    examples: [
+      { en: 'I drink coffee from my ceramic mug every morning.', cn: '我每天早上用陶瓷杯喝咖啡。' },
+      { en: 'The ceramic mug keeps my tea warm longer.', cn: '陶瓷杯能让我的茶保温更久。' }
+    ],
+    mnemonic: ['Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮用杯'],
+    masteryStatus: 'new' as const,
+    tags: ['Realistic', 'Ai-generated'],
+    relatedWords: [
+      { word: 'drink', pos: 'verb' as const },
+      { word: 'hold', pos: 'verb' as const },
+      { word: 'wash', pos: 'verb' as const },
+      { word: 'hot', pos: 'adj' as const },
+      { word: 'smooth', pos: 'adj' as const },
+      { word: 'decorative', pos: 'adj' as const },
+      { word: 'coffee', pos: 'noun' as const },
+      { word: 'tea', pos: 'noun' as const },
+      { word: 'handle', pos: 'noun' as const },
+      { word: 'carefully', pos: 'adv' as const }
+    ],
+    // 兼容性字段
     name: 'Ceramic Mug',
     chinese: '陶瓷杯',
     phonetic: '/səˈræmɪk mʌɡ/',
     category: 'Kitchenware',
     partOfSpeech: 'noun',
-    tags: ['Realistic', 'Ai-generated'],
     thumbnailUrl: '/Ceramic Mug.png',
     createdAt: '2024-01-15',
     sorted: true,
-    notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.',
-    mnemonic: 'Ceramic（陶瓷）来自希腊语keramos（陶土），Mug（马克杯）指有柄的饮用杯'
+    notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.'
   }
 ];
 
@@ -476,26 +580,34 @@ function CreateWorldPageContent() {
     const templateId = searchParams.get('template');
     
     if (worldId) {
-      // 从WorldDataUtils加载世界数据
-      const savedWorlds = WorldDataUtils.loadWorldData();
-      const world = savedWorlds.find((w: WorldData) => w.id === worldId);
+      // 从WorldDataUtils加载世界数据（异步调用）
+      const loadWorldData = async () => {
+        try {
+          const savedWorlds = await WorldDataUtils.loadWorldData();
+          const world = savedWorlds.find((w: WorldData) => w.id === worldId);
       
-      if (world) {
-        setCurrentWorldId(world.id);
-        setDocumentName(world.name);
-        // 恢复画布对象和背景
-        if (world.canvasObjects) {
-          setCanvasObjects(world.canvasObjects);
-        } else if (world.canvasData?.objects) {
-          setCanvasObjects(world.canvasData.objects);
+          if (world) {
+            setCurrentWorldId(world.id);
+            setDocumentName(world.name);
+            // 恢复画布对象和背景
+            if (world.canvasObjects) {
+              setCanvasObjects(world.canvasObjects);
+            } else if (world.canvasData?.objects) {
+              setCanvasObjects(world.canvasData.objects);
+            }
+            if (world.selectedBackground) {
+              setSelectedBackground(world.selectedBackground);
+            } else if (world.canvasData?.background) {
+              setSelectedBackground(world.canvasData.background);
+            }
+            console.log('已加载世界:', world);
+          }
+        } catch (error) {
+          console.error('加载世界数据失败:', error);
         }
-        if (world.selectedBackground) {
-          setSelectedBackground(world.selectedBackground);
-        } else if (world.canvasData?.background) {
-          setSelectedBackground(world.canvasData.background);
-        }
-        console.log('已加载世界:', world);
-      }
+      };
+      
+      loadWorldData();
     } else if (templateId) {
       // 加载预设模板
       loadPresetTemplate(templateId);
@@ -504,7 +616,7 @@ function CreateWorldPageContent() {
 
   // 页面关闭前保存
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges && !isAutoSavingRef.current) {
         // 同步保存（简化版本）
         try {
@@ -523,13 +635,13 @@ function CreateWorldPageContent() {
               background: selectedBackground
             },
             createdAt: currentWorldId ? 
-              (WorldDataUtils.loadWorldData().find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
+              ((await WorldDataUtils.loadWorldData()).find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
               new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             lastModified: new Date().toISOString()
           };
           
-          const savedWorlds = WorldDataUtils.loadWorldData();
+          const savedWorlds = await WorldDataUtils.loadWorldData();
           const existingIndex = savedWorlds.findIndex((world: WorldData) => world.id === worldData.id);
           
           if (existingIndex >= 0) {
@@ -538,7 +650,7 @@ function CreateWorldPageContent() {
             savedWorlds.push(worldData);
           }
           
-          WorldDataUtils.saveWorldData(savedWorlds);
+          await WorldDataUtils.saveWorldData(savedWorlds);
         } catch (error) {
           console.error('页面关闭前保存失败:', error);
         }
@@ -610,6 +722,14 @@ function CreateWorldPageContent() {
           .map((word: string) => word.toLowerCase().trim())
       ).size;
       
+      // 获取创建时间（如果是更新现有世界）
+      let createdAt = new Date().toISOString();
+      if (currentWorldId) {
+        const savedWorlds = await WorldDataUtils.loadWorldData();
+        const existingWorld = savedWorlds.find((w: WorldData) => w.id === currentWorldId);
+        createdAt = existingWorld?.createdAt || new Date().toISOString();
+      }
+      
       // 创建世界数据 - 匹配个人主页世界库期望的数据结构
       const worldData = {
         id: currentWorldId || Date.now().toString(),
@@ -626,9 +746,7 @@ function CreateWorldPageContent() {
         canvasObjects: canvasObjects, // 保存画布对象数组，用于统计计算
         canvasData: canvasData, // 保留原有的画布数据
         selectedBackground: selectedBackground, // 保存背景信息
-        createdAt: currentWorldId ? 
-          ((await WorldDataUtils.loadWorldData()).find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
-          new Date().toISOString(),
+        createdAt: createdAt,
         updatedAt: new Date().toISOString(),
         lastModified: new Date().toISOString() // 个人主页世界库期望的字段名
       };
@@ -923,12 +1041,39 @@ function CreateWorldPageContent() {
       // 创建贴纸数据
       const stickerData: StickerData = {
         id: Date.now().toString(),
+        word: content.word,
+        cn: content.cn,
+        pos: content.pos as 'noun' | 'verb' | 'adj' | 'adv',
+        image: transparentImage || generatedImage!,
+        audio: {
+          uk: `/audio/${content.word.toLowerCase().replace(/\s+/g, '-')}-uk.mp3`,
+          us: `/audio/${content.word.toLowerCase().replace(/\s+/g, '-')}-us.mp3`
+        },
+        examples: content.examples || [
+          { en: `This is a ${content.word}.`, cn: `这是一个${content.cn}。` },
+          { en: `I like this ${content.word}.`, cn: `我喜欢这个${content.cn}。` }
+        ],
+        mnemonic: content.mnemonic || [`${content.word}的记忆方法`],
+        masteryStatus: 'new' as const,
+        tags: [...(content.tags || []), 'Ai-generated'],
+        relatedWords: [
+          { word: 'use', pos: 'verb' as const },
+          { word: 'make', pos: 'verb' as const },
+          { word: 'get', pos: 'verb' as const },
+          { word: 'good', pos: 'adj' as const },
+          { word: 'nice', pos: 'adj' as const },
+          { word: 'small', pos: 'adj' as const },
+          { word: 'thing', pos: 'noun' as const },
+          { word: 'item', pos: 'noun' as const },
+          { word: 'object', pos: 'noun' as const },
+          { word: 'well', pos: 'adv' as const }
+        ],
+        // 兼容性字段
         name: content.word,
         chinese: content.cn,
         phonetic: content.phonetic || '',
         category: content.tags?.[0] || 'AI Generated',
         partOfSpeech: content.pos,
-        tags: [...(content.tags || []), 'Ai-generated'],
         thumbnailUrl: transparentImage || generatedImage!,
         createdAt: new Date().toISOString().split('T')[0],
         sorted: false,

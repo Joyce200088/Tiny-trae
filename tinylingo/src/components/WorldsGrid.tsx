@@ -292,15 +292,38 @@ export default function WorldsGrid({
           >
             {/* 封面图片 */}
             <div className="aspect-video relative" style={{backgroundColor: '#FFFBF5'}}>
-              {world.previewImage || world.coverUrl ? (
-                <img 
-                  src={world.previewImage || world.coverUrl} 
-                  alt={world.name}
-                  className="w-full h-full object-cover"
-                />
+              {world.thumbnail || world.previewImage || world.coverUrl ? (
+                <>
+                  <img 
+                    src={world.thumbnail || world.previewImage || world.coverUrl} 
+                    alt={world.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // 如果图片加载失败，隐藏img元素，显示占位符
+                      e.currentTarget.style.display = 'none';
+                      const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (placeholder) {
+                        placeholder.style.display = 'flex';
+                      }
+                    }}
+                    onLoad={() => {
+                      console.log('缩略图加载成功:', world.thumbnail || world.previewImage || world.coverUrl);
+                    }}
+                  />
+                  {/* 图片加载失败时的占位符 */}
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm bg-gray-100" style={{display: 'none'}}>
+                    <div className="text-center">
+                      <div>World Preview</div>
+                      <div className="text-xs mt-1">缩略图加载失败</div>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
-                  World Preview
+                <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm bg-gray-100">
+                  <div className="text-center">
+                    <div>World Preview</div>
+                    <div className="text-xs mt-1">暂无缩略图</div>
+                  </div>
                 </div>
               )}
               
@@ -344,7 +367,7 @@ export default function WorldsGrid({
             
             {/* 操作按钮 */}
             <div className="flex space-x-2 px-4 pb-4">
-              <Link href={`/create-world?id=${world.id}`} className="flex-1">
+              <Link href={`/create-world?worldId=${world.id}`} className="flex-1">
                 <button 
                   className="w-full text-black py-2 px-3 rounded-lg text-sm transition-colors hover:opacity-80"
                   style={{ backgroundColor: '#EAD5B6' }}

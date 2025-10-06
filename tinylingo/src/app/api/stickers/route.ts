@@ -28,7 +28,7 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'An orange ball with distinctive lines used in basketball, designed to bounce consistently and provide good grip for players.',
-      mnemonic: 'Basket（篮子） + Ball（球） = 投入篮子的球类运动',
+      mnemonic: ['Basket（篮子） + Ball（球） = 投入篮子的球类运动'],
       isCollected: true,
       rarity: 'common'
     },
@@ -43,7 +43,7 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'A racket used to hit a tennis ball, consisting of a handle and a circular frame with strings stretched across it.',
-      mnemonic: 'Tennis（网球） + Racket（球拍） = 网球运动使用的击球工具',
+      mnemonic: ['Tennis（网球） + Racket（球拍） = 网球运动使用的击球工具'],
       isCollected: false,
       rarity: 'rare'
     },
@@ -58,7 +58,7 @@ const mockStickers = [
       createdAt: '2024-01-15',
       sorted: true,
       notes: 'A large leather glove worn by baseball players to catch and field balls, with a deep pocket and webbing between fingers.',
-      mnemonic: 'Baseball（棒球） + Glove（手套） = 棒球运动中接球用的专用手套',
+      mnemonic: ['Baseball（棒球） + Glove（手套） = 棒球运动中接球用的专用手套'],
       isCollected: true,
       rarity: 'uncommon'
     }

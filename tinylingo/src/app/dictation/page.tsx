@@ -126,7 +126,7 @@ const mockWorlds = [
           createdAt: '2024-01-15',
           sorted: true,
           notes: 'A drinking vessel made from ceramic material, typically used for hot beverages like coffee or tea.',
-          mnemonic: 'Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮品杯'
+          mnemonic: ['Ceramic（陶瓷的） + Mug（杯子） = 用陶瓷制作的饮品杯']
         }
       },
       {
@@ -157,7 +157,7 @@ const mockWorlds = [
           createdAt: '2024-01-15',
           sorted: true,
           notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.',
-          mnemonic: '来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子'
+          mnemonic: ['来自拉丁语calendarium（账本），古罗马每月第一天叫calends（朔日），是还账的日子']
         }
       }
     ]

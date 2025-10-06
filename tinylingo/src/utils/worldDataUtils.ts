@@ -198,7 +198,7 @@ export class WorldDataUtils {
       
       if (success) {
         // 同步成功后，更新本地数据标记为已同步
-        const worlds = this.loadWorldData();
+        const worlds = await this.loadWorldData();
         const index = worlds.findIndex(w => w.id === world.id);
         if (index !== -1) {
           worlds[index] = { ...worlds[index], needsSync: false };
@@ -301,7 +301,7 @@ export class WorldDataUtils {
       return finalWorlds;
     } catch (error) {
       console.error('从Supabase加载和合并世界数据失败:', error);
-      return this.loadWorldData();
+      return await this.loadWorldData();
     }
   }
 
@@ -321,14 +321,15 @@ export class WorldDataUtils {
 
   /**
    * 获取世界统计信息
+   * 支持用户数据隔离
    */
-  static getWorldStats(): {
+  static async getWorldStats(): Promise<{
     totalWorlds: number;
     totalWords: number;
     totalStickers: number;
-    lastModified?: string;
-  } {
-    const worlds = this.loadWorldData();
+    lastModified: string | undefined;
+  }> {
+    const worlds = await this.loadWorldData();
     
     return {
       totalWorlds: worlds.length,
@@ -379,20 +380,21 @@ export class WorldDataUtils {
       }
     };
 
-    const handleCustomStorageChange = async (e: CustomEvent) => {
+    const handleCustomStorageChange = async (e: Event) => {
+      const customEvent = e as CustomEvent;
       const storageKey = await this.getUserStorageKey();
-      if (e.detail?.key === storageKey) {
-        callback(e.detail.data || []);
+      if (customEvent.detail?.key === storageKey) {
+        callback(customEvent.detail.data || []);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('localStorageUpdate', handleCustomStorageChange as EventListener);
+    window.addEventListener('localStorageUpdate', handleCustomStorageChange);
 
     // 返回清理函数
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('localStorageUpdate', handleCustomStorageChange as EventListener);
+      window.removeEventListener('localStorageUpdate', handleCustomStorageChange);
     };
   }
 }

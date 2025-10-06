@@ -118,6 +118,14 @@ function MyWorldsTab({
     const loadWorlds = async () => {
       try {
         const worlds = await WorldDataUtils.getAllWorlds();
+        console.log('用户页面加载的世界数据:', worlds);
+        console.log('世界数据详情:', worlds.map(w => ({
+          id: w.id,
+          name: w.name,
+          thumbnail: w.thumbnail,
+          coverUrl: w.coverUrl,
+          previewImage: w.previewImage
+        })));
         setSavedWorlds(worlds);
       } catch (error) {
         console.error('加载世界数据失败:', error);
