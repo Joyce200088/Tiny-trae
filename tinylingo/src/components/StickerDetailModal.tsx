@@ -185,7 +185,11 @@ function StickerDetailModal({
         currentExamples: sticker.examples?.map(ex => ex.en) || [],
         currentMnemonic: sticker.mnemonic,
         currentTags: sticker.tags,
-        currentRelatedWords: sticker.relatedWords
+        currentRelatedWords: sticker.relatedWords?.map(word => ({
+          word: word.word,
+          chinese: word.cn || '',
+          partOfSpeech: word.pos
+        })) || []
       };
       
       // 调用Gemini AI API
@@ -509,7 +513,7 @@ function StickerDetailModal({
                     <button
                       onClick={() => {
                         if (sticker && onSave) {
-                          onSave({ ...sticker, masteryStatus: undefined });
+                          onSave({ ...sticker, masteryStatus: 'new' });
                         }
                         setIsMasteryEditing(false);
                       }}
@@ -520,7 +524,7 @@ function StickerDetailModal({
                     <button
                       onClick={() => {
                         if (sticker && onSave) {
-                          onSave({ ...sticker, masteryStatus: 'unknown' });
+                          onSave({ ...sticker, masteryStatus: 'new' });
                         }
                         setIsMasteryEditing(false);
                       }}
@@ -531,7 +535,7 @@ function StickerDetailModal({
                     <button
                       onClick={() => {
                         if (sticker && onSave) {
-                          onSave({ ...sticker, masteryStatus: 'vague' });
+                          onSave({ ...sticker, masteryStatus: 'fuzzy' });
                         }
                         setIsMasteryEditing(false);
                       }}
@@ -559,8 +563,8 @@ function StickerDetailModal({
                     <StatusIcon status={sticker.masteryStatus} size={16} />
                     <span className="text-xs font-medium">
                       {sticker.masteryStatus === 'mastered' ? '掌握' :
-                       sticker.masteryStatus === 'vague' ? '模糊' :
-                       sticker.masteryStatus === 'unknown' ? '陌生' : '设置掌握状态'}
+                       sticker.masteryStatus === 'fuzzy' ? '模糊' :
+                       sticker.masteryStatus === 'new' ? '陌生' : '设置掌握状态'}
                     </span>
                   </button>
                 )}

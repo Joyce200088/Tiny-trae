@@ -36,6 +36,7 @@ export interface StickerData {
   relatedWords: {
     word: string;
     pos: "noun" | "verb" | "adj" | "adv";
+    cn?: string;                // 中文释义，可选字段
   }[];                          // 10 个相关词 - 符合项目规则
   
   // 兼容性字段（保持向后兼容）
@@ -48,6 +49,7 @@ export interface StickerData {
   category?: string | null;
   partOfSpeech?: string;
   // thumbnailUrl?: string; // 缩略图功能已删除
+  thumbnailUrl?: string;            // 兼容旧代码，用于缩略图显示
   imageUrl?: string;            // 兼容旧代码，映射到image字段
   createdAt: string;
   sorted: boolean;

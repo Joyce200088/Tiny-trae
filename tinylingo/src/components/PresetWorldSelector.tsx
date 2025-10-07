@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Grid, List, Star, Crown, Users, Clock, Tag, ArrowRight, Download, Eye } from 'lucide-react';
-import { PresetWorld, PresetCategory, PresetWorldFilter } from '@/types/preset';
+import { PresetWorld, PresetCategory, PresetWorldFilter, PresetCategoryType } from '@/types/preset';
 import { getAllPresetWorlds, recordPresetWorldUsage } from '@/utils/presetWorldManager';
 
 interface PresetWorldSelectorProps {
@@ -29,7 +29,7 @@ export default function PresetWorldSelector({
   const [presetWorlds, setPresetWorlds] = useState<PresetWorld[]>([]);
   const [filteredWorlds, setFilteredWorlds] = useState<PresetWorld[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<PresetCategory | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<PresetCategoryType | 'all'>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'alphabetical' | 'mostUsed'>('popular');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -37,7 +37,7 @@ export default function PresetWorldSelector({
   const [isLoading, setIsLoading] = useState(true);
 
   // 分类选项
-  const categories: { value: PresetCategory | 'all'; label: string; icon: string }[] = [
+  const categories: { value: PresetCategoryType | 'all'; label: string; icon: string }[] = [
     { value: 'all', label: '全部', icon: '🌟' },
     { value: 'kitchen', label: '厨房用品', icon: '🍳' },
     { value: 'food', label: '食物', icon: '🍎' },
@@ -77,7 +77,6 @@ export default function PresetWorldSelector({
     try {
       // 只获取公开的预设世界
       const filter: PresetWorldFilter = {
-        isPublic: true,
         sortBy,
         sortOrder: 'desc'
       };
@@ -236,7 +235,7 @@ export default function PresetWorldSelector({
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
               <button
-                key={category.value}
+                key={category.value as string}
                 onClick={() => setSelectedCategory(category.value)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors ${
                   selectedCategory === category.value
@@ -320,9 +319,9 @@ function PresetWorldCard({
       } ${!canSelect ? 'opacity-50' : ''}`}>
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-            {preset.thumbnail && (
+            {preset.coverUrl && (
               <img 
-                src={preset.thumbnail} 
+                src={preset.coverUrl} 
                 alt={preset.name}
                 className="w-full h-full object-cover"
               />
@@ -408,9 +407,9 @@ function PresetWorldCard({
     } ${!canSelect ? 'opacity-50' : ''}`}>
       <div className="relative">
         <div className="aspect-video bg-gray-100 overflow-hidden">
-          {preset.thumbnail && (
+          {preset.coverUrl && (
             <img 
-              src={preset.thumbnail} 
+              src={preset.coverUrl} 
               alt={preset.name}
               className="w-full h-full object-cover"
             />

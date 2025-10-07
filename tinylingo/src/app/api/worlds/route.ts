@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       const searchLower = search.toLowerCase();
       filteredWorlds = filteredWorlds.filter(w => 
-        w.name.toLowerCase().includes(searchLower) ||
+        w.title.toLowerCase().includes(searchLower) ||
         w.description?.toLowerCase().includes(searchLower) ||
         w.tags.some(tag => tag.toLowerCase().includes(searchLower))
       );
@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
       
       switch (sortBy) {
         case 'title':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
           break;
         case 'createdAt':
           aValue = new Date(a.createdAt).getTime();

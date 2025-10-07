@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Download, Upload, Edit, Trash2, Eye, Copy, Settings, Crown, Users, TrendingUp, Calendar, Tag, Filter, Search, Grid, List } from 'lucide-react';
-import { PresetWorld, PresetCategory, CreatePresetWorldRequest, PresetWorldFilter } from '@/types/preset';
+import { PresetWorld, PresetCategory, CreatePresetWorldRequest, PresetWorldFilter, PresetCategoryType } from '@/types/preset';
 import { 
   checkAdminStatus, 
   getAllPresetWorlds, 
@@ -121,10 +121,7 @@ export default function PresetWorldManagerComponent({
         throw new Error('预设世界名称不能为空');
       }
       
-      const newPreset = await createPresetWorld({
-        ...formData,
-        createdBy: currentUserId
-      });
+      const newPreset = await createPresetWorld(formData);
       
       if (!newPreset) {
         throw new Error('创建预设世界失败，请检查权限设置');
@@ -490,9 +487,9 @@ function PresetWorldCard({
           />
           
           <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-            {preset.thumbnail && (
+            {preset.coverUrl && (
               <img 
-                src={preset.thumbnail} 
+                src={preset.coverUrl} 
                 alt={preset.name}
                 className="w-full h-full object-cover"
               />
@@ -549,9 +546,9 @@ function PresetWorldCard({
     }`}>
       <div className="relative">
         <div className="aspect-video bg-gray-100 overflow-hidden">
-          {preset.thumbnail && (
+          {preset.coverUrl && (
             <img 
-              src={preset.thumbnail} 
+              src={preset.coverUrl} 
               alt={preset.name}
               className="w-full h-full object-cover"
             />
@@ -627,7 +624,7 @@ function CreatePresetWorldModal({ onClose, onSubmit, initialData }: CreatePreset
   const [formData, setFormData] = useState<CreatePresetWorldRequest>({
     name: '',
     description: '',
-    category: 'other',
+    category: 'other' as PresetCategoryType,
     tags: [],
     difficulty: 'beginner',
     canvasData: {
@@ -638,7 +635,7 @@ function CreatePresetWorldModal({ onClose, onSubmit, initialData }: CreatePreset
     ...initialData
   });
 
-  const categories: { value: PresetCategory; label: string }[] = [
+  const categories: { value: PresetCategoryType; label: string }[] = [
     { value: 'kitchen', label: '厨房用品' },
     { value: 'food', label: '食物' },
     { value: 'animals', label: '动物' },
@@ -714,7 +711,7 @@ function CreatePresetWorldModal({ onClose, onSubmit, initialData }: CreatePreset
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as PresetCategory })}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as PresetCategoryType })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 {categories.map(cat => (

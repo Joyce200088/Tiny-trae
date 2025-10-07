@@ -85,18 +85,27 @@ function LearningDashboard({ stickers, onClose }: LearningDashboardProps) {
     try {
       const selectedStickerData = stickers.filter(sticker => selectedStickers.has(sticker.id));
       
-      // 构造保存的贴纸数据，直接放入unsorted
+      // 构造保存的贴纸数据，转换为 StickerData 格式
       const stickerData = selectedStickerData.map(sticker => ({
-        id: `saved_${Date.now()}_${sticker.id}`, // 生成唯一ID避免冲突
-        name: sticker.learningContent.english,
-        chinese: sticker.learningContent.chinese,
-        example: sticker.learningContent.example,
-        exampleChinese: sticker.learningContent.exampleChinese,
-        imageUrl: sticker.dataUrl,
-        category: null, // 不设置分类，直接放入unsorted
-        tags: ['Ai-generated'],
-        createdAt: new Date().toISOString().split('T')[0], // 格式化日期
-        sorted: false // 标记为未分类
+        id: `ai_${Date.now()}_${sticker.id}`, // 生成唯一ID
+        word: sticker.learningContent.english,
+        cn: sticker.learningContent.chinese,
+        pos: 'noun' as const, // 默认词性
+        image: sticker.dataUrl,
+        audio: {
+          uk: '', // 暂时为空，后续可以生成
+          us: ''
+        },
+        examples: [{
+          en: sticker.learningContent.example,
+          cn: sticker.learningContent.exampleChinese
+        }],
+        mnemonic: [], // 暂时为空
+        masteryStatus: 'new' as const,
+        tags: ['AI-generated'],
+        relatedWords: [], // 暂时为空
+        createdAt: new Date().toISOString(),
+        sorted: false
       }));
 
       // 保存到localStorage (实际项目中应该调用API)
@@ -152,7 +161,7 @@ function LearningDashboard({ stickers, onClose }: LearningDashboardProps) {
             <Button
               onClick={saveSelectedStickers}
               disabled={isSaving}
-              variant="primary"
+              variant="default"
               className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400"
             >
               {isSaving ? '保存中...' : `保存到MY STICKERS (${selectedStickers.size})`}

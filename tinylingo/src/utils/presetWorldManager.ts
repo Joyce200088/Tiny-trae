@@ -4,7 +4,7 @@
  * 集成Supabase数据库存储
  */
 
-import { PresetWorld, PresetCategory, PresetWorldUsage, PresetWorldFilter, CreatePresetWorldRequest, UpdatePresetWorldRequest } from '@/types/preset';
+import { PresetWorld, PresetCategory, PresetWorldUsage, PresetWorldFilter, CreatePresetWorldRequest, UpdatePresetWorldRequest, PresetCategoryType } from '@/types/preset';
 import { CanvasObject } from '@/lib/types';
 import { supabase, TABLES, DatabasePresetWorld, DatabasePresetCategory, DatabasePresetWorldAdmin } from '@/lib/supabase/client';
 
@@ -108,12 +108,12 @@ export async function getAllPresetWorlds(filter?: PresetWorldFilter): Promise<Pr
       .order('created_at', { ascending: false });
 
     // 应用过滤条件
-    if (filter?.category && filter.category !== 'all') {
-      query = query.eq('category', filter.category);
+    if (filter?.categories && filter.categories.length > 0) {
+      query = query.in('category', filter.categories);
     }
     
-    if (filter?.difficulty && filter.difficulty !== 'all') {
-      query = query.eq('difficulty', filter.difficulty);
+    if (filter?.difficulty && filter.difficulty.length > 0) {
+      query = query.in('difficulty', filter.difficulty);
     }
     
     if (filter?.search) {
@@ -172,8 +172,8 @@ export async function createPresetWorld(request: CreatePresetWorldRequest): Prom
       throw new Error('预设世界名称不能为空');
     }
     
-    const wordCount = calculateWordCount(request.canvasObjects || []);
-    const stickerCount = calculateStickerCount(request.canvasObjects || []);
+    const wordCount = calculateWordCount(request.canvasData.objects);
+    const stickerCount = calculateStickerCount(request.canvasData.objects);
     
     const { data, error } = await supabase
       .from(TABLES.PRESET_WORLDS)
@@ -181,20 +181,19 @@ export async function createPresetWorld(request: CreatePresetWorldRequest): Prom
         name: request.name,
         description: request.description || '',
         cover_url: request.coverUrl,
-        // thumbnail_url: request.thumbnailUrl, // 缩略图功能已删除
-        preview_image: request.previewImage,
-        canvas_objects: request.canvasObjects || [],
-        selected_background: request.selectedBackground,
-        canvas_size: request.canvasSize,
+        preview_images: [],
+        canvas_objects: request.canvasData.objects || [],
+        selected_background: request.canvasData.background,
+        canvas_size: request.canvasData.canvasSize,
         category: request.category || 'other',
         difficulty: request.difficulty || 'beginner',
         word_count: wordCount,
         sticker_count: stickerCount,
         tags: request.tags || [],
-        author_id: request.authorId,
-        author_name: request.authorName,
+        author: 'system',
+        version: '1.0.0',
         is_public: request.isPublic !== false, // 默认为 true
-        is_featured: request.isFeatured || false,
+        is_official: false,
       })
       .select('id')
       .single();
@@ -224,9 +223,14 @@ export async function updatePresetWorld(id: string, request: UpdatePresetWorldRe
     const updateData: any = { ...request };
     
     // 如果更新了画布对象，重新计算统计数据
-    if (request.canvasObjects) {
-      updateData.word_count = calculateWordCount(request.canvasObjects);
-      updateData.sticker_count = calculateStickerCount(request.canvasObjects);
+    if (request.canvasData?.objects) {
+      updateData.word_count = calculateWordCount(request.canvasData.objects);
+      updateData.sticker_count = calculateStickerCount(request.canvasData.objects);
+      updateData.canvas_objects = request.canvasData.objects;
+      updateData.selected_background = request.canvasData.background;
+      updateData.canvas_size = request.canvasData.canvasSize;
+      // 移除原始的canvasData，因为数据库不需要这个嵌套结构
+      delete updateData.canvasData;
     }
     
     const { error } = await supabase
@@ -286,11 +290,10 @@ export async function getAllCategories(): Promise<PresetCategory[]> {
  */
 export async function recordPresetWorldUsage(presetWorldId: string, userId?: string, sessionId?: string): Promise<void> {
   try {
-    // 增加使用次数
-    await supabase
-      .from(TABLES.PRESET_WORLDS)
-      .update({ usage_count: supabase.raw('usage_count + 1') })
-      .eq('id', presetWorldId);
+    // 使用RPC调用来原子性地增加使用次数
+    await supabase.rpc('increment_usage_count', { 
+      preset_world_id: presetWorldId 
+    });
     
     // 记录使用统计
     await supabase
@@ -326,9 +329,10 @@ export async function getPresetWorldUsageStats(presetWorldId: string): Promise<P
       id: item.id,
       presetWorldId: item.preset_world_id,
       userId: item.user_id,
+      userWorldId: item.user_world_id || '', // 添加缺失的字段
       usedAt: item.used_at,
-      sessionId: item.session_id,
-      userAgent: item.user_agent,
+      // sessionId: item.session_id, // 数据库中可能没有这些字段，先注释掉
+      // userAgent: item.user_agent,
     })) || [];
   } catch (error) {
     console.error('获取使用统计失败:', error);
@@ -336,33 +340,37 @@ export async function getPresetWorldUsageStats(presetWorldId: string): Promise<P
   }
 }
 
-// 数据转换函数
+/**
+ * 将数据库预设世界数据转换为前端使用的格式
+ */
 function transformDatabaseToPresetWorld(data: DatabasePresetWorld): PresetWorld {
   return {
     id: data.id,
     name: data.name,
-    description: data.description,
-    coverUrl: data.cover_url,
-    // thumbnailUrl: data.thumbnail_url, // 缩略图功能已删除
-    previewImage: data.preview_image,
-    canvasObjects: data.canvas_objects,
-    selectedBackground: data.selected_background,
-    canvasSize: data.canvas_size,
-    category: data.category,
+    description: data.description || '',
+    category: data.category as PresetCategoryType, // 类型断言
+    tags: data.tags || [],
     difficulty: data.difficulty,
     wordCount: data.word_count,
     stickerCount: data.sticker_count,
+    coverUrl: data.cover_url || '',
+    // thumbnailUrl: data.thumbnail, // 缩略图功能已删除
+    previewImages: data.preview_image ? [data.preview_image] : [],
+    canvasData: {
+      objects: data.canvas_objects || [],
+      background: null, // 需要根据 selected_background 查询
+      canvasSize: data.canvas_size,
+    },
+    author: data.author_id || 'system',
+    version: '1.0.0', // 数据库中没有版本字段，使用默认值
+    isPublic: data.is_public,
+    isOfficial: data.is_featured || false, // 使用 is_featured 作为 isOfficial
+    usageCount: data.usage_count,
     likes: data.likes,
     favorites: data.favorites,
-    usageCount: data.usage_count,
-    isPublic: data.is_public,
-    isFeatured: data.is_featured,
-    tags: data.tags,
-    authorId: data.author_id,
-    authorName: data.author_name,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
-    lastModified: data.last_modified,
+    publishedAt: data.created_at, // 使用创建时间作为发布时间
   };
 }
 

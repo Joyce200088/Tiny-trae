@@ -27,32 +27,15 @@ import {
   AlignRight,
   Bold,
   Italic,
-  Underline
+  Underline,
+  Volume2,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { CanvasObject } from '@/lib/types';
 
-// 贴纸数据接口
-interface Sticker {
-  word: string;
-  cn: string;
-  pos: "noun" | "verb" | "adj" | "adv";
-  image: string;
-  audio: {
-    uk: string;
-    us: string;
-  };
-  examples: {
-    en: string;
-    cn: string;
-  }[];
-  mnemonic: string[];
-  masteryStatus: "new" | "fuzzy" | "mastered";
-  tags: string[];
-  relatedWords: {
-    word: string;
-    pos: "noun" | "verb" | "adj" | "adv";
-  }[];
-}
+// 贴纸数据接口 - 使用项目标准的 StickerData 接口
+import { StickerData } from '@/types/sticker';
 
 interface PropertiesPanelProps {
   selectedObjects: CanvasObject[];
@@ -504,25 +487,27 @@ export default function PropertiesPanel({
             {renderSectionHeader('贴纸信息', 'sticker')}
             {expandedSections.sticker && (
               <div className="space-y-2">
-                {selectedObjects.filter(obj => obj.type === 'sticker' && obj.stickerData).map(obj => (
+                {selectedObjects.filter(obj => obj.type === 'sticker' && obj.stickerData).map(obj => {
+                  const stickerData = obj.stickerData as StickerData;
+                  return (
                   <div key={obj.id} className="px-4 py-2 border-b">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{obj.stickerData?.word}</h4>
-                      <span className="text-xs text-gray-500">{obj.stickerData?.pos}</span>
+                      <h4 className="font-medium">{stickerData?.word}</h4>
+                      <span className="text-xs text-gray-500">{stickerData?.pos}</span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{obj.stickerData?.cn}</p>
+                    <p className="text-sm text-gray-600 mb-2">{stickerData?.cn}</p>
                     
                     {/* 音频播放 */}
                     <div className="flex space-x-2 mb-2">
                       <button
-                        onClick={() => playAudio(obj.stickerData?.audio.uk || '')}
+                        onClick={() => playAudio(stickerData?.audio?.uk || '')}
                         className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
                         <Volume2 className="w-3 h-3" />
                         <span>英音</span>
                       </button>
                       <button
-                        onClick={() => playAudio(obj.stickerData?.audio.us || '')}
+                        onClick={() => playAudio(stickerData?.audio?.us || '')}
                         className="flex items-center space-x-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
                       >
                         <Volume2 className="w-3 h-3" />
@@ -531,10 +516,10 @@ export default function PropertiesPanel({
                     </div>
 
                     {/* 例句 */}
-                    {obj.stickerData?.examples && obj.stickerData.examples.length > 0 && (
+                    {stickerData?.examples && stickerData.examples.length > 0 && (
                       <div className="text-xs">
                         <p className="font-medium mb-1">例句：</p>
-                        {obj.stickerData.examples.map((example, index) => (
+                        {stickerData.examples.map((example, index) => (
                           <div key={index} className="mb-1">
                             <p className="text-gray-800">{example.en}</p>
                             <p className="text-gray-600">{example.cn}</p>
@@ -543,7 +528,8 @@ export default function PropertiesPanel({
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -559,11 +545,11 @@ export default function PropertiesPanel({
                 {renderInputField(
                   '显示模式',
                   selectedObjects.find(obj => obj.type === 'background')?.backgroundMode || 'cover',
-                  (value) => {
+                  (value: string) => {
                     const backgroundObj = selectedObjects.find(obj => obj.type === 'background');
                     if (backgroundObj && onUpdateBackgroundMode) {
                       // 调用专门的背景模式更新函数
-                      onUpdateBackgroundMode(backgroundObj.id, value);
+                      onUpdateBackgroundMode(backgroundObj.id, value as 'cover' | 'contain' | 'tile');
                     } else {
                       // 回退到普通属性更新
                       updateProperty('backgroundMode', value);

@@ -63,7 +63,6 @@ const mockStickers: StickerData[] = [
     phonetic: '/ˈdaɪvɪŋ mæsk/',
     category: 'Diving Equipment',
     partOfSpeech: 'noun',
-    // thumbnailUrl: '/Diving Mask.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.'
@@ -103,7 +102,6 @@ const mockStickers: StickerData[] = [
     phonetic: '/ˈkælɪndər/',
     category: 'Daily Items',
     partOfSpeech: 'noun',
-    // thumbnailUrl: '/Calendar.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.'
@@ -143,7 +141,6 @@ const mockStickers: StickerData[] = [
     phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
     category: 'Furniture',
     partOfSpeech: 'noun',
-    // thumbnailUrl: '/Industrial Shelving.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.'
@@ -183,7 +180,6 @@ const mockStickers: StickerData[] = [
     phonetic: '/səˈræmɪk mʌɡ/',
     category: 'Kitchenware',
     partOfSpeech: 'noun',
-    // thumbnailUrl: '/Ceramic Mug.png', // 已删除缩略图功能
     createdAt: '2024-01-15',
     sorted: true,
     notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.'
@@ -231,7 +227,7 @@ const DraggableImage = ({
 }) => {
   const shapeRef = useRef<any>(null);
   const trRef = useRef<any>(null);
-  const [image] = useImage(imageObj.src);
+  const [image] = useImage(imageObj.src || '');
   const isLocked = imageObj.locked || false;
 
   useEffect(() => {
@@ -346,6 +342,12 @@ interface WorldData {
   createdAt: string;
   updatedAt: string;
   lastModified: string;
+  tags: string[]; // 修改为必需属性，与全局类型保持一致
+  stats?: { // 添加 stats 属性
+    totalStickers: number;
+    uniqueWords: number;
+    categories: string[];
+  };
 }
 
 // 重命名主组件为Content组件，准备用Suspense包装
@@ -353,6 +355,44 @@ function CreateWorldPageContent() {
   // 认证检查 - 防止未登录用户访问创建世界页面
   const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 集成自动同步功能
+  const { 
+    isOnline, 
+    isSyncing, 
+    syncError, 
+    lastSyncTime, 
+    markForSync 
+  } = useAutoSync({
+    syncInterval: 30000, // 30秒同步一次
+    enabled: true // 修复：使用enabled而不是enableAutoSync
+  });
+
+  // 集成缩略图管理功能
+  const {
+    generateThumbnail,
+    isGenerating: isThumbnailGenerating,
+    generationError: thumbnailError
+  } = useThumbnailManager({
+    autoRetry: true,
+    maxRetries: 3
+  });
+
+  // 基础状态
+  const [documentName, setDocumentName] = useState('未命名世界');
+  const [currentWorldId, setCurrentWorldId] = useState<string | null>(null); // 新增：当前编辑世界的ID
+  const [activeTab, setActiveTab] = useState<'stickers' | 'background' | 'ai'>('stickers');
+  const [selectedBackground, setSelectedBackground] = useState<any>(null);
+  // Inspector标签页状态
+  const [inspectorActiveTab, setInspectorActiveTab] = useState<'properties' | 'stickers' | 'backgrounds' | 'ai-generate'>('properties');
+  // 记录上一个功能页面，用于从Properties返回
+  const [previousFunctionTab, setPreviousFunctionTab] = useState<'stickers' | 'backgrounds' | 'ai-generate' | null>(null);
+  const [canvasObjects, setCanvasObjects] = useState<any[]>([]);
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [isTransforming, setIsTransforming] = useState(false);
+  const [userStickers, setUserStickers] = useState<StickerData[]>(mockStickers);
+  const [isClient, setIsClient] = useState(false);
 
   // 如果未登录，重定向到首页
   useEffect(() => {
@@ -374,43 +414,6 @@ function CreateWorldPageContent() {
       </div>
     );
   }
-
-  // 集成自动同步功能
-  const { 
-    isOnline, 
-    isSyncing, 
-    syncError, 
-    lastSyncTime, 
-    markForSync 
-  } = useAutoSync({
-    syncInterval: 30000, // 30秒同步一次
-    enabled: true // 修复：使用enabled而不是enableAutoSync
-  });
-
-  // 集成缩略图管理功能
-  const {
-    generateThumbnail,
-    isGenerating: isThumbnailGenerating,
-    error: thumbnailError
-  } = useThumbnailManager({
-    autoRetry: true,
-    maxRetries: 3
-  });
-
-  // 基础状态
-  const [documentName, setDocumentName] = useState('未命名世界');
-  const [currentWorldId, setCurrentWorldId] = useState<string | null>(null); // 新增：当前编辑世界的ID
-  const [activeTab, setActiveTab] = useState<'stickers' | 'background' | 'ai'>('stickers');
-  const [selectedBackground, setSelectedBackground] = useState<any>(null);
-  // Inspector标签页状态
-  const [inspectorActiveTab, setInspectorActiveTab] = useState<'properties' | 'stickers' | 'backgrounds' | 'ai-generate'>('properties');
-  // 记录上一个功能页面，用于从Properties返回
-  const [previousFunctionTab, setPreviousFunctionTab] = useState<'stickers' | 'backgrounds' | 'ai-generate' | null>(null);
-  const [canvasObjects, setCanvasObjects] = useState<any[]>([]);
-  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
-  const [isTransforming, setIsTransforming] = useState(false);
-  const [userStickers, setUserStickers] = useState<StickerData[]>(mockStickers);
-  const [isClient, setIsClient] = useState(false);
   
   // 路由 (已在函数开始处定义)
   
@@ -585,7 +588,7 @@ function CreateWorldPageContent() {
       } else {
         console.error('未找到预设模板:', templateId);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('加载预设模板失败:', error);
     } finally {
       setIsLoadingFromPreset(false);
@@ -608,9 +611,6 @@ function CreateWorldPageContent() {
     console.log('已选择预设世界:', presetWorld);
   };
 
-  
-  const searchParams = useSearchParams();
-  
   useEffect(() => {
     setIsClient(true);
     
@@ -680,10 +680,11 @@ function CreateWorldPageContent() {
                 });
                 
                 if (canvas instanceof HTMLCanvasElement) {
+                  // generateThumbnail返回Promise<string | null>，需要处理null情况
                   thumbnailUrl = await generateThumbnail(
                     currentWorldId || Date.now().toString(),
                     canvas
-                  );
+                  ) || '';
                 } else {
                   console.warn('Stage.toCanvas()没有返回HTMLCanvasElement');
                 }
@@ -748,8 +749,8 @@ function CreateWorldPageContent() {
   
   // 当选中对象时，优先显示Properties面板
   // 同时处理AI生成面板的模式映射
-  const effectiveActiveTab = selectedObjects.length > 0 ? 'properties' : 
-    inspectorActiveTab === 'ai-generate' ? 'ai' : inspectorActiveTab;
+  const effectiveActiveTab: 'properties' | 'stickers' | 'backgrounds' | 'ai' = selectedObjects.length > 0 ? 'properties' : 
+    inspectorActiveTab === 'ai-generate' ? 'ai' : inspectorActiveTab as 'properties' | 'stickers' | 'backgrounds' | 'ai';
 
   // 生成缩略图函数
   // 缩略图功能已删除
@@ -791,23 +792,32 @@ function CreateWorldPageContent() {
             
             if (canvas instanceof HTMLCanvasElement) {
               // 准备世界数据用于缩略图生成
+              const stickerObjects = canvasObjects.filter((obj: CanvasObject) => obj.stickerData);
+              const stickerCount = stickerObjects.length;
+              const uniqueWords = new Set(stickerObjects.map((obj: CanvasObject) => obj.stickerData?.word)).size;
+              
               const worldDataForThumbnail: WorldData = {
                 id: currentWorldId || Date.now().toString(),
                 name: documentName,
                 description: '',
                 thumbnail: '', // 将由generateThumbnail填充
+                wordCount: uniqueWords,
+                stickerCount: stickerCount,
+                likes: 0,
+                favorites: 0,
                 canvasData: {
                   objects: canvasObjects,
                   background: selectedBackground
                 },
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
+                lastModified: new Date().toISOString(),
                 isPublic: false,
                 tags: [],
                 stats: {
-                  totalStickers: canvasObjects.filter((obj: CanvasObject) => obj.stickerData).length,
-                  uniqueWords: new Set(canvasObjects.filter((obj: CanvasObject) => obj.stickerData).map((obj: CanvasObject) => obj.stickerData?.word)).size,
-                  categories: Array.from(new Set(canvasObjects.filter((obj: CanvasObject) => obj.stickerData).map((obj: CanvasObject) => obj.stickerData?.tags?.[0] || 'Uncategorized')))
+                  totalStickers: stickerCount,
+                  uniqueWords: uniqueWords,
+                  categories: Array.from(new Set(stickerObjects.map((obj: CanvasObject) => obj.stickerData?.tags?.[0] || 'Uncategorized')))
                 }
               };
               
@@ -815,7 +825,7 @@ function CreateWorldPageContent() {
                 currentWorldId || Date.now().toString(),
                 canvas,
                 worldDataForThumbnail
-              );
+              ) || '';
               console.log('✅ 缩略图生成成功:', thumbnailDataUrl ? '有数据' : '无数据');
             } else {
               console.warn('Stage.toCanvas()没有返回HTMLCanvasElement');
@@ -833,7 +843,7 @@ function CreateWorldPageContent() {
       const stickerCount = stickerObjects.length;
       const uniqueWords = new Set(
         stickerObjects
-          .map((obj: CanvasObject) => obj.stickerData?.name || obj.stickerData?.word || obj.name)
+          .map((obj: CanvasObject) => obj.stickerData?.word || obj.name)
           .filter(Boolean)
           .map((word: string) => word.toLowerCase().trim())
       ).size;
@@ -881,18 +891,16 @@ function CreateWorldPageContent() {
         } else {
           // 添加新世界
           console.log('➕ 添加新世界');
-          const result = await WorldDataUtils.addWorld(worldData);
-          console.log('✅ 世界添加成功:', result);
+          await WorldDataUtils.addWorld(worldData);
+          console.log('✅ 世界添加成功:', worldData.id);
           
-          // 如果返回了新的ID，更新当前世界ID
-          if (result && result.id) {
-            setCurrentWorldId(result.id);
-            console.log('🆔 设置新的世界ID:', result.id);
-          }
+          // 设置当前世界ID为新创建的世界ID
+          setCurrentWorldId(worldData.id);
+          console.log('🆔 设置新的世界ID:', worldData.id);
         }
       } catch (error) {
         console.error('❌ 保存世界数据失败:', error);
-        console.error('错误详情:', error.message, error.stack);
+        console.error('错误详情:', (error as Error).message, (error as Error).stack);
         if (isAutoSave) {
           setAutoSaveStatus('error');
         } else {
@@ -944,9 +952,9 @@ function CreateWorldPageContent() {
         console.warn('触发存储事件失败:', eventError);
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ 保存过程中发生错误:', error);
-      console.error('错误详情:', error.message, error.stack);
+      console.error('错误详情:', error instanceof Error ? error.message : String(error), error instanceof Error ? error.stack : undefined);
       if (isAutoSave) {
         setAutoSaveStatus('error');
         isAutoSavingRef.current = false;
@@ -996,7 +1004,7 @@ function CreateWorldPageContent() {
   }, [hasUnsavedChanges, canvasObjects, selectedBackground, documentName]);
 
   // 处理对象变化 - 增强实时保存触发
-  const handleObjectChange = (id: string, newAttrs: CanvasObject) => {
+  const handleObjectChange = (id: string, newAttrs: Partial<CanvasObject>) => {
     console.log('🎯 对象属性变化:', { id, changes: Object.keys(newAttrs) });
     setCanvasObjects(prev => 
       prev.map(obj => obj.id === id ? { ...obj, ...newAttrs } : obj)
@@ -1021,7 +1029,7 @@ function CreateWorldPageContent() {
     if (!stickerData) return;
     
     // 获取英文单词
-    const englishWord = stickerData.name;
+    const englishWord = stickerData.word;
     if (!englishWord) return;
     
     // 使用Web Speech API播放英文音频
@@ -1041,7 +1049,7 @@ function CreateWorldPageContent() {
 
   // 添加贴纸到画布 - 增强实时保存触发
   const handleAddSticker = (sticker: StickerData) => {
-    console.log('🎨 添加贴纸到画布:', sticker.word || sticker.name);
+    console.log('🎨 添加贴纸到画布:', sticker.word);
     const newObject = {
       id: `sticker-${Date.now()}`,
       type: 'sticker',
@@ -1214,13 +1222,47 @@ function CreateWorldPageContent() {
     }
   };
 
+  // 将图片URL转换为Canvas元素的辅助函数
+  const imageUrlToCanvas = async (imageUrl: string): Promise<HTMLCanvasElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // 处理跨域问题
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('无法获取Canvas上下文'));
+          return;
+        }
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        resolve(canvas);
+      };
+      
+      img.onerror = () => {
+        reject(new Error('图片加载失败'));
+      };
+      
+      img.src = imageUrl;
+    });
+  };
+
   // 保存到贴纸库
   const handleSaveToLibrary = async () => {
     if (!transparentImage && !generatedImage) return;
     
     try {
+      // 将图片URL转换为Canvas
+      const imageUrl = transparentImage || generatedImage!;
+      const canvas = await imageUrlToCanvas(imageUrl);
+      
       // 使用AI识别生成贴纸内容
-      const content = await identifyImageAndGenerateContent(transparentImage || generatedImage!);
+      const content = await identifyImageAndGenerateContent(canvas);
       
       // 创建贴纸数据
       // EnglishLearningContent 只包含: english, chinese, example, exampleChinese, pronunciation?
@@ -1261,8 +1303,7 @@ function CreateWorldPageContent() {
         partOfSpeech: 'noun', // 默认词性
         createdAt: new Date().toISOString().split('T')[0],
         sorted: false,
-        notes: content.example || '', // 使用 AI 生成的例句作为备注
-        mnemonic: `${content.english}的记忆方法` // 单个字符串格式的记忆方法
+        notes: content.example || '' // 使用 AI 生成的例句作为备注
       };
       
       // 使用StickerDataUtils保存到localStorage（支持图片持久化）
@@ -1683,11 +1724,11 @@ function CreateWorldPageContent() {
                 const backgroundObj = canvasObjects.find(obj => obj.id === id && obj.type === 'background');
                 if (backgroundObj) {
                   // 更新背景对象的模式
-                  handleObjectChange(id, { mode });
+                  handleObjectChange(id, { backgroundMode: mode });
                 }
               }}
               // 状态机模式管理
-              mode={effectiveActiveTab as 'properties' | 'stickers' | 'backgrounds' | 'ai'}
+              mode={effectiveActiveTab}
               onModeChange={(mode) => {
                 if (mode === 'properties') {
                   // 如果切换到properties但没有选中对象，则隐藏面板
@@ -1696,10 +1737,16 @@ function CreateWorldPageContent() {
                   }
                 } else {
                   // 记录当前功能页面状态
-                  if (mode !== 'properties' && inspectorActiveTab !== mode) {
-                    setPreviousFunctionTab(inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab as 'stickers' | 'backgrounds' | 'ai-generate');
+                  const targetTab = mode === 'ai' ? 'ai-generate' : mode;
+                  if (inspectorActiveTab !== targetTab) {
+                    const currentTab = inspectorActiveTab === 'properties' ? previousFunctionTab : inspectorActiveTab;
+                    if (currentTab === 'stickers' || currentTab === 'backgrounds' || currentTab === 'ai-generate') {
+                      setPreviousFunctionTab(currentTab);
+                    }
                   }
-                  setInspectorActiveTab(mode === 'ai' ? 'ai-generate' : mode);
+                  if (targetTab === 'stickers' || targetTab === 'backgrounds' || targetTab === 'ai-generate') {
+                    setInspectorActiveTab(targetTab);
+                  }
                 }
               }}
               // 贴纸相关
@@ -1719,8 +1766,8 @@ function CreateWorldPageContent() {
               generationError={aiError}
               onAiWordChange={setAiWord}
               onAiDescriptionChange={setAiDescription}
-              onAiStyleChange={setAiStyle}
-              onAiViewpointChange={setAiViewpoint}
+              onAiStyleChange={(style) => setAiStyle(style as 'cartoon' | 'realistic' | 'pixel' | 'watercolor' | 'sketch')}
+              onAiViewpointChange={(viewpoint) => setAiViewpoint(viewpoint as 'front' | 'top' | 'isometric' | 'side')}
               onGenerateAI={handleGenerateAI}
               onRemoveBackground={handleRemoveBackground}
               onSaveToLibrary={handleSaveToLibrary}
@@ -1754,8 +1801,7 @@ function CreateWorldPageContent() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg max-w-4xl max-h-[80vh] overflow-hidden">
               <PresetWorldSelector
-                onSelect={handlePresetWorldSelect}
-                onClose={() => setShowPresetSelector(false)}
+                onSelectPreset={handlePresetWorldSelect}
               />
             </div>
           </div>

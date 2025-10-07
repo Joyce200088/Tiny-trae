@@ -135,7 +135,7 @@ export function useAutoSync(config: Partial<SyncConfig> = {}) {
         }
         throw error; // 其他错误继续抛出
       }
-    } catch (error) {
+    } catch (error: any) {
       // 提供更详细的错误信息
       console.error('同步贴纸数据失败:', {
         message: error?.message || '未知错误',

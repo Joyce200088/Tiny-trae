@@ -341,22 +341,7 @@ export class StickerDataUtils {
         }
       }
 
-      // 处理缩略图URL - 上传到Supabase Storage
-      if (sticker.thumbnailUrl && ImageUtils.isBlobUrl(sticker.thumbnailUrl)) {
-        const uploadResult = await StorageUtils.uploadStickerImage(
-          sticker.id || `sticker_${Date.now()}`,
-          await this.blobUrlToBlob(sticker.thumbnailUrl),
-          'thumbnail'
-        );
-        
-        if (uploadResult.success && uploadResult.publicUrl) {
-          processedSticker.thumbnailUrl = uploadResult.publicUrl;
-        } else {
-          console.warn('缩略图上传失败，回退到Base64存储:', uploadResult.error);
-          // 回退到Base64存储
-          processedSticker.thumbnailUrl = await ImageUtils.blobUrlToBase64(sticker.thumbnailUrl);
-        }
-      }
+      // 缩略图功能已删除，不再处理thumbnailUrl
     } catch (error) {
       console.error('处理贴纸图片失败:', error);
       // 如果Storage上传失败，尝试Base64存储作为回退方案
@@ -364,9 +349,7 @@ export class StickerDataUtils {
         if (sticker.imageUrl && ImageUtils.isBlobUrl(sticker.imageUrl)) {
           processedSticker.imageUrl = await ImageUtils.blobUrlToBase64(sticker.imageUrl);
         }
-        if (sticker.thumbnailUrl && ImageUtils.isBlobUrl(sticker.thumbnailUrl)) {
-          processedSticker.thumbnailUrl = await ImageUtils.blobUrlToBase64(sticker.thumbnailUrl);
-        }
+        // 缩略图功能已删除，不再处理thumbnailUrl
       } catch (fallbackError) {
         console.error('Base64回退存储也失败:', fallbackError);
         // 保持原URL（可能会在刷新后丢失，但不会阻止保存）
@@ -396,10 +379,7 @@ export class StickerDataUtils {
         displaySticker.imageUrl = ImageUtils.base64ToBlobUrl(sticker.imageUrl);
       }
 
-      // 转换缩略图URL
-      if (sticker.thumbnailUrl && ImageUtils.isBase64(sticker.thumbnailUrl)) {
-        displaySticker.thumbnailUrl = ImageUtils.base64ToBlobUrl(sticker.thumbnailUrl);
-      }
+      // 缩略图功能已删除，不再处理thumbnailUrl
     } catch (error) {
       console.error('转换贴纸图片显示失败:', error);
       // 如果转换失败，保持原URL

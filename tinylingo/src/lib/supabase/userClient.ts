@@ -286,7 +286,7 @@ export class UserDataManager {
         is_public: world.isPublic || false,
         canvas_objects: world.canvasObjects || [],
         canvas_data: world.canvasData || {},
-        selected_background: world.selectedBackground,
+        selected_background: world.selectedBackground ? JSON.stringify(world.selectedBackground) : undefined,
         tags: world.tags || [],
         last_modified: world.lastModified || world.updatedAt || new Date().toISOString(),
         is_deleted: false,
@@ -449,7 +449,7 @@ export class UserDataManager {
       console.log(`✅ 成功同步 ${stickers.length} 个贴纸到Supabase`);
       console.log('同步结果:', data);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       // 提供更详细的错误信息
       console.error('同步贴纸数据异常:', {
         message: error?.message || '未知错误',
@@ -496,6 +496,8 @@ export class UserDataManager {
         masteryStatus: dbSticker.mastery_status,
         tags: dbSticker.tags,
         relatedWords: dbSticker.related_words,
+        createdAt: dbSticker.created_at, // 添加缺少的字段
+        sorted: false, // 添加缺少的字段，默认为 false
       }));
 
       console.log(`从Supabase加载了 ${stickers.length} 个贴纸`);

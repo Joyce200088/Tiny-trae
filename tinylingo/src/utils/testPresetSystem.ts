@@ -10,7 +10,8 @@ import {
   updatePresetWorld, 
   deletePresetWorld,
   getAllCategories,
-  recordPresetWorldUsage 
+  recordPresetWorldUsage,
+  getPresetWorldById
 } from './presetWorldManager';
 import { PresetWorld } from '@/types/preset';
 
@@ -18,41 +19,60 @@ import { PresetWorld } from '@/types/preset';
 const testPresetWorld: Omit<PresetWorld, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'> = {
   name: '测试预设世界',
   description: '这是一个用于测试的预设世界',
-  category: 'test',
-  thumbnail: 'https://example.com/test-thumbnail.jpg',
-  canvasObjects: [
-    {
-      id: 'test-sticker-1',
-      type: 'sticker',
-      x: 100,
-      y: 100,
-      width: 80,
-      height: 80,
-      data: {
-        word: 'test',
-        cn: '测试',
-        pos: 'noun' as const,
-        image: 'https://example.com/test-sticker.png',
-        audio: {
-          uk: 'https://example.com/test-uk.mp3',
-          us: 'https://example.com/test-us.mp3'
-        },
-        examples: [
-          { en: 'This is a test.', cn: '这是一个测试。' }
-        ],
-        mnemonic: ['test记忆法'],
-        masteryStatus: 'new' as const,
-        tags: ['test'],
-        relatedWords: [
-          { word: 'examine', pos: 'verb' as const },
-          { word: 'check', pos: 'verb' as const },
-          { word: 'verify', pos: 'verb' as const }
-        ]
+  category: 'other',
+  difficulty: 'beginner',
+  wordCount: 1,
+  stickerCount: 1,
+  coverUrl: 'https://example.com/test-cover.jpg',
+  previewImages: ['https://example.com/test-preview.jpg'],
+  canvasData: {
+    objects: [
+      {
+        id: 'test-sticker-1',
+        type: 'sticker',
+        x: 100,
+        y: 100,
+        width: 80,
+        height: 80,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        opacity: 1,
+        visible: true,
+        locked: false,
+        zIndex: 1,
+        stickerData: {
+          word: 'test',
+          cn: '测试',
+          pos: 'noun' as const,
+          image: 'https://example.com/test-sticker.png',
+          audio: {
+            uk: 'https://example.com/test-uk.mp3',
+            us: 'https://example.com/test-us.mp3'
+          },
+          examples: [
+            { en: 'This is a test.', cn: '这是一个测试。' }
+          ],
+          mnemonic: ['test记忆法'],
+          masteryStatus: 'new' as const,
+          tags: ['test'],
+          relatedWords: [
+            { word: 'examine', pos: 'verb' as const },
+            { word: 'check', pos: 'verb' as const },
+            { word: 'verify', pos: 'verb' as const }
+          ]
+        }
       }
-    }
-  ],
-  createdBy: 'test-admin',
+    ],
+    background: null
+  },
+  author: 'test-admin',
+  version: '1.0.0',
   isPublic: true,
+  isOfficial: false,
+  likes: 0,
+  favorites: 0,
+  publishedAt: new Date().toISOString(),
   tags: ['测试', '示例']
 };
 
@@ -92,9 +112,17 @@ export async function testGetAllPresetWorlds(): Promise<PresetWorld[]> {
 export async function testCreatePresetWorld(): Promise<PresetWorld | null> {
   try {
     console.log('🔍 测试创建预设世界...');
-    const newPresetWorld = await createPresetWorld(testPresetWorld);
-    console.log(`✅ 成功创建预设世界: ${newPresetWorld.name} (ID: ${newPresetWorld.id})`);
-    return newPresetWorld;
+    const newPresetWorldId = await createPresetWorld(testPresetWorld);
+    if (newPresetWorldId) {
+      // 获取创建的预设世界详情
+      const newPresetWorld = await getPresetWorldById(newPresetWorldId);
+      if (newPresetWorld) {
+        console.log(`✅ 成功创建预设世界: ${newPresetWorld.name} (ID: ${newPresetWorld.id})`);
+        return newPresetWorld;
+      }
+    }
+    console.error('❌ 创建预设世界失败: 无法获取创建的世界详情');
+    return null;
   } catch (error) {
     console.error('❌ 创建预设世界失败:', error);
     return null;
@@ -104,20 +132,25 @@ export async function testCreatePresetWorld(): Promise<PresetWorld | null> {
 /**
  * 测试更新预设世界
  */
-export async function testUpdatePresetWorld(presetWorldId: string): Promise<PresetWorld | null> {
+export async function testUpdatePresetWorld(presetWorldId: string): Promise<boolean> {
   try {
     console.log(`🔍 测试更新预设世界 ${presetWorldId}...`);
     const updatedData = {
-      ...testPresetWorld,
+      id: presetWorldId,
       name: '更新后的测试预设世界',
       description: '这是一个已更新的测试预设世界'
     };
-    const updatedPresetWorld = await updatePresetWorld(presetWorldId, updatedData);
-    console.log(`✅ 成功更新预设世界: ${updatedPresetWorld.name}`);
-    return updatedPresetWorld;
+    const success = await updatePresetWorld(presetWorldId, updatedData);
+    if (success) {
+      console.log(`✅ 成功更新预设世界`);
+      return true;
+    } else {
+      console.log(`❌ 更新预设世界失败`);
+      return false;
+    }
   } catch (error) {
     console.error('❌ 更新预设世界失败:', error);
-    return null;
+    return false;
   }
 }
 
@@ -143,7 +176,7 @@ export async function testGetAllCategories(): Promise<void> {
   try {
     console.log('🔍 测试获取所有分类...');
     const categories = await getAllCategories();
-    console.log(`✅ 成功获取 ${categories.length} 个分类:`, categories.map(c => c.name));
+    console.log(`✅ 成功获取 ${categories.length} 个分类:`, categories.map(c => c.id));
   } catch (error) {
     console.error('❌ 获取分类失败:', error);
   }

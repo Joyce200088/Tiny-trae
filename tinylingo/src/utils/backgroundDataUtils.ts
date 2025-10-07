@@ -390,12 +390,12 @@ export class BackgroundDataUtils {
 
     try {
       // 转换主图片
-      if (background.imageUrl && ImageUtils.isBase64Url(background.imageUrl)) {
+      if (background.imageUrl && ImageUtils.isBase64(background.imageUrl)) {
         displayBackground.imageUrl = await ImageUtils.base64ToBlobUrl(background.imageUrl);
       }
 
       // 转换缩略图
-      if (background.thumbnailUrl && ImageUtils.isBase64Url(background.thumbnailUrl)) {
+      if (background.thumbnailUrl && ImageUtils.isBase64(background.thumbnailUrl)) {
         displayBackground.thumbnailUrl = await ImageUtils.base64ToBlobUrl(background.thumbnailUrl);
       }
 

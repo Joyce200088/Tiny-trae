@@ -10,7 +10,7 @@ export interface PresetWorld {
   id: string;                    // 预设世界唯一标识
   name: string;                  // 世界名称
   description: string;           // 世界描述
-  category: PresetCategory;      // 分类
+  category: PresetCategoryType;      // 分类
   tags: string[];               // 标签
   difficulty: 'beginner' | 'intermediate' | 'advanced'; // 难度等级
   
@@ -50,8 +50,8 @@ export interface PresetWorld {
   publishedAt?: string;         // 发布时间
 }
 
-// 预设世界分类
-export type PresetCategory = 
+// 预设世界分类字符串类型
+export type PresetCategoryType = 
   | 'kitchen'      // 厨房用品
   | 'food'         // 食物
   | 'animals'      // 动物
@@ -73,6 +73,17 @@ export type PresetCategory =
   | 'jobs'         // 职业
   | 'hobbies'      // 爱好
   | 'other';       // 其他
+
+// 预设世界分类接口
+export interface PresetCategory {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  icon?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
 
 // 背景信息接口
 export interface Background {
@@ -121,12 +132,13 @@ export interface PresetWorldUsage {
 
 // 预设世界搜索过滤器
 export interface PresetWorldFilter {
-  categories?: PresetCategory[];
+  categories?: PresetCategoryType[];
   tags?: string[];
   difficulty?: ('beginner' | 'intermediate' | 'advanced')[];
   minWordCount?: number;
   maxWordCount?: number;
   isOfficial?: boolean;
+  search?: string;              // 搜索关键词
   sortBy?: 'newest' | 'popular' | 'mostUsed' | 'alphabetical';
   sortOrder?: 'asc' | 'desc';
 }
@@ -135,7 +147,7 @@ export interface PresetWorldFilter {
 export interface CreatePresetWorldRequest {
   name: string;
   description: string;
-  category: PresetCategory;
+  category: PresetCategoryType;
   tags: string[];
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   canvasData: {

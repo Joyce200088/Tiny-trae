@@ -28,13 +28,13 @@ interface TopBarProps {
   
   // 自动保存状态
   autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
-  lastSavedTime?: Date; // 最后保存时间
+  lastSavedTime?: Date | null; // 最后保存时间
   
   // 同步状态
   isOnline?: boolean;
   isSyncing?: boolean;
-  syncError?: string;
-  lastSyncTime?: Date;
+  syncError?: string | null;
+  lastSyncTime?: Date | null;
   
   // 导出功能
   onExport: (format: 'png' | 'svg' | 'webp' | 'json', options: ExportOptions) => void;

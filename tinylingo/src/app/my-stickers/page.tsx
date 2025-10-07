@@ -48,22 +48,14 @@ const mockStickers: StickerData[] = [
         { word: 'underwater', pos: 'adj' },
         { word: 'snorkel', pos: 'noun' },
         { word: 'goggles', pos: 'noun' },
+        { word: 'ocean', pos: 'noun' },
         { word: 'equipment', pos: 'noun' },
         { word: 'waterproof', pos: 'adj' },
-        { word: 'clear', pos: 'adj' },
-        { word: 'visibility', pos: 'noun' }
+        { word: 'clear', pos: 'adj' }
       ],
-      // 兼容性字段
-      name: 'Diving Mask',
-      chinese: '潜水镜',
-      phonetic: '/ˈdaɪvɪŋ mæsk/',
-      category: 'Diving Equipment',
-      partOfSpeech: 'noun',
-      thumbnailUrl: '/Diving Mask.png',
-      createdAt: '2024-01-15',
-      sorted: true,
-      notes: 'A tight-fitting face mask with a transparent viewport that allows divers to see clearly underwater while keeping their eyes and nose dry.'
-    },
+      createdAt: '2024-01-01T00:00:00Z',
+      sorted: true
+  },
     {
       id: '2',
       word: 'Calendar',                 // 核心英文单词
@@ -99,16 +91,8 @@ const mockStickers: StickerData[] = [
         { word: 'weekly', pos: 'adj' },
         { word: 'appointment', pos: 'noun' }
       ],
-      // 兼容性字段
-      name: 'Calendar',
-      chinese: '日历',
-      phonetic: '/ˈkælɪndər/',
-      category: 'Daily Items',
-      partOfSpeech: 'noun',
-      thumbnailUrl: '/Calendar.png',
-      createdAt: '2024-01-15',
-      sorted: true,
-      notes: 'A system for organizing and measuring time, typically divided into days, weeks, months, and years, often displayed in a tabular or digital format.'
+      createdAt: '2024-01-02T00:00:00Z',
+      sorted: false
     },
     {
       id: '3', 
@@ -145,16 +129,8 @@ const mockStickers: StickerData[] = [
         { word: 'durable', pos: 'adj' },
         { word: 'capacity', pos: 'noun' }
       ],
-      // 兼容性字段
-      name: 'Industrial Shelving',
-      chinese: '工业货架',
-      phonetic: '/ɪnˈdʌstriəl ˈʃɛlvɪŋ/',
-      category: 'Furniture',
-      partOfSpeech: 'noun',
-      thumbnailUrl: '/Industrial Shelving.png',
-      createdAt: '2024-01-15',
-      sorted: true,
-      notes: 'Heavy-duty storage shelves made from durable materials like steel, designed for warehouses and industrial environments to store heavy items.'
+      createdAt: '2024-01-03T00:00:00Z',
+      sorted: true
     },
     {
       id: '4',
@@ -191,16 +167,8 @@ const mockStickers: StickerData[] = [
         { word: 'warm', pos: 'adj' },
         { word: 'beverage', pos: 'noun' }
       ],
-      // 兼容性字段
-      name: 'Ceramic Mug',
-      chinese: '陶瓷杯',
-      phonetic: '/səˈræmɪk mʌɡ/',
-      category: 'Kitchenware',
-      partOfSpeech: 'noun',
-      thumbnailUrl: '/Ceramic Mug.png',
-      createdAt: '2024-01-15',
-      sorted: true,
-      notes: 'A cup made from fired clay, typically with a handle, used for drinking hot beverages like coffee or tea. Often features decorative designs.'
+      createdAt: '2024-01-04T00:00:00Z',
+      sorted: false
     }
 ];
 
@@ -275,7 +243,7 @@ function MyStickers() {
   const filteredStickers = useMemo(() => {
     return allStickers.filter(sticker => {
       const matchesTab = activeTab === 'sorted' ? sticker.sorted : !sticker.sorted;
-      const matchesSearch = sticker.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      const matchesSearch = sticker.word.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
                            sticker.tags.some(tag => tag.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
       const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => sticker.tags.includes(tag));
       return matchesTab && matchesSearch && matchesTags;
@@ -496,17 +464,36 @@ function MyStickers() {
           
           const newSticker: StickerData = {
              id: `uploaded_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-             name: aiResult.english,
-             chinese: aiResult.chinese,
-             phonetic: aiResult.pronunciation || '', // 使用AI返回的pronunciation字段
-             example: aiResult.example,
-             exampleChinese: aiResult.exampleChinese,
-             audioUrl: '', // 暂时不生成音频
-             imageUrl: fileData.preview,
-             thumbnailUrl: fileData.preview,
-             category: null, // 直接放入unsorted
+             word: aiResult.english,
+             cn: aiResult.chinese,
+             pos: 'noun', // 默认词性
+             image: fileData.preview,
+             audio: {
+               uk: '', // 暂时不生成音频
+               us: ''
+             },
+             examples: [
+               {
+                 en: aiResult.example || 'Example sentence not available.',
+                 cn: aiResult.exampleChinese || '例句暂不可用。'
+               }
+             ],
+             mnemonic: ['AI generated content'],
+             masteryStatus: 'new',
              tags: ['uploaded', 'ai-recognized'],
-             createdAt: new Date().toISOString().split('T')[0],
+             relatedWords: [
+               { word: 'use', pos: 'verb' },
+               { word: 'hold', pos: 'verb' },
+               { word: 'apply', pos: 'verb' },
+               { word: 'object', pos: 'noun' },
+               { word: 'item', pos: 'noun' },
+               { word: 'thing', pos: 'noun' },
+               { word: 'tool', pos: 'noun' },
+               { word: 'useful', pos: 'adj' },
+               { word: 'common', pos: 'adj' },
+               { word: 'daily', pos: 'adj' }
+             ],
+             createdAt: new Date().toISOString(),
              sorted: false
            };
           
@@ -517,17 +504,36 @@ function MyStickers() {
           // 如果AI识别失败，使用默认内容
           const newSticker: StickerData = {
             id: `uploaded_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: 'Unknown Object',
-            chinese: '未知物品',
-            phonetic: '',
-            example: 'I can see an unknown object.',
-            exampleChinese: '我能看到一个未知的物品。',
-            audioUrl: '',
-            imageUrl: fileData.preview,
-            thumbnailUrl: fileData.preview,
-            category: null,
+            word: 'Unknown Object',
+            cn: '未知物品',
+            pos: 'noun',
+            image: fileData.preview,
+            audio: {
+              uk: '',
+              us: ''
+            },
+            examples: [
+              {
+                en: 'I can see an unknown object.',
+                cn: '我能看到一个未知的物品。'
+              }
+            ],
+            mnemonic: ['Unknown object - needs identification'],
+            masteryStatus: 'new',
             tags: ['uploaded', 'recognition-failed'],
-            createdAt: new Date().toISOString().split('T')[0],
+            relatedWords: [
+              { word: 'identify', pos: 'verb' },
+              { word: 'recognize', pos: 'verb' },
+              { word: 'examine', pos: 'verb' },
+              { word: 'object', pos: 'noun' },
+              { word: 'item', pos: 'noun' },
+              { word: 'thing', pos: 'noun' },
+              { word: 'unknown', pos: 'adj' },
+              { word: 'mysterious', pos: 'adj' },
+              { word: 'unclear', pos: 'adj' },
+              { word: 'unidentified', pos: 'adj' }
+            ],
+            createdAt: new Date().toISOString(),
             sorted: false
           };
           
@@ -664,16 +670,36 @@ function MyStickers() {
           // 创建新贴纸
           const newSticker: StickerData = {
             id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: learningContent.english || aiGenerationOptions.word,
-            chinese: learningContent.chinese,
-            phonetic: learningContent.pronunciation,
-            example: learningContent.example,
-            exampleChinese: learningContent.exampleChinese,
-            imageUrl: imageToSave,
-            thumbnailUrl: imageToSave,
-            category: null,
+            word: learningContent.english || aiGenerationOptions.word,
+            cn: learningContent.chinese,
+            pos: 'noun', // 默认词性，可以根据需要调整
+            image: imageToSave,
+            audio: {
+              uk: '', // 暂时为空，后续可以添加音频生成功能
+              us: ''
+            },
+            examples: [
+              {
+                en: learningContent.example || `This is a ${learningContent.english || aiGenerationOptions.word}.`,
+                cn: learningContent.exampleChinese || `这是一个${learningContent.chinese}。`
+              }
+            ],
+            mnemonic: [`${learningContent.english || aiGenerationOptions.word} - ${learningContent.chinese}`],
+            masteryStatus: 'new',
             tags: ['Ai-generated', aiGenerationOptions.style || 'Cartoon', aiGenerationOptions.viewpoint || 'front', ...(useTransparent ? ['transparent'] : [])],
-            createdAt: new Date().toISOString().split('T')[0],
+            relatedWords: [
+              { word: 'use', pos: 'verb' },
+              { word: 'hold', pos: 'verb' },
+              { word: 'make', pos: 'verb' },
+              { word: 'object', pos: 'noun' },
+              { word: 'item', pos: 'noun' },
+              { word: 'thing', pos: 'noun' },
+              { word: 'tool', pos: 'noun' },
+              { word: 'useful', pos: 'adj' },
+              { word: 'common', pos: 'adj' },
+              { word: 'daily', pos: 'adj' }
+            ],
+            createdAt: new Date().toISOString(),
             sorted: false
           };
 
@@ -699,13 +725,36 @@ function MyStickers() {
           // 即使识别失败，也保存基本信息
           const newSticker: StickerData = {
             id: `ai_generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: aiGenerationOptions.word,
-            chinese: '',
-            imageUrl: imageToSave,
-            thumbnailUrl: imageToSave,
-            category: null,
+            word: aiGenerationOptions.word,
+            cn: '',
+            pos: 'noun', // 默认词性
+            image: imageToSave,
+            audio: {
+              uk: '', // 暂时为空
+              us: ''
+            },
+            examples: [
+              {
+                en: `This is a ${aiGenerationOptions.word}.`,
+                cn: `这是一个${aiGenerationOptions.word}。`
+              }
+            ],
+            mnemonic: [`${aiGenerationOptions.word} - 待补充释义`],
+            masteryStatus: 'new',
             tags: ['Ai-generated', aiGenerationOptions.style || 'cartoon', ...(useTransparent ? ['transparent'] : [])],
-            createdAt: new Date().toISOString().split('T')[0],
+            relatedWords: [
+              { word: 'use', pos: 'verb' },
+              { word: 'hold', pos: 'verb' },
+              { word: 'make', pos: 'verb' },
+              { word: 'object', pos: 'noun' },
+              { word: 'item', pos: 'noun' },
+              { word: 'thing', pos: 'noun' },
+              { word: 'tool', pos: 'noun' },
+              { word: 'useful', pos: 'adj' },
+              { word: 'common', pos: 'adj' },
+              { word: 'daily', pos: 'adj' }
+            ],
+            createdAt: new Date().toISOString(),
             sorted: false
           };
 
@@ -966,13 +1015,13 @@ function MyStickers() {
                         {sticker.imageUrl || sticker.thumbnailUrl ? (
                           <img
                             src={sticker.imageUrl || sticker.thumbnailUrl}
-                            alt={sticker.name}
+                            alt={sticker.word || sticker.name}
                             className="w-full h-full object-contain"
                           />
                         ) : (
                           <img
                             src={sticker.thumbnailUrl}
-                            alt={sticker.name}
+                            alt={sticker.word || sticker.name}
                             className="w-full h-full object-contain"
                           />
                         )}
@@ -980,7 +1029,7 @@ function MyStickers() {
 
                       {/* Info */}
                       <div className="p-2 space-y-1">
-                        <h3 className="text-lg font-bold text-gray-900">{sticker.name}</h3>
+                        <h3 className="text-lg font-bold text-gray-900">{sticker.word || sticker.name}</h3>
                         {sticker.chinese && (
                           <p className="text-sm text-gray-700">
                             {sticker.phonetic && <span className="text-gray-900 mr-2">{sticker.phonetic}</span>}
@@ -995,11 +1044,11 @@ function MyStickers() {
                       </div>
 
                       {/* 语音播放按钮 */}
-                      {sticker.name && (
+                      {(sticker.word || sticker.name) && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            playAudio(sticker.name);
+                            playAudio(sticker.word || sticker.name || '');
                           }}
                           className="absolute top-2 right-8 p-1 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600"
                           title="Play pronunciation"
@@ -1048,7 +1097,7 @@ function MyStickers() {
 
                       {/* Info */}
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{sticker.name}</h3>
+                        <h3 className="font-medium text-gray-900">{sticker.word || sticker.name}</h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span className="text-sm text-gray-600">{sticker.createdAt}</span>
                         </div>
@@ -1192,10 +1241,10 @@ function MyStickers() {
                 area: 1000, // 默认面积
                 bbox: { x: 0, y: 0, width: 100, height: 100 }, // 默认边界框
                 learningContent: {
-                  english: sticker.name,
-                  chinese: sticker.chinese || '',
-                  example: sticker.example || `This is a ${sticker.name}.`,
-                  exampleChinese: sticker.exampleChinese || `这是一个${sticker.chinese || sticker.name}。`
+                  english: sticker.word || '',
+                  chinese: sticker.cn || sticker.chinese || '',
+                  example: sticker.examples?.[0]?.en || sticker.example || `This is a ${sticker.word}.`,
+                  exampleChinese: sticker.examples?.[0]?.cn || sticker.exampleChinese || `这是一个${sticker.cn || sticker.chinese || sticker.word}。`
                 }
               }))}
               onClose={() => setShowLearningDashboard(false)}
@@ -1621,7 +1670,7 @@ function MyStickers() {
                     const sticker = allStickers.find(s => s.id === stickerId);
                     return sticker ? (
                       <div key={stickerId} className="text-sm text-gray-700 py-1">
-                        • {sticker.name}
+                        • {sticker.word || sticker.name}
                       </div>
                     ) : null;
                   })}
