@@ -198,9 +198,9 @@ export default function TopBar({
       case 'saved':
         const timeStr = lastSavedTime ? 
           lastSavedTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
-        return { text: `已自动保存 (${timeStr})`, color: 'text-green-600' };
+        return { text: `已保存 (${timeStr})`, color: 'text-green-600' };
       case 'error':
-        return { text: '保存失败，请检查网络', color: 'text-red-600' };
+        return { text: '保存失败，正在重试...', color: 'text-red-600' };
       default:
         return null;
     }
@@ -275,9 +275,18 @@ export default function TopBar({
           )}
         </div>
 
-        {/* 自动保存状态显示 - 仅在错误时显示 */}
-        {autoSaveStatusDisplay && autoSaveStatus === 'error' && (
+        {/* 自动保存状态显示 - 增强显示逻辑 */}
+        {autoSaveStatusDisplay && (
           <div className={`flex items-center space-x-1 text-xs ${autoSaveStatusDisplay.color}`}>
+            {autoSaveStatus === 'saving' && (
+              <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            )}
+            {autoSaveStatus === 'error' && (
+              <AlertCircle className="w-3 h-3" />
+            )}
+            {autoSaveStatus === 'saved' && (
+              <Check className="w-3 h-3" />
+            )}
             <span>{autoSaveStatusDisplay.text}</span>
           </div>
         )}

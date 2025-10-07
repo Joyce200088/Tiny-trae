@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>检查实际缩略图数据</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .error { background: #ffe6e6; }
+        .success { background: #e6ffe6; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>检查实际缩略图数据</h1>
+    <button onclick="checkData()">检查数据</button>
+    <div id="results"></div>
+
+    <script>
+        function checkData() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+            
+            // 检查所有可能的存储键
+            const keys = ['tinylingo_user_data', 'worldData', 'worlds'];
+            
+            keys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        const div = document.createElement('div');
+                        div.className = 'result success';
+                        div.innerHTML = `
+                            <h3>键: ${key}</h3>
+                            <p>数据类型: ${Array.isArray(parsed) ? 'Array' : typeof parsed}</p>
+                            <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                        `;
+                        results.appendChild(div);
+                        
+                        // 如果有世界数据，特别检查缩略图
+                        let worlds = [];
+                        if (Array.isArray(parsed)) {
+                            worlds = parsed;
+                        } else if (parsed.worlds) {
+                            worlds = parsed.worlds;
+                        } else if (parsed.id) {
+                            worlds = [parsed];
+                        }
+                        
+                        worlds.forEach((world, index) => {
+                            if (world.thumbnail) {
+                                const thumbnailDiv = document.createElement('div');
+                                thumbnailDiv.className = 'result';
+                                thumbnailDiv.innerHTML = `
+                                    <h4>世界 ${index + 1} 缩略图数据</h4>
+                                    <p>世界名称: ${world.name || world.id}</p>
+                                    <p>缩略图长度: ${world.thumbnail.length}</p>
+                                    <p>缩略图前缀: ${world.thumbnail.substring(0, 100)}</p>
+                                    <p>是否包含data前缀: ${world.thumbnail.startsWith('data:') ? '是' : '否'}</p>
+                                `;
+                                results.appendChild(thumbnailDiv);
+                                
+                                // 测试图片加载
+                                const img = document.createElement('img');
+                                img.style.maxWidth = '200px';
+                                img.style.border = '1px solid #ccc';
+                                img.src = world.thumbnail;
+                                
+                                img.onload = () => {
+                                    const successDiv = document.createElement('div');
+                                    successDiv.className = 'result success';
+                                    successDiv.innerHTML = '✅ 缩略图加载成功';
+                                    results.appendChild(successDiv);
+                                    results.appendChild(img);
+                                };
+                                
+                                img.onerror = () => {
+                                    const errorDiv = document.createElement('div');
+                                    errorDiv.className = 'result error';
+                                    errorDiv.innerHTML = `❌ 缩略图加载失败<br>
+                                        可能原因：<br>
+                                        1. Base64格式错误<br>
+                                        2. 缺少data:前缀<br>
+                                        3. 数据损坏`;
+                                    results.appendChild(errorDiv);
+                                };
+                            }
+                        });
+                        
+                    } catch (e) {
+                        const div = document.createElement('div');
+                        div.className = 'result error';
+                        div.innerHTML = `<h3>键: ${key}</h3><p>解析错误: ${e.message}</p>`;
+                        results.appendChild(div);
+                    }
+                }
+            });
+        }
+        
+        // 自动检查
+        window.onload = checkData;
+    </script>
+</body>
+</html>

@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-react';
+import { Plus, Heart, Star, Copy, Edit3, Share2, Trash2 } from 'lucide-react';
 import { WorldData } from '@/types/world';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { toast } from 'sonner';
 
 /**
  * 世界网格组件
@@ -17,8 +18,6 @@ interface WorldsGridProps {
   worlds?: WorldData[];
   showCreateCard?: boolean;
   onCreateWorld?: () => void;
-  showSearch?: boolean;
-  showSort?: boolean;
   onWorldSelect?: (world: WorldData) => void;
   selectedWorlds?: string[];
   isMultiSelectMode?: boolean;
@@ -96,8 +95,6 @@ export default function WorldsGrid({
   worlds = defaultWorlds, 
   showCreateCard = true, 
   onCreateWorld,
-  showSearch = true,
-  showSort = true,
   onWorldSelect,
   selectedWorlds = [],
   isMultiSelectMode = false,
@@ -112,8 +109,6 @@ export default function WorldsGrid({
   // 获取认证状态
   const { isAuthenticated } = useAuth();
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'words' | 'likes'>('recent');
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -205,64 +200,8 @@ export default function WorldsGrid({
     setContextMenu({ visible: false, x: 0, y: 0, worldId: null });
   };
 
-  // 过滤和排序世界
-  const filteredWorlds = worlds
-    .filter(world => 
-      world.id !== deletingWorldId &&
-      (world.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (world.description && world.description.toLowerCase().includes(searchQuery.toLowerCase())))
-    )
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'words':
-          return b.wordCount - a.wordCount;
-        case 'likes':
-          return b.likes - a.likes;
-        case 'recent':
-        default:
-          return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime();
-      }
-    });
-
   return (
     <div>
-      {/* 搜索和排序控件 */}
-      {(showSearch || showSort) && (
-        <div className="flex items-center justify-between mb-6">
-          {/* 搜索 */}
-          {showSearch && (
-            <div className="flex-1 max-w-md relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search worlds..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          )}
-
-          {/* 排序 */}
-          {showSort && (
-            <div className="flex items-center space-x-4">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="recent">Recently Modified</option>
-                <option value="name">Name</option>
-                <option value="words">Word Count</option>
-                <option value="likes">Most Liked</option>
-              </select>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* 世界网格 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 创建新世界卡片 - 只对已登录用户显示 */}
@@ -301,15 +240,30 @@ export default function WorldsGrid({
         )}
 
         {/* 世界卡片 */}
-        {filteredWorlds.map((world) => (
-          <div 
-            key={world.id} 
-            className={`rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200 ${
-              deletingWorldId === world.id ? 'opacity-50 scale-95' : ''
-            }`} 
-            style={{backgroundColor: '#FFFBF5'}}
-            onContextMenu={(e) => handleContextMenu(e, world.id)}
-          >
+        {worlds.filter(world => world.id !== deletingWorldId).map((world) => {
+          // 检查当前世界是否被选中
+          const isSelected = selectedWorlds?.includes(world.id) || false;
+          
+          return (
+            <div 
+              key={world.id} 
+              className={`rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border-2 ${
+                deletingWorldId === world.id ? 'opacity-50 scale-95' : ''
+              } ${
+                isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+              } ${
+                isMultiSelectMode ? 'cursor-pointer' : ''
+              }`} 
+              style={{backgroundColor: isSelected ? '#EBF8FF' : '#FFFBF5'}}
+              onContextMenu={(e) => handleContextMenu(e, world.id)}
+              onClick={(e) => {
+                // 在多选模式下，点击世界卡片进行选择/取消选择
+                if (isMultiSelectMode && onWorldSelect) {
+                  e.preventDefault();
+                  onWorldSelect(world.id);
+                }
+              }}
+            >
             {/* 封面图片 */}
             <div className="aspect-video relative" style={{backgroundColor: '#FFFBF5'}}>
               {(() => {
@@ -332,7 +286,7 @@ export default function WorldsGrid({
                   return (
                     <>
                       <img 
-                        src={imageUrl} 
+                        src={`${imageUrl}?t=${Date.now()}`} // 添加时间戳防止缓存
                         alt={world.name}
                         className="w-full h-full object-contain" // 使用contain保持宽高比
                         style={{backgroundColor: '#FFFBF5'}} // 确保背景色一致
@@ -348,6 +302,23 @@ export default function WorldsGrid({
                           if (placeholder) {
                             placeholder.style.display = 'flex';
                           }
+                          
+                          // 使用toast通知显示用户友好的错误提示
+                          toast.error(`缩略图加载失败`, {
+                            description: `世界 "${world.name}" 的缩略图无法加载，来源: ${imageSource}`,
+                            action: {
+                              label: '查看详情',
+                              onClick: () => {
+                                toast.info('缩略图加载失败详情', {
+                                  description: `原因：图片文件可能已损坏或不存在\n来源：${imageSource}\n\n建议：\n1. 重新上传缩略图\n2. 检查网络连接\n3. 联系技术支持`,
+                                  duration: 8000
+                                });
+                              }
+                            },
+                            duration: 5000
+                          });
+                          
+                          console.warn(`缩略图加载失败 - 世界: ${world.name}, 来源: ${imageSource}`);
                         }}
                         onLoad={() => {
                           console.log(`世界 "${world.name}" 图片加载成功:`, {
@@ -360,8 +331,18 @@ export default function WorldsGrid({
                       <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm bg-gray-100" style={{display: 'none'}}>
                         <div className="text-center">
                           <div>World Preview</div>
-                          <div className="text-xs mt-1">图片加载失败</div>
+                          <div className="text-xs mt-1 text-red-500">图片加载失败</div>
                           <div className="text-xs mt-1">来源: {imageSource}</div>
+                          <div className="text-xs mt-1 text-blue-500 cursor-pointer" 
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 toast.info('缩略图加载失败详情', {
+                                   description: `原因：图片文件可能已损坏或不存在\n来源：${imageSource}\n\n建议：\n1. 重新上传缩略图\n2. 检查网络连接\n3. 联系技术支持`,
+                                   duration: 8000
+                                 });
+                               }}>
+                            点击查看详情
+                          </div>
                         </div>
                       </div>
                     </>
@@ -388,6 +369,23 @@ export default function WorldsGrid({
                   {world.isPublic ? 'Public' : 'Private'}
                 </span>
               </div>
+              
+              {/* 多选模式下的选择指示器 */}
+              {isMultiSelectMode && (
+                <div className="absolute top-2 right-2 z-10">
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                    isSelected 
+                      ? 'bg-blue-500 border-blue-500' 
+                      : 'bg-white border-gray-300'
+                  }`}>
+                    {isSelected && (
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* 世界信息 */}
@@ -439,7 +437,8 @@ export default function WorldsGrid({
               </Link>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {/* 右键菜单 */}

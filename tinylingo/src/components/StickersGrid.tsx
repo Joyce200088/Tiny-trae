@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Filter, Upload, Grid3X3, List, Star, Heart, Eye, MoreVertical, Edit, Trash2, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import { Star, Heart, Eye, MoreVertical } from 'lucide-react';
 import StatusIcon from './StatusIcon';
 
 /**
@@ -41,14 +41,8 @@ interface StickerData {
 
 interface StickersGridProps {
   stickers?: StickerData[];
-  showUpload?: boolean;
-  showSearch?: boolean;
-  showFilter?: boolean;
-  showViewToggle?: boolean;
-  onUpload?: () => void;
   onStickerClick?: (sticker: StickerData) => void;
   viewMode?: 'grid' | 'list';
-  onViewModeChange?: (mode: 'grid' | 'list') => void;
   selectedStickers?: string[]; // 添加选中贴纸属性
   isMultiSelectMode?: boolean; // 添加多选模式属性
 }
@@ -155,246 +149,52 @@ const defaultStickers: StickerData[] = [
 
 export default function StickersGrid({
   stickers = defaultStickers,
-  showUpload = true,
-  showSearch = true,
-  showFilter = true,
-  showViewToggle = true,
-  onUpload,
   onStickerClick,
   viewMode = 'grid',
-  onViewModeChange,
   selectedStickers = [], // 添加选中贴纸参数
   isMultiSelectMode = false // 添加多选模式参数
 }: StickersGridProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedMastery, setSelectedMastery] = useState<string>('all');
   const [currentViewMode, setCurrentViewMode] = useState<'grid' | 'list'>(viewMode);
-
-  // 获取所有标签
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    stickers.forEach(sticker => {
-      sticker.tags.forEach(tag => tags.add(tag));
-    });
-    return Array.from(tags).sort();
-  }, [stickers]);
-
-  // 过滤贴纸
-  const filteredStickers = useMemo(() => {
-    return stickers.filter(sticker => {
-      // 搜索过滤
-      const matchesSearch = searchQuery === '' || 
-        sticker.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sticker.cn.includes(searchQuery);
-
-      // 标签过滤
-      const matchesTags = selectedTags.length === 0 || 
-        selectedTags.some(tag => sticker.tags.includes(tag));
-
-      // 掌握状态过滤
-      const matchesMastery = selectedMastery === 'all' || 
-        sticker.masteryStatus === selectedMastery;
-
-      return matchesSearch && matchesTags && matchesMastery;
-    });
-  }, [stickers, searchQuery, selectedTags, selectedMastery]);
-
-  // 处理视图模式切换
-  const handleViewModeChange = (mode: 'grid' | 'list') => {
-    setCurrentViewMode(mode);
-    onViewModeChange?.(mode);
-  };
-
-  // 处理标签切换
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
-  };
-
-  // 获取掌握状态颜色
-  // 获取掌握状态颜色 - 已废弃，使用StatusIcon组件替代
-  // const getMasteryColor = (status: string) => {
-  //   switch (status) {
-  //     case 'mastered': return 'bg-green-100 text-green-800';
-  //     case 'fuzzy': return 'bg-yellow-100 text-yellow-800';
-  //     case 'new': return 'bg-blue-100 text-blue-800';
-  //     default: return 'bg-gray-100 text-gray-800';
-  //   }
-  // };
-
-  // 获取掌握状态文本 - 已废弃，使用StatusIcon组件替代
-  // const getMasteryText = (status: string) => {
-  //   switch (status) {
-  //     case 'mastered': return '掌握';
-  //     case 'fuzzy': return '模糊';
-  //     case 'new': return '陌生';
-  //     default: return status;
-  //   }
-  // };
 
   return (
     <div>
-      {/* 顶部控制栏 */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* 搜索框 */}
-        {showSearch && (
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search stickers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        )}
-
-        {/* 右侧控制按钮 */}
-        <div className="flex items-center space-x-2">
-          {/* 上传按钮 */}
-          {showUpload && (
-            <button
-              onClick={onUpload}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Upload</span>
-            </button>
-          )}
-
-          {/* 视图切换 */}
-          {showViewToggle && (
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-              <button
-                onClick={() => handleViewModeChange('grid')}
-                className={`p-2 ${currentViewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleViewModeChange('list')}
-                className={`p-2 ${currentViewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 过滤器 */}
-      {showFilter && (
-        <div className="mb-6 space-y-4">
-          {/* 标签过滤 */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Tags</h4>
-            <div className="flex flex-wrap gap-2">
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                    selectedTags.includes(tag)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 掌握状态过滤 */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Mastery Status</h4>
-            <select
-              value={selectedMastery}
-              onChange={(e) => setSelectedMastery(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="new">陌生</option>
-              <option value="fuzzy">模糊</option>
-              <option value="mastered">掌握</option>
-            </select>
-          </div>
-        </div>
-      )}
-
       {/* 贴纸网格/列表 */}
       {currentViewMode === 'grid' ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredStickers.map((sticker) => (
-            <div
-              key={sticker.id}
-              onClick={() => onStickerClick?.(sticker)}
-              className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200"
-              style={{backgroundColor: '#FFFBF5'}}
-            >
-              {/* 贴纸图片 */}
-              <div className="aspect-square p-4 flex items-center justify-center">
-                <img
-                  src={sticker.image}
-                  alt={sticker.word}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              {/* 贴纸信息 */}
-              <div className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-semibold text-gray-900 text-sm truncate">{sticker.word}</h3>
-                  <StatusIcon status={sticker.masteryStatus} size={16} className="flex-shrink-0" />
-                </div>
-                <p className="text-xs text-gray-600 mb-2 truncate">{sticker.cn}</p>
-                
-                {/* 统计信息 */}
-                {(sticker.likes || sticker.favorites || sticker.views) && (
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      {sticker.likes && (
-                        <div className="flex items-center space-x-1">
-                          <Heart className="w-3 h-3" />
-                          <span>{sticker.likes}</span>
-                        </div>
-                      )}
-                      {sticker.favorites && (
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-3 h-3" />
-                          <span>{sticker.favorites}</span>
-                        </div>
+          {stickers.map((sticker) => {
+            // 检查当前贴纸是否被选中
+            const isSelected = selectedStickers.includes(sticker.word);
+            
+            return (
+              <div
+                key={sticker.id}
+                onClick={() => onStickerClick?.(sticker)}
+                className={`bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border-2 ${
+                  isMultiSelectMode && isSelected 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200'
+                } ${isMultiSelectMode ? 'relative' : ''}`}
+                style={{backgroundColor: isMultiSelectMode && isSelected ? '#EBF8FF' : '#FFFBF5'}}
+              >
+                {/* 多选模式下的选中指示器 */}
+                {isMultiSelectMode && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      isSelected 
+                        ? 'bg-blue-500 border-blue-500' 
+                        : 'bg-white border-gray-300'
+                    }`}>
+                      {isSelected && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
                       )}
                     </div>
-                    {sticker.views && (
-                      <div className="flex items-center space-x-1">
-                        <Eye className="w-3 h-3" />
-                        <span>{sticker.views}</span>
-                      </div>
-                    )}
                   </div>
                 )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredStickers.map((sticker) => (
-            <div
-              key={sticker.id}
-              onClick={() => onStickerClick?.(sticker)}
-              className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-200"
-              style={{backgroundColor: '#FFFBF5'}}
-            >
-              <div className="flex items-center space-x-4">
+
                 {/* 贴纸图片 */}
-                <div className="w-16 h-16 flex-shrink-0">
+                <div className="aspect-square p-4 flex items-center justify-center">
                   <img
                     src={sticker.image}
                     alt={sticker.word}
@@ -403,37 +203,30 @@ export default function StickersGrid({
                 </div>
 
                 {/* 贴纸信息 */}
-                <div className="flex-1 min-w-0">
+                <div className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-gray-900">{sticker.word}</h3>
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{sticker.word}</h3>
                     <StatusIcon status={sticker.masteryStatus} size={16} className="flex-shrink-0" />
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">{sticker.cn}</p>
+                  <p className="text-xs text-gray-600 mb-2 truncate">{sticker.cn}</p>
                   
-                  {/* 标签 */}
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {sticker.tags.map(tag => (
-                      <span key={tag} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
                   {/* 统计信息 */}
                   {(sticker.likes || sticker.favorites || sticker.views) && (
-                    <div className="flex items-center space-x-4 text-xs text-gray-500">
-                      {sticker.likes && (
-                        <div className="flex items-center space-x-1">
-                          <Heart className="w-3 h-3" />
-                          <span>{sticker.likes}</span>
-                        </div>
-                      )}
-                      {sticker.favorites && (
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-3 h-3" />
-                          <span>{sticker.favorites}</span>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        {sticker.likes && (
+                          <div className="flex items-center space-x-1">
+                            <Heart className="w-3 h-3" />
+                            <span>{sticker.likes}</span>
+                          </div>
+                        )}
+                        {sticker.favorites && (
+                          <div className="flex items-center space-x-1">
+                            <Star className="w-3 h-3" />
+                            <span>{sticker.favorites}</span>
+                          </div>
+                        )}
+                      </div>
                       {sticker.views && (
                         <div className="flex items-center space-x-1">
                           <Eye className="w-3 h-3" />
@@ -443,27 +236,119 @@ export default function StickersGrid({
                     </div>
                   )}
                 </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {stickers.map((sticker) => {
+            // 检查当前贴纸是否被选中
+            const isSelected = selectedStickers.includes(sticker.word);
+            
+            return (
+              <div
+                key={sticker.id}
+                onClick={() => onStickerClick?.(sticker)}
+                className={`bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-all duration-300 cursor-pointer border-2 ${
+                  isMultiSelectMode && isSelected 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200'
+                } ${isMultiSelectMode ? 'relative' : ''}`}
+                style={{backgroundColor: isMultiSelectMode && isSelected ? '#EBF8FF' : '#FFFBF5'}}
+              >
+                {/* 多选模式下的选中指示器 */}
+                {isMultiSelectMode && (
+                  <div className="absolute top-4 right-4 z-10">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      isSelected 
+                        ? 'bg-blue-500 border-blue-500' 
+                        : 'bg-white border-gray-300'
+                    }`}>
+                      {isSelected && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                {/* 操作按钮 */}
-                <div className="flex-shrink-0">
-                  <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center space-x-4">
+                  {/* 贴纸图片 */}
+                  <div className="w-16 h-16 flex-shrink-0">
+                    <img
+                      src={sticker.image}
+                      alt={sticker.word}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+
+                  {/* 贴纸信息 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-semibold text-gray-900">{sticker.word}</h3>
+                      <StatusIcon status={sticker.masteryStatus} size={16} className="flex-shrink-0" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{sticker.cn}</p>
+                    
+                    {/* 标签 */}
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {sticker.tags.map(tag => (
+                        <span key={tag} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* 统计信息 */}
+                    {(sticker.likes || sticker.favorites || sticker.views) && (
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        {sticker.likes && (
+                          <div className="flex items-center space-x-1">
+                            <Heart className="w-3 h-3" />
+                            <span>{sticker.likes}</span>
+                          </div>
+                        )}
+                        {sticker.favorites && (
+                          <div className="flex items-center space-x-1">
+                            <Star className="w-3 h-3" />
+                            <span>{sticker.favorites}</span>
+                          </div>
+                        )}
+                        {sticker.views && (
+                          <div className="flex items-center space-x-1">
+                            <Eye className="w-3 h-3" />
+                            <span>{sticker.views}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <div className="flex-shrink-0">
+                    <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* 空状态 */}
-      {filteredStickers.length === 0 && (
+      {stickers.length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
-            <Search className="w-12 h-12 mx-auto" />
+            <div className="w-12 h-12 mx-auto bg-gray-200 rounded-full flex items-center justify-center">
+              <span className="text-2xl">📋</span>
+            </div>
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No stickers found</h3>
-          <p className="text-gray-600">Try adjusting your search or filters</p>
+          <p className="text-gray-600">No stickers available</p>
         </div>
       )}
     </div>

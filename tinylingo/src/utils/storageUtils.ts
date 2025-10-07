@@ -43,7 +43,24 @@ export class StorageUtils {
       // 确保用户已认证或使用临时用户ID
       const userId = await UserDataManager.getCurrentUserId();
       if (!userId) {
+        console.error('StorageUtils.uploadFile: 用户ID未设置');
         return { success: false, error: '用户未认证' };
+      }
+
+      console.log(`StorageUtils.uploadFile: 开始上传文件`, {
+        bucket,
+        filePath,
+        userId,
+        fileSize: file.size,
+        fileType: file.type
+      });
+
+      // 设置用户上下文（用于 RLS 策略）
+      try {
+        await UserDataManager.setUserContext();
+        console.log(`StorageUtils.uploadFile: 用户上下文设置成功 (${userId})`);
+      } catch (contextError) {
+        console.warn('StorageUtils.uploadFile: 设置用户上下文失败，继续尝试上传:', contextError);
       }
 
       // 构建完整的文件路径（包含用户ID）
@@ -56,14 +73,30 @@ export class StorageUtils {
         upsert: options.upsert !== false, // 默认允许覆盖
       };
 
+      console.log(`StorageUtils.uploadFile: 上传参数`, {
+        fullPath,
+        uploadOptions
+      });
+
       // 上传文件到 Supabase Storage
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(fullPath, file, uploadOptions);
 
       if (error) {
-        console.error(`文件上传失败 (${bucket}/${fullPath}):`, error);
-        return { success: false, error: error.message };
+        console.error(`StorageUtils.uploadFile: 文件上传失败 (${bucket}/${fullPath}):`, {
+          error,
+          errorMessage: error.message,
+          errorDetails: error
+        });
+        
+        // 提供更详细的错误信息
+        let errorMessage = error.message;
+        if (error.message.includes('row-level security policy')) {
+          errorMessage = `RLS 权限错误: ${error.message}。请检查用户认证状态和存储桶权限策略。`;
+        }
+        
+        return { success: false, error: errorMessage };
       }
 
       // 获取公共URL
@@ -71,11 +104,15 @@ export class StorageUtils {
         .from(bucket)
         .getPublicUrl(fullPath);
 
-      console.log(`文件上传成功: ${publicUrl}`);
+      console.log(`StorageUtils.uploadFile: 文件上传成功`, {
+        publicUrl,
+        uploadedPath: data.path
+      });
+      
       return { success: true, publicUrl };
 
     } catch (error) {
-      console.error('文件上传异常:', error);
+      console.error('StorageUtils.uploadFile: 文件上传异常:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : '上传失败' 

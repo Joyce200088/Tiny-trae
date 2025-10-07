@@ -22,7 +22,6 @@ import AIStickerGeneratorModal from '@/components/AIStickerGeneratorModal';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { UserDataManager } from '@/lib/supabase/userClient';
 import { WorldDataUtils } from '@/utils/worldDataUtils';
-import { useThumbnailManager } from '@/hooks/useThumbnailManager';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 /**
@@ -118,18 +117,14 @@ function MyWorldsTab({
   });
 
   // 缩略图管理Hook - 用于自动补生成缺失的缩略图
-  const {
-    generateThumbnail,
-    checkAndGenerateMissingThumbnails,
-    getThumbnailUrl,
-    deleteThumbnails,
-    isGenerating,
-    generationProgress,
-    generationError
-  } = useThumbnailManager({
-    autoRetry: true,
-    maxRetries: 3
-  });
+  // 缩略图功能已删除，保留接口兼容性
+  const generateThumbnail = null;
+  const checkAndGenerateMissingThumbnails = null;
+  const getThumbnailUrl = null;
+  const deleteThumbnails = null;
+  const isGenerating = false;
+  const generationProgress = 0;
+  const generationError = null;
 
   // 加载保存的世界
   useEffect(() => {
@@ -163,8 +158,8 @@ function MyWorldsTab({
               return null;
             };
             
-            await checkAndGenerateMissingThumbnails(worlds, getCanvasForWorld);
-            console.log('缩略图检查完成');
+            // 缩略图功能已删除，跳过缩略图检查
+            console.log('缩略图功能已删除，跳过缩略图检查');
           } catch (error) {
             console.error('缩略图自动补生成失败:', error);
           }
@@ -176,7 +171,7 @@ function MyWorldsTab({
     
     loadWorlds();
     setIsClient(true);
-  }, [checkAndGenerateMissingThumbnails]);
+  }, []); // 移除checkAndGenerateMissingThumbnails依赖
 
   // 监听存储变化
   useEffect(() => {
@@ -185,7 +180,13 @@ function MyWorldsTab({
         // 重新加载世界数据（只加载未删除的世界）
         const loadWorlds = async () => {
           try {
+            console.log('🔄 检测到存储变化，重新加载世界数据...');
             const worlds = await WorldDataUtils.getActiveWorlds();
+            console.log('🔄 重新加载的世界数据:', worlds.map(w => ({
+              id: w.id,
+              name: w.name,
+              thumbnail: w.thumbnail ? `有缩略图 (${w.thumbnail.substring(0, 50)}...)` : '无缩略图'
+            })));
             setSavedWorlds(worlds);
           } catch (error) {
             console.error('重新加载世界失败:', error);
@@ -205,7 +206,13 @@ function MyWorldsTab({
         // 重新加载世界数据（只加载未删除的世界）
         const loadWorlds = async () => {
           try {
+            console.log('🔄 检测到自定义存储变化，重新加载世界数据...');
             const worlds = await WorldDataUtils.getActiveWorlds();
+            console.log('🔄 重新加载的世界数据:', worlds.map(w => ({
+              id: w.id,
+              name: w.name,
+              thumbnail: w.thumbnail ? `有缩略图 (${w.thumbnail.substring(0, 50)}...)` : '无缩略图'
+            })));
             setSavedWorlds(worlds);
           } catch (error) {
             console.error('重新加载世界失败:', error);
@@ -931,19 +938,19 @@ export default function ProfilePage() {
     enabled: true
   });
 
-  // 缩略图管理Hook - 用于全局缩略图管理
-  const {
-    generateThumbnail,
-    checkAndGenerateMissingThumbnails,
-    getThumbnailUrl,
-    deleteThumbnails,
-    isGenerating,
-    generationProgress,
-    generationError
-  } = useThumbnailManager({
-    autoRetry: true,
-    maxRetries: 3
-  });
+  // 缩略图功能已删除，保留接口兼容性
+  // const {
+  //   generateThumbnail,
+  //   checkAndGenerateMissingThumbnails,
+  //   getThumbnailUrl,
+  //   deleteThumbnails,
+  //   isGenerating,
+  //   generationProgress,
+  //   generationError
+  // } = useThumbnailManager({
+  //   autoRetry: true,
+  //   maxRetries: 3
+  // });
   
   const [activeTab, setActiveTab] = useState<TabType>('worlds');
   const [showCreateWorldModal, setShowCreateWorldModal] = useState(false);

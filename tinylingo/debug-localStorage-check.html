@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>localStorage 数据检查工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 localStorage 数据检查工具</h1>
+        
+        <div class="section">
+            <h3>📊 基本信息检查</h3>
+            <button onclick="checkBasicInfo()">检查基本信息</button>
+            <div id="basicInfo" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🗂️ 所有 localStorage 键值</h3>
+            <button onclick="listAllKeys()">列出所有键</button>
+            <div id="allKeys" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🌍 世界数据检查</h3>
+            <button onclick="checkWorldData()">检查世界数据</button>
+            <div id="worldData" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>👤 用户数据检查</h3>
+            <button onclick="checkUserData()">检查用户数据</button>
+            <div id="userData" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🧹 清理操作</h3>
+            <button onclick="clearAllData()" style="background: #dc3545;">清空所有数据</button>
+            <button onclick="createTestWorld()">创建测试世界</button>
+            <div id="cleanupResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // 检查基本信息
+        function checkBasicInfo() {
+            const result = document.getElementById('basicInfo');
+            try {
+                const info = {
+                    'localStorage 可用': typeof(Storage) !== "undefined",
+                    '当前域名': window.location.hostname,
+                    '当前端口': window.location.port,
+                    '当前协议': window.location.protocol,
+                    '完整URL': window.location.href,
+                    'localStorage 项目数量': localStorage.length,
+                    '存储配额': navigator.storage ? '支持' : '不支持'
+                };
+
+                let output = '✅ 基本信息检查结果：\n\n';
+                for (const [key, value] of Object.entries(info)) {
+                    output += `${key}: ${value}\n`;
+                }
+
+                result.className = 'result success';
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 检查失败: ${error.message}`;
+            }
+        }
+
+        // 列出所有localStorage键
+        function listAllKeys() {
+            const result = document.getElementById('allKeys');
+            try {
+                if (localStorage.length === 0) {
+                    result.className = 'result warning';
+                    result.textContent = '⚠️ localStorage 中没有任何数据';
+                    return;
+                }
+
+                let output = `📋 找到 ${localStorage.length} 个 localStorage 项目：\n\n`;
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    const size = new Blob([value]).size;
+                    
+                    output += `${i + 1}. 键: "${key}"\n`;
+                    output += `   大小: ${size} 字节\n`;
+                    output += `   类型: ${typeof value}\n`;
+                    
+                    // 尝试解析JSON
+                    try {
+                        const parsed = JSON.parse(value);
+                        output += `   JSON: 有效 (${Object.keys(parsed).length} 个属性)\n`;
+                        if (parsed.worlds) {
+                            output += `   🌍 包含世界数据: ${Object.keys(parsed.worlds).length} 个世界\n`;
+                        }
+                        if (parsed.stickers) {
+                            output += `   🏷️ 包含贴纸数据: ${Object.keys(parsed.stickers).length} 个贴纸\n`;
+                        }
+                    } catch (e) {
+                        output += `   JSON: 无效\n`;
+                    }
+                    output += '\n';
+                }
+
+                result.className = 'result info';
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 列出键失败: ${error.message}`;
+            }
+        }
+
+        // 检查世界数据
+        function checkWorldData() {
+            const result = document.getElementById('worldData');
+            try {
+                let output = '🌍 世界数据检查结果：\n\n';
+                let foundWorlds = false;
+
+                // 检查所有可能的世界数据键
+                const possibleKeys = [
+                    'worlds',
+                    'worldData',
+                    'user_worlds',
+                    'tinylingo_worlds',
+                    'tinylingo_user_data'
+                ];
+
+                // 检查用户特定的键
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.includes('world') || key.includes('user') || key.includes('tinylingo')) {
+                        possibleKeys.push(key);
+                    }
+                }
+
+                // 去重
+                const uniqueKeys = [...new Set(possibleKeys)];
+
+                for (const key of uniqueKeys) {
+                    const data = localStorage.getItem(key);
+                    if (data) {
+                        output += `📁 键: "${key}"\n`;
+                        try {
+                            const parsed = JSON.parse(data);
+                            
+                            if (parsed.worlds) {
+                                foundWorlds = true;
+                                const worldCount = Object.keys(parsed.worlds).length;
+                                output += `   ✅ 找到 ${worldCount} 个世界\n`;
+                                
+                                // 检查每个世界的缩略图
+                                for (const [worldId, world] of Object.entries(parsed.worlds)) {
+                                    output += `   🌍 世界 "${worldId}":\n`;
+                                    output += `      标题: ${world.title || '未设置'}\n`;
+                                    output += `      缩略图: ${world.thumbnail ? '有' : '无'}\n`;
+                                    if (world.thumbnail) {
+                                        const thumbnailType = world.thumbnail.startsWith('data:') ? 'Base64' : 
+                                                            world.thumbnail.startsWith('http') ? 'HTTP URL' : '未知格式';
+                                        output += `      缩略图类型: ${thumbnailType}\n`;
+                                        output += `      缩略图长度: ${world.thumbnail.length} 字符\n`;
+                                    }
+                                }
+                            } else if (Array.isArray(parsed)) {
+                                output += `   📋 数组数据，长度: ${parsed.length}\n`;
+                            } else if (typeof parsed === 'object') {
+                                output += `   📦 对象数据，属性: ${Object.keys(parsed).join(', ')}\n`;
+                            }
+                        } catch (e) {
+                            output += `   ❌ JSON 解析失败: ${e.message}\n`;
+                        }
+                        output += '\n';
+                    }
+                }
+
+                if (!foundWorlds) {
+                    output += '⚠️ 没有找到任何世界数据\n';
+                    output += '\n💡 可能的原因：\n';
+                    output += '1. 还没有创建任何世界\n';
+                    output += '2. 数据存储在不同的键名下\n';
+                    output += '3. 数据存储格式发生了变化\n';
+                    output += '4. localStorage 被清空了\n';
+                    result.className = 'result warning';
+                } else {
+                    result.className = 'result success';
+                }
+
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 检查世界数据失败: ${error.message}`;
+            }
+        }
+
+        // 检查用户数据
+        function checkUserData() {
+            const result = document.getElementById('userData');
+            try {
+                let output = '👤 用户数据检查结果：\n\n';
+
+                // 检查用户相关的键
+                const userKeys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.includes('user') || key.includes('auth') || key.includes('session')) {
+                        userKeys.push(key);
+                    }
+                }
+
+                if (userKeys.length === 0) {
+                    output += '⚠️ 没有找到用户相关数据\n';
+                    result.className = 'result warning';
+                } else {
+                    output += `📋 找到 ${userKeys.length} 个用户相关键：\n\n`;
+                    
+                    for (const key of userKeys) {
+                        const data = localStorage.getItem(key);
+                        output += `🔑 键: "${key}"\n`;
+                        output += `   大小: ${new Blob([data]).size} 字节\n`;
+                        
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.user) {
+                                output += `   👤 用户ID: ${parsed.user.id || '未知'}\n`;
+                                output += `   📧 邮箱: ${parsed.user.email || '未知'}\n`;
+                            }
+                            if (parsed.session) {
+                                output += `   🔐 会话: 有效\n`;
+                            }
+                        } catch (e) {
+                            output += `   📄 原始数据: ${data.substring(0, 100)}...\n`;
+                        }
+                        output += '\n';
+                    }
+                    result.className = 'result info';
+                }
+
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 检查用户数据失败: ${error.message}`;
+            }
+        }
+
+        // 清空所有数据
+        function clearAllData() {
+            const result = document.getElementById('cleanupResult');
+            if (confirm('⚠️ 确定要清空所有 localStorage 数据吗？这个操作不可撤销！')) {
+                try {
+                    const beforeCount = localStorage.length;
+                    localStorage.clear();
+                    const afterCount = localStorage.length;
+                    
+                    result.className = 'result success';
+                    result.textContent = `✅ 清空完成\n清空前: ${beforeCount} 项\n清空后: ${afterCount} 项`;
+                } catch (error) {
+                    result.className = 'result error';
+                    result.textContent = `❌ 清空失败: ${error.message}`;
+                }
+            }
+        }
+
+        // 创建测试世界
+        function createTestWorld() {
+            const result = document.getElementById('cleanupResult');
+            try {
+                const testWorld = {
+                    id: 'test-world-' + Date.now(),
+                    title: '测试世界',
+                    description: '这是一个测试世界',
+                    thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzQyODVmNCIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGVzdDwvdGV4dD48L3N2Zz4=',
+                    createdAt: new Date().toISOString(),
+                    stickers: {}
+                };
+
+                // 尝试多种存储格式
+                const storageFormats = [
+                    { key: 'tinylingo_user_data', format: { worlds: { [testWorld.id]: testWorld } } },
+                    { key: 'worlds', format: { [testWorld.id]: testWorld } },
+                    { key: 'worldData', format: [testWorld] }
+                ];
+
+                for (const { key, format } of storageFormats) {
+                    localStorage.setItem(key, JSON.stringify(format));
+                }
+
+                result.className = 'result success';
+                result.textContent = `✅ 测试世界创建成功\n世界ID: ${testWorld.id}\n存储格式: ${storageFormats.length} 种\n\n请重新运行"检查世界数据"来验证。`;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 创建测试世界失败: ${error.message}`;
+            }
+        }
+
+        // 页面加载时自动检查基本信息
+        window.onload = function() {
+            checkBasicInfo();
+        };
+    </script>
+</body>
+</html>

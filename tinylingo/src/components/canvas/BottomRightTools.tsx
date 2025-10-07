@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Keyboard,
   MessageCircle,
-  ExternalLink
+  ExternalLink,
+  Camera
 } from 'lucide-react';
 import { useSimpleZoomFix } from '@/hooks/useZoomFix';
 
@@ -42,6 +43,9 @@ interface BottomRightToolsProps {
     height: number;
     type: string;
   }>;
+  
+  // 拍照功能相关
+  onPhotoCapture?: () => void; // 新增：拍照回调函数
 }
 
 export default function BottomRightTools({
@@ -57,7 +61,8 @@ export default function BottomRightTools({
   canvasSize,
   viewportSize,
   onViewportChange,
-  canvasObjects
+  canvasObjects,
+  onPhotoCapture // 新增：拍照回调函数
 }: BottomRightToolsProps) {
   const [showMiniMap, setShowMiniMap] = useState(false); // 默认不展开小地图
   const [showHelp, setShowHelp] = useState(false);
@@ -344,8 +349,19 @@ export default function BottomRightTools({
       )}
 
       {/* 工具栏 */}
-      <div className="flex items-center space-x-2">
-        {/* 小地图切换按钮 */}
+      <div className="flex flex-col gap-2">
+        {/* 拍照按钮 - 新增 */}
+        {onPhotoCapture && (
+          <button
+            onClick={onPhotoCapture}
+            className="w-10 h-10 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            title="拍照截图"
+          >
+            <Camera className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* 小地图按钮 */}
         {!showMiniMap && (
           <button
             onClick={() => setShowMiniMap(true)}

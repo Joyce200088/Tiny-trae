@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalNav from "@/components/ConditionalNav";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,13 @@ export default function RootLayout({
           <main className="flex-1">
             {children}
           </main>
+          {/* Toast通知组件 */}
+          <Toaster 
+            position="top-right"
+            richColors
+            closeButton
+            duration={4000}
+          />
         </AuthProvider>
       </body>
     </html>

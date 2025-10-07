@@ -176,15 +176,39 @@ export class UserDataManager {
    */
   private static async setUserContext(userId: string): Promise<void> {
     try {
-      // 设置 PostgreSQL 会话变量，用于 RLS 策略
-      await supabase.rpc('set_config', {
-        setting_name: 'app.current_user_id',
-        new_value: userId,
-        is_local: true
-      });
+      console.log(`UserDataManager.setUserContext: 设置用户上下文 (${userId})`);
+      
+      // 方法1: 使用 set_config 函数
+      try {
+        await supabase.rpc('set_config', {
+          setting_name: 'app.current_user_id',
+          new_value: userId,
+          is_local: true
+        });
+        console.log(`UserDataManager.setUserContext: set_config 成功`);
+      } catch (configError) {
+        console.warn('UserDataManager.setUserContext: set_config 失败，尝试 set_user_context:', configError);
+        
+        // 方法2: 使用自定义的 set_user_context 函数
+        await supabase.rpc('set_user_context', { user_id: userId });
+        console.log(`UserDataManager.setUserContext: set_user_context 成功`);
+      }
+      
     } catch (error) {
-      console.warn('设置用户上下文失败:', error);
+      console.error('UserDataManager.setUserContext: 设置用户上下文失败:', error);
+      throw error;
     }
+  }
+
+  /**
+   * 公开的设置用户上下文方法
+   */
+  static async setUserContext(): Promise<void> {
+    const userId = await this.getCurrentUserId();
+    if (!userId) {
+      throw new Error('用户ID未设置，无法设置用户上下文');
+    }
+    await this.setUserContext(userId);
   }
 
   /**
@@ -400,7 +424,7 @@ export class UserDataManager {
 
   /**
    * 修复版本：同步贴纸数据到Supabase
-   * 解决RLS策略和数组格式问题
+   * 解决RLS策略和数组格式问题，以及重复ID问题
    */
   static async syncStickersToSupabase(stickers: StickerData[]): Promise<boolean> {
     const userId = await this.getCurrentUserId();
@@ -416,49 +440,65 @@ export class UserDataManager {
       // 确保用户存在
       await this.upsertUser({});
 
-      // 转换贴纸数据格式 - 修复数组格式问题
-      const userStickers = stickers.map(sticker => {
-        // 确保所有数组字段格式正确
-        const processedSticker = {
-          user_id: userId,
-          sticker_id: sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          word: sticker.word || '',
-          cn: sticker.cn || '',
-          pos: sticker.pos || 'noun',
-          image: sticker.image || '',
+      // 检查现有贴纸，避免重复插入
+      const { data: existingStickers } = await supabase
+        .from(USER_TABLES.USER_STICKERS)
+        .select('sticker_id')
+        .eq('user_id', userId);
+
+      const existingStickerIds = new Set(existingStickers?.map(s => s.sticker_id) || []);
+
+      // 转换贴纸数据格式 - 修复数组格式问题和重复ID问题
+      const userStickers = stickers
+        .filter(sticker => {
+          const stickerId = sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          return !existingStickerIds.has(stickerId);
+        })
+        .map(sticker => {
+          // 确保所有数组字段格式正确
+          const processedSticker = {
+            user_id: userId,
+            sticker_id: sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            word: sticker.word || '',
+            cn: sticker.cn || '',
+            pos: sticker.pos || 'noun',
+            image: sticker.image || '',
+            
+            // 修复audio字段 - 确保是有效的JSONB对象
+            audio: this.validateAudioField(sticker.audio),
+            
+            // 修复examples字段 - 确保是有效的JSONB数组
+            examples: this.validateExamplesField(sticker.examples),
+            
+            // 修复mnemonic字段 - 确保是有效的TEXT[]数组
+            mnemonic: this.validateMnemonicField(sticker.mnemonic),
+            
+            mastery_status: sticker.masteryStatus || 'new',
+            
+            // 修复tags字段 - 确保是有效的TEXT[]数组
+            tags: this.validateTagsField(sticker.tags),
+            
+            // 修复related_words字段 - 确保是有效的JSONB数组
+            related_words: this.validateRelatedWordsField(sticker.relatedWords),
+            
+            is_deleted: false,
+          };
           
-          // 修复audio字段 - 确保是有效的JSONB对象
-          audio: this.validateAudioField(sticker.audio),
-          
-          // 修复examples字段 - 确保是有效的JSONB数组
-          examples: this.validateExamplesField(sticker.examples),
-          
-          // 修复mnemonic字段 - 确保是有效的TEXT[]数组
-          mnemonic: this.validateMnemonicField(sticker.mnemonic),
-          
-          mastery_status: sticker.masteryStatus || 'new',
-          
-          // 修复tags字段 - 确保是有效的TEXT[]数组
-          tags: this.validateTagsField(sticker.tags),
-          
-          // 修复related_words字段 - 确保是有效的JSONB数组
-          related_words: this.validateRelatedWordsField(sticker.relatedWords),
-          
-          is_deleted: false,
-        };
-        
-        return processedSticker;
-      });
+          return processedSticker;
+        });
+
+      // 如果没有新贴纸需要同步，直接返回成功
+      if (userStickers.length === 0) {
+        console.log('没有新贴纸需要同步');
+        return true;
+      }
 
       console.log('准备同步的贴纸数据:', JSON.stringify(userStickers[0], null, 2));
 
-      // 批量插入或更新 - 使用更安全的upsert
+      // 使用insert代替upsert，避免ON CONFLICT DO UPDATE错误
       const { data, error } = await supabase
         .from(USER_TABLES.USER_STICKERS)
-        .upsert(userStickers, {
-          onConflict: 'user_id,sticker_id',
-          ignoreDuplicates: false
-        })
+        .insert(userStickers)
         .select();
 
       if (error) {
@@ -477,7 +517,7 @@ export class UserDataManager {
       // 更新同步状态
       await this.updateSyncStatus('stickers');
       
-      console.log(`✅ 成功同步 ${stickers.length} 个贴纸到Supabase`);
+      console.log(`✅ 成功同步 ${userStickers.length} 个贴纸到Supabase`);
       console.log('同步结果:', data);
       return true;
     } catch (error: any) {
