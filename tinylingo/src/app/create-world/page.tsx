@@ -1048,8 +1048,10 @@ function CreateWorldPageContent() {
   };
 
   // 添加贴纸到画布 - 增强实时保存触发
-  const handleAddSticker = (sticker: StickerData) => {
+  const handleAddSticker = async (sticker: StickerData) => {
     console.log('🎨 添加贴纸到画布:', sticker.word);
+    
+    // 创建画布对象
     const newObject = {
       id: `sticker-${Date.now()}`,
       type: 'sticker',
@@ -1066,6 +1068,18 @@ function CreateWorldPageContent() {
     
     // 立即标记为有未保存的变化，触发实时保存
     setHasUnsavedChanges(true);
+    
+    // 保存贴纸到My Stickers数据库（如果尚未存在）
+    try {
+      console.log('💾 保存贴纸到My Stickers数据库:', sticker.word);
+      await StickerDataUtils.addSticker(sticker);
+      // 标记需要同步到Supabase
+      markForSync('stickers');
+      console.log('✅ 贴纸已保存到My Stickers数据库');
+    } catch (error) {
+      console.warn('⚠️ 保存贴纸到数据库失败（可能已存在）:', error);
+      // 不阻止添加到画布的操作，因为贴纸可能已经存在于数据库中
+    }
     
     // 自动播放贴纸的英文音频
     playStickerAudio(sticker);

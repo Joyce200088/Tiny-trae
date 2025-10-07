@@ -396,7 +396,10 @@ export default function WorldsGrid({
               <p className="text-sm text-gray-600 mb-3 line-clamp-2">{world.description}</p>
               
               <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                <span>{world.wordCount} Words</span>
+                <div className="flex items-center space-x-3">
+                  <span>{world.wordCount} Words</span>
+                  <span>{world.stickerCount || 0} Stickers</span>
+                </div>
                 {world.isPublic && (
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center space-x-1">

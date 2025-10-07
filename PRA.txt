@@ -1,5 +1,9 @@
 # TinyLingo 网页运行步骤
 
+## 显示 Internal Server Error
+Remove-Item -Recurse -Force .next 
+npm run dev 
+
 ## 快速启动
 1. 打开终端，进入项目目录：
    cd "d:\0. Master_Laptop\0.项目\11. 英语世界_trae\tinylingo"

@@ -257,6 +257,37 @@ export class UserDataManager {
   }
 
   /**
+   * 从Supabase永久删除世界记录
+   */
+  static async permanentlyDeleteWorldFromSupabase(worldId: string): Promise<boolean> {
+    const userId = await this.getCurrentUserId();
+    if (!userId) return false;
+
+    try {
+      // 设置用户上下文
+      await this.setUserContext(userId);
+
+      // 从数据库中删除世界记录
+      const { error } = await supabase
+        .from(USER_TABLES.USER_WORLDS)
+        .delete()
+        .eq('user_id', userId)
+        .eq('world_id', worldId);
+
+      if (error) {
+        console.error('从Supabase删除世界失败:', error);
+        return false;
+      }
+
+      console.log(`成功从Supabase删除世界: ${worldId}`);
+      return true;
+    } catch (error) {
+      console.error('从Supabase删除世界异常:', error);
+      return false;
+    }
+  }
+
+  /**
    * 同步世界数据到Supabase
    */
   static async syncWorldsToSupabase(worlds: WorldData[]): Promise<boolean> {
@@ -582,6 +613,12 @@ export class UserDataManager {
     const userId = await this.getCurrentUserId();
     if (!userId) return null;
 
+    // 检查网络连接
+    if (!this.isOnline()) {
+      console.log('网络离线，跳过同步状态查询');
+      return null;
+    }
+
     try {
       const { data, error } = await supabase
         .from(USER_TABLES.USER_SYNC_STATUS)
@@ -595,12 +632,25 @@ export class UserDataManager {
           // 同步状态不存在，返回null
           return null;
         }
+        
+        // 处理406错误和其他HTTP错误
+        if (error.code === '406' || error.message?.includes('406')) {
+          console.warn('同步状态查询返回406错误，可能是RLS策略问题，跳过查询');
+          return null;
+        }
+        
         console.error('获取同步状态失败:', error);
         return null;
       }
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
+      // 捕获网络错误和其他异常
+      if (error?.status === 406 || error?.message?.includes('406')) {
+        console.warn('同步状态查询遇到406错误，跳过查询');
+        return null;
+      }
+      
       console.error('获取同步状态异常:', error);
       return null;
     }

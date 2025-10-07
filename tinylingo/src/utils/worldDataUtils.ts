@@ -73,6 +73,11 @@ export class WorldDataUtils {
         newValue: JSON.stringify(worlds),
         storageArea: localStorage
       }));
+      
+      // 同时触发自定义事件，确保所有监听器都能收到通知
+      window.dispatchEvent(new CustomEvent('localStorageUpdate', {
+        detail: { key: storageKey, data: worlds }
+      }));
     } catch (error) {
       console.error('保存世界数据失败:', error);
       throw error;
@@ -235,14 +240,20 @@ export class WorldDataUtils {
         throw new Error(`未找到ID为 ${worldId} 的世界`);
       }
       
+      // 先从本地存储删除
       await this.saveWorldData(filteredWorlds);
-      console.log('永久删除世界:', worldId);
+      console.log('从本地存储永久删除世界:', worldId);
       
-      // 尝试同步到Supabase
+      // 从Supabase数据库中删除记录
       try {
-        await UserDataManager.syncWorldsToSupabase(filteredWorlds);
+        const deleteSuccess = await UserDataManager.permanentlyDeleteWorldFromSupabase(worldId);
+        if (deleteSuccess) {
+          console.log('从Supabase数据库永久删除世界:', worldId);
+        } else {
+          console.warn('从Supabase删除世界失败，但本地已删除');
+        }
       } catch (syncError) {
-        console.warn('同步到Supabase失败:', syncError);
+        console.warn('从Supabase删除世界失败:', syncError);
       }
     } catch (error) {
       console.error('永久删除世界失败:', error);
@@ -264,12 +275,92 @@ export class WorldDataUtils {
   }
 
   /**
-   * 获取未删除的世界列表
+   * 修复世界数据中缺失的stickerCount字段
+   * 遍历所有世界，重新计算并更新stickerCount
+   */
+  static async fixMissingStickerCounts(): Promise<void> {
+    try {
+      const worlds = await this.loadWorldData();
+      let fixedCount = 0;
+      
+      const fixedWorlds = worlds.map(world => {
+        // 检查是否需要修复stickerCount
+        const needsFix = world.stickerCount === undefined || 
+                        world.stickerCount === null || 
+                        typeof world.stickerCount !== 'number';
+        
+        if (needsFix) {
+          // 重新计算stickerCount
+          let calculatedStickerCount = 0;
+          
+          // 优先从canvasObjects计算
+          if (world.canvasObjects && Array.isArray(world.canvasObjects)) {
+            calculatedStickerCount = world.canvasObjects.filter(obj => obj.stickerData).length;
+          }
+          // 如果canvasObjects不存在，从canvasData.objects计算
+          else if (world.canvasData?.objects && Array.isArray(world.canvasData.objects)) {
+            calculatedStickerCount = world.canvasData.objects.filter(obj => obj.stickerData).length;
+          }
+          
+          console.log(`修复世界 "${world.name}" 的stickerCount: ${world.stickerCount} -> ${calculatedStickerCount}`);
+          fixedCount++;
+          
+          return {
+            ...world,
+            stickerCount: calculatedStickerCount,
+            needsSync: true, // 标记需要同步
+            updatedAt: new Date().toISOString()
+          };
+        }
+        
+        return world;
+      });
+      
+      if (fixedCount > 0) {
+        await this.saveWorldData(fixedWorlds);
+        console.log(`✅ 修复了 ${fixedCount} 个世界的stickerCount字段`);
+        
+        // 尝试同步到Supabase
+        try {
+          await UserDataManager.syncWorldsToSupabase(fixedWorlds.filter(w => w.needsSync));
+          console.log('修复的数据已同步到Supabase');
+        } catch (syncError) {
+          console.warn('同步修复数据到Supabase失败:', syncError);
+        }
+      } else {
+        console.log('所有世界的stickerCount字段都正常，无需修复');
+      }
+    } catch (error) {
+      console.error('修复stickerCount字段失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取未删除的世界列表（增强版）
+   * 自动修复缺失的stickerCount字段
    */
   static async getActiveWorlds(): Promise<WorldData[]> {
     try {
       const worlds = await this.loadWorldData();
-      return worlds.filter(world => world.isDeleted !== true);
+      const activeWorlds = worlds.filter(world => world.isDeleted !== true);
+      
+      // 检查是否有世界缺失stickerCount，如果有则自动修复
+      const needsFixing = activeWorlds.some(world => 
+        world.stickerCount === undefined || 
+        world.stickerCount === null || 
+        typeof world.stickerCount !== 'number'
+      );
+      
+      if (needsFixing) {
+        console.log('检测到缺失stickerCount的世界，正在自动修复...');
+        await this.fixMissingStickerCounts();
+        // 重新加载修复后的数据
+        const fixedWorlds = await this.loadWorldData();
+        return fixedWorlds.filter(world => world.isDeleted !== true);
+      }
+      
+      return activeWorlds;
     } catch (error) {
       console.error('获取活跃世界列表失败:', error);
       return [];
