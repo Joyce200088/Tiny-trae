@@ -102,63 +102,173 @@ export interface SyncStatus {
  */
 export class UserDataManager {
   private static currentUserId: string | null = null;
+  // 添加Supabase认证状态缓存，避免重复超时
+  private static supabaseAuthChecked: boolean = false;
+  private static supabaseAuthFailed: boolean = false;
 
   /**
    * 初始化用户会话
    * 优先使用Supabase认证用户ID，否则使用临时用户ID
    */
   static async initializeUser(): Promise<string> {
-    if (typeof window === 'undefined') return '';
+    console.log('🚀 initializeUser 开始执行...');
+    console.log('📋 当前缓存的用户ID:', this.currentUserId);
     
-    try {
-      // 首先尝试获取Supabase认证用户
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // 使用真实用户ID
-        this.currentUserId = user.id;
-        // 清除临时用户ID
-        localStorage.removeItem('currentUserId');
-        return user.id;
+    if (typeof window === 'undefined') {
+      console.log('❌ 服务端环境，返回空字符串');
+      return '';
+    }
+    
+    // 如果Supabase认证已经失败过，直接跳过，避免重复超时
+    if (!this.supabaseAuthChecked && !this.supabaseAuthFailed) {
+      try {
+        // 首先尝试获取Supabase认证用户，添加超时机制
+        console.log('🔐 尝试获取Supabase认证用户...');
+        
+        // 创建一个带超时的Promise
+        const getUserWithTimeout = Promise.race([
+          supabase.auth.getUser(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Supabase auth timeout')), 5000)
+          )
+        ]);
+        
+        const { data: { user } } = await getUserWithTimeout as any;
+        console.log('🔄 Supabase认证用户获取完成');
+        
+        this.supabaseAuthChecked = true;
+        
+        if (user) {
+          console.log('✅ 找到Supabase认证用户:', user.id);
+          // 使用真实用户ID
+          this.currentUserId = user.id;
+          // 清除临时用户ID
+          console.log('🗑️ 清除localStorage中的临时用户ID...');
+          localStorage.removeItem('currentUserId');
+          console.log(`✅ 用户已认证，使用真实用户ID: ${user.id}`);
+          return user.id;
+        } else {
+          console.log('❌ 没有找到Supabase认证用户');
+          this.supabaseAuthFailed = true;
+        }
+      } catch (error) {
+        console.warn('⚠️ 获取Supabase用户失败，使用临时用户ID:', error);
+        this.supabaseAuthChecked = true;
+        this.supabaseAuthFailed = true;
+        console.log('🔄 继续使用localStorage中的临时用户ID');
       }
-    } catch (error) {
-      console.warn('获取Supabase用户失败，使用临时用户ID:', error);
+    } else {
+      console.log('⏭️ 跳过Supabase认证检查（已检查过或已失败）');
     }
     
     // 如果没有认证用户，使用临时用户ID
+    console.log('🔍 从localStorage获取临时用户ID...');
     let userId = localStorage.getItem('currentUserId');
+    console.log('📋 localStorage中的用户ID:', userId);
+    
     if (!userId) {
       // 生成新的临时用户ID
+      console.log('🆕 生成新的临时用户ID...');
       userId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('💾 将新的临时用户ID保存到localStorage...');
       localStorage.setItem('currentUserId', userId);
+      console.log(`🆔 生成新的临时用户ID: ${userId}`);
+    } else {
+      console.log(`🔄 使用现有临时用户ID: ${userId}`);
     }
     
     this.currentUserId = userId;
+    console.log(`📋 initializeUser 最终返回: ${userId}`);
     return userId;
   }
 
   /**
    * 获取当前用户ID
-   * 优先返回Supabase认证用户ID，否则返回临时用户ID
+   * 优先使用缓存的用户ID，然后尝试localStorage，再尝试Supabase认证，最后生成临时ID
    */
   static async getCurrentUserId(): Promise<string | null> {
-    try {
-      // 首先尝试获取Supabase认证用户
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        this.currentUserId = user.id;
-        return user.id;
-      }
-    } catch (error) {
-      console.warn('获取Supabase用户失败:', error);
+    console.log('🔍 getCurrentUserId 开始执行...');
+    console.log('📋 当前缓存的用户ID:', this.currentUserId);
+    console.log('🔐 Supabase认证状态 - 已检查:', this.supabaseAuthChecked, '失败:', this.supabaseAuthFailed);
+    
+    // 如果已有缓存的用户ID，直接返回
+    if (this.currentUserId) {
+      console.log('✅ 使用缓存的用户ID:', this.currentUserId);
+      console.log('📋 getCurrentUserId 最终返回:', this.currentUserId);
+      return this.currentUserId;
+    }
+
+    // 优先从localStorage恢复用户ID（防止页面切换导致静态变量重置）
+    const storedUserId = localStorage.getItem('currentUserId');
+    if (storedUserId) {
+      this.currentUserId = storedUserId;
+      console.log('🔄 从localStorage恢复用户ID:', storedUserId);
+      console.log('📋 getCurrentUserId 最终返回:', this.currentUserId);
+      return this.currentUserId;
     }
     
-    // 如果没有认证用户，返回临时用户ID
-    if (!this.currentUserId && typeof window !== 'undefined') {
-      this.currentUserId = localStorage.getItem('currentUserId');
+    // 如果Supabase认证已经失败过，直接跳过，避免重复超时
+    if (!this.supabaseAuthChecked && !this.supabaseAuthFailed) {
+      try {
+        console.log('🔐 尝试获取Supabase认证用户...');
+        
+        // 添加5秒超时机制
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Supabase auth timeout')), 5000);
+        });
+        
+        const authPromise = supabase.auth.getUser();
+        const { data: { user }, error } = await Promise.race([authPromise, timeoutPromise]);
+        
+        this.supabaseAuthChecked = true;
+        
+        if (error) {
+          console.log('⚠️ Supabase认证错误:', error.message);
+          this.supabaseAuthFailed = true;
+        } else if (user) {
+          console.log('✅ 获取到Supabase认证用户:', user.id);
+          this.currentUserId = user.id;
+          
+          // 清除localStorage中的临时用户ID（如果存在）
+          const tempUserId = localStorage.getItem('currentUserId');
+          if (tempUserId && tempUserId.startsWith('temp_')) {
+            console.log('🗑️ 清除localStorage中的临时用户ID:', tempUserId);
+            localStorage.removeItem('currentUserId');
+          }
+          
+          console.log('📋 getCurrentUserId 最终返回:', this.currentUserId);
+          return this.currentUserId;
+        } else {
+          this.supabaseAuthFailed = true;
+        }
+      } catch (error) {
+        console.log(' ⚠️ 获取Supabase用户失败:', error);
+        this.supabaseAuthChecked = true;
+        this.supabaseAuthFailed = true;
+        console.log('🔄 继续使用缓存或localStorage中的用户ID');
+      }
+    } else {
+      console.log('⏭️ 跳过Supabase认证检查（已检查过或已失败）');
     }
-    return this.currentUserId;
+
+    // 尝试从localStorage获取临时用户ID
+    let tempUserId = localStorage.getItem('currentUserId');
+    console.log('📂 从localStorage获取的用户ID:', tempUserId);
+    
+    if (tempUserId) {
+      this.currentUserId = tempUserId;
+      console.log('✅ 使用localStorage中的用户ID:', tempUserId);
+      console.log('📋 getCurrentUserId 最终返回:', this.currentUserId);
+      return tempUserId;
+    }
+
+    // 生成新的临时用户ID
+    tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('currentUserId', tempUserId);
+    this.currentUserId = tempUserId;
+    console.log('🆕 生成新的临时用户ID:', tempUserId);
+    console.log('📋 getCurrentUserId 最终返回:', this.currentUserId);
+    return tempUserId;
   }
 
   /**
@@ -172,11 +282,11 @@ export class UserDataManager {
   }
 
   /**
-   * 设置用户上下文（用于 RLS 策略）
+   * 设置用户上下文（用于 RLS 策略）- 内部方法
    */
-  private static async setUserContext(userId: string): Promise<void> {
+  private static async setUserContextInternal(userId: string): Promise<void> {
     try {
-      console.log(`UserDataManager.setUserContext: 设置用户上下文 (${userId})`);
+      console.log(`UserDataManager.setUserContextInternal: 设置用户上下文 (${userId})`);
       
       // 方法1: 使用 set_config 函数
       try {
@@ -185,17 +295,17 @@ export class UserDataManager {
           new_value: userId,
           is_local: true
         });
-        console.log(`UserDataManager.setUserContext: set_config 成功`);
+        console.log(`UserDataManager.setUserContextInternal: set_config 成功`);
       } catch (configError) {
-        console.warn('UserDataManager.setUserContext: set_config 失败，尝试 set_user_context:', configError);
+        console.warn('UserDataManager.setUserContextInternal: set_config 失败，尝试 set_user_context:', configError);
         
         // 方法2: 使用自定义的 set_user_context 函数
         await supabase.rpc('set_user_context', { user_id: userId });
-        console.log(`UserDataManager.setUserContext: set_user_context 成功`);
+        console.log(`UserDataManager.setUserContextInternal: set_user_context 成功`);
       }
       
     } catch (error) {
-      console.error('UserDataManager.setUserContext: 设置用户上下文失败:', error);
+      console.error('UserDataManager.setUserContextInternal: 设置用户上下文失败:', error);
       throw error;
     }
   }
@@ -208,7 +318,7 @@ export class UserDataManager {
     if (!userId) {
       throw new Error('用户ID未设置，无法设置用户上下文');
     }
-    await this.setUserContext(userId);
+    await this.setUserContextInternal(userId);
   }
 
   /**
@@ -220,7 +330,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
       const { data, error } = await supabase
         .from(USER_TABLES.USERS)
         .upsert({
@@ -257,7 +367,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
       const { data, error } = await supabase
         .from(USER_TABLES.USERS)
         .select('*')
@@ -289,7 +399,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
 
       // 从数据库中删除世界记录
       const { error } = await supabase
@@ -316,16 +426,24 @@ export class UserDataManager {
    */
   static async syncWorldsToSupabase(worlds: WorldData[]): Promise<boolean> {
     const userId = await this.getCurrentUserId();
-    if (!userId) return false;
+    if (!userId) {
+      console.error('❌ syncWorldsToSupabase: 无法获取用户ID');
+      return false;
+    }
+
+    console.log(`🔄 syncWorldsToSupabase: 开始同步 ${worlds.length} 个世界，用户ID: ${userId}`);
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      console.log('🔧 设置用户上下文...');
+      await this.setUserContextInternal(userId);
       
       // 确保用户存在
+      console.log('👤 确保用户存在...');
       await this.upsertUser({});
 
       // 转换世界数据格式
+      console.log('🔄 转换世界数据格式...');
       const userWorlds: Omit<DatabaseUserWorld, 'id' | 'created_at' | 'updated_at'>[] = worlds.map(world => ({
         user_id: userId,
         world_id: world.id,
@@ -347,6 +465,9 @@ export class UserDataManager {
         is_deleted: false,
       }));
 
+      console.log('📤 准备插入/更新数据到user_worlds表...');
+      console.log('📋 数据预览:', userWorlds.map(w => ({ world_id: w.world_id, name: w.name, sticker_count: w.sticker_count })));
+
       // 批量插入或更新
       const { error } = await supabase
         .from(USER_TABLES.USER_WORLDS)
@@ -355,17 +476,18 @@ export class UserDataManager {
         });
 
       if (error) {
-        console.error('同步世界数据失败:', error);
+        console.error('❌ 同步世界数据失败:', error);
         return false;
       }
 
       // 更新同步状态
+      console.log('📊 更新同步状态...');
       await this.updateSyncStatus('worlds');
       
-      console.log(`成功同步 ${worlds.length} 个世界到Supabase`);
+      console.log(`✅ 成功同步 ${worlds.length} 个世界到Supabase`);
       return true;
     } catch (error) {
-      console.error('同步世界数据异常:', error);
+      console.error('❌ 同步世界数据异常:', error);
       return false;
     }
   }
@@ -379,7 +501,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
       const { data, error } = await supabase
         .from(USER_TABLES.USER_WORLDS)
         .select('*')
@@ -435,7 +557,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文 - 修复RLS问题
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
       
       // 确保用户存在
       await this.upsertUser({});
@@ -448,17 +570,25 @@ export class UserDataManager {
 
       const existingStickerIds = new Set(existingStickers?.map(s => s.sticker_id) || []);
 
+      // 预处理贴纸数据：确保每个贴纸都有唯一ID，并去重
+      const processedStickers = new Map<string, StickerData>();
+      
+      stickers.forEach(sticker => {
+        // 为没有ID的贴纸生成唯一ID
+        const stickerId = sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // 使用Map去重，相同ID的贴纸只保留最后一个
+        processedStickers.set(stickerId, { ...sticker, id: stickerId });
+      });
+
       // 转换贴纸数据格式 - 修复数组格式问题和重复ID问题
-      const userStickers = stickers
-        .filter(sticker => {
-          const stickerId = sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          return !existingStickerIds.has(stickerId);
-        })
+      const userStickers = Array.from(processedStickers.values())
+        .filter(sticker => !existingStickerIds.has(sticker.id!))
         .map(sticker => {
           // 确保所有数组字段格式正确
           const processedSticker = {
             user_id: userId,
-            sticker_id: sticker.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sticker_id: sticker.id!,  // 使用预处理的ID
             word: sticker.word || '',
             cn: sticker.cn || '',
             pos: sticker.pos || 'noun',
@@ -495,10 +625,13 @@ export class UserDataManager {
 
       console.log('准备同步的贴纸数据:', JSON.stringify(userStickers[0], null, 2));
 
-      // 使用insert代替upsert，避免ON CONFLICT DO UPDATE错误
+      // 使用upsert处理重复数据，避免唯一约束违规错误
       const { data, error } = await supabase
         .from(USER_TABLES.USER_STICKERS)
-        .insert(userStickers)
+        .upsert(userStickers, {
+          onConflict: 'user_id,sticker_id',
+          ignoreDuplicates: false
+        })
         .select();
 
       if (error) {
@@ -541,7 +674,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
       const { data, error } = await supabase
         .from(USER_TABLES.USER_STICKERS)
         .select('*')
@@ -595,7 +728,7 @@ export class UserDataManager {
 
     try {
       // 设置用户上下文
-      await this.setUserContext(userId);
+      await this.setUserContextInternal(userId);
       
       // 软删除：标记为已删除而不是物理删除
       const { error } = await supabase

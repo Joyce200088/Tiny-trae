@@ -15,7 +15,8 @@ import {
   WifiOff,
   FileText,
   Bell,
-  Eye
+  Eye,
+  Save
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSimpleZoomFix } from '@/hooks/useZoomFix';
@@ -25,6 +26,11 @@ interface TopBarProps {
   // 文档相关
   documentName: string;
   onDocumentNameChange: (name: string) => void;
+  
+  // 手动保存功能
+  hasUnsavedChanges?: boolean;
+  onManualSave?: () => void;
+  isSaving?: boolean;
   
   // 自动保存状态
   autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
@@ -80,6 +86,9 @@ interface Notification {
 export default function TopBar({
   documentName,
   onDocumentNameChange,
+  hasUnsavedChanges = false,
+  onManualSave,
+  isSaving = false,
   autoSaveStatus = 'idle',
   lastSavedTime,
   isOnline = true,
@@ -271,6 +280,35 @@ export default function TopBar({
               className="px-2 py-1 text-sm font-medium text-gray-900 hover:bg-gray-100 rounded transition-colors"
             >
               {documentName || '未命名文档'}
+            </button>
+          )}
+          
+          {/* 手动保存按钮 */}
+          {onManualSave && (
+            <button
+              onClick={onManualSave}
+              disabled={!hasUnsavedChanges || isSaving || !isOnline}
+              className={`flex items-center space-x-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                hasUnsavedChanges && !isSaving && isOnline
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+              title={
+                !isOnline 
+                  ? '离线状态，无法保存' 
+                  : !hasUnsavedChanges 
+                    ? '没有未保存的变更' 
+                    : isSaving 
+                      ? '正在保存...' 
+                      : '保存世界'
+              }
+            >
+              {isSaving ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{isSaving ? '保存中...' : '保存'}</span>
             </button>
           )}
         </div>

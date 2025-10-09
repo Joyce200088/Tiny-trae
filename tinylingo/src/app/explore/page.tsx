@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Search, Heart, Star } from 'lucide-react';
+import AuthGuard from '@/components/auth/AuthGuard_v1';
 
 // 模拟数据
 const mockItems = [
@@ -68,6 +69,14 @@ const mockItems = [
 ];
 
 export default function Explore() {
+  return (
+    <AuthGuard>
+      <ExploreContent />
+    </AuthGuard>
+  );
+}
+
+function ExploreContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'World' | 'Sticker'>('World');
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserDataManager } from '@/lib/supabase/userClient';
 import { StickerData } from '@/types/sticker';
+import DebugWorldSave from './debug-world-save';
 
 // 定义世界数据的类型接口（与 UserDataManager 兼容）
 interface WorldData {
@@ -204,6 +205,11 @@ export default function TestDatabasePage() {
   return (
     <div className="min-h-screen p-8" style={{ backgroundColor: '#FFFBF5' }}>
       <div className="max-w-4xl mx-auto">
+        {/* 世界保存调试工具 */}
+        <div className="mb-8">
+          <DebugWorldSave />
+        </div>
+        
         <Card>
           <CardHeader>
             <CardTitle>数据库操作测试</CardTitle>

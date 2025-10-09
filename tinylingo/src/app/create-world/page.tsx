@@ -16,7 +16,7 @@ import { Image as KonvaImage, Transformer } from 'react-konva';
 import useImage from 'use-image';
 // 导入自动同步功能
 import { useAutoSync } from '@/hooks/useAutoSync';
-import { UserDataManager } from '@/lib/supabase/userClient';
+import { UserDataManager } from '@/lib/supabase/userClient_v2';
 
 // 导入认证相关
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -590,6 +590,9 @@ function CreateWorldPageContent() {
     );
   };
   
+  // 手动保存相关状态
+  const [isSaving, setIsSaving] = useState(false);
+  
   // 自动保存相关状态
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
@@ -681,6 +684,24 @@ function CreateWorldPageContent() {
       console.error('用户ID初始化失败:', error);
     });
     
+    // 添加页面可见性变化监听器，处理标签页切换
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 页面重新可见，重新初始化用户上下文...');
+        // 页面重新可见时，重新初始化用户上下文
+        UserDataManager.initializeUser().then(() => {
+          console.log('✅ 页面可见性变化后用户ID重新初始化:', UserDataManager.getCurrentUserId());
+        }).catch(error => {
+          console.error('❌ 页面可见性变化后用户ID初始化失败:', error);
+        });
+      } else {
+        console.log('📱 页面变为不可见');
+      }
+    };
+
+    // 监听页面可见性变化
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     // 检查URL参数，看是否是编辑现有世界或加载预设模板
     const worldId = searchParams.get('worldId');
     const templateId = searchParams.get('template');
@@ -718,59 +739,32 @@ function CreateWorldPageContent() {
       // 加载预设模板
       loadPresetTemplate(templateId);
     }
+    
+    // 清理函数：移除页面可见性监听器
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [searchParams]);
 
-  // 页面关闭前保存
+  // 页面卸载守卫 - 提醒用户未保存的变更
   useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges && !isAutoSavingRef.current) {
-        // 同步保存（简化版本）
-        try {
-          const worldData = {
-            id: currentWorldId || Date.now().toString(),
-            name: documentName || '未命名世界',
-            description: `包含 ${canvasObjects.length} 个贴纸的英语学习世界`,
-            thumbnail: '', // 暂时为空，后续通过拍照功能设置
-            coverUrl: '', // 个人主页世界库期望的字段名
-            wordCount: canvasObjects.length,
-            stickerCount: canvasObjects.length, // 添加必需的stickerCount字段
-            likes: 0,
-            favorites: 0,
-            isPublic: false,
-            canvasData: {
-              objects: canvasObjects,
-              background: selectedBackground
-            },
-            tags: [], // 添加必需的tags字段
-            createdAt: currentWorldId ? 
-              ((await WorldDataUtils.loadWorldData()).find((w: WorldData) => w.id === currentWorldId)?.createdAt || new Date().toISOString()) :
-              new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            lastModified: new Date().toISOString()
-          };
-          
-          const savedWorlds = await WorldDataUtils.loadWorldData();
-          const existingIndex = savedWorlds.findIndex((world: WorldData) => world.id === worldData.id);
-          
-          if (existingIndex >= 0) {
-            savedWorlds[existingIndex] = worldData;
-          } else {
-            savedWorlds.push(worldData);
-          }
-          
-          await WorldDataUtils.saveWorldData(savedWorlds);
-        } catch (error) {
-          console.error('页面关闭前保存失败:', error);
-        }
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        // 设置提示信息
+        const message = '您有未保存的变更，确定要离开吗？';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
       }
     };
 
+    // 监听页面卸载事件
     window.addEventListener('beforeunload', handleBeforeUnload);
     
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [hasUnsavedChanges, currentWorldId, documentName, canvasObjects, selectedBackground]);
+  }, [hasUnsavedChanges]);
 
   // 获取选中的对象
   const selectedObject = canvasObjects.find(obj => obj.id === selectedObjectId);
@@ -786,6 +780,60 @@ function CreateWorldPageContent() {
 
   // 生成缩略图函数
   // 缩略图功能已删除
+
+  // 手动保存函数
+  const handleManualSave = async () => {
+    if (!hasUnsavedChanges || isSaving) {
+      console.log('⚠️ 手动保存被跳过:', { 
+        hasUnsavedChanges, 
+        isSaving,
+        reason: !hasUnsavedChanges ? '没有未保存的变更' : '正在保存中'
+      });
+      return;
+    }
+    
+    setIsSaving(true);
+    const startTime = Date.now();
+    console.log('🔄 手动保存开始...', {
+      timestamp: new Date().toISOString(),
+      documentName,
+      currentWorldId,
+      canvasObjectsCount: canvasObjects.length,
+      hasBackground: !!selectedBackground,
+      isOnline
+    });
+    
+    try {
+      await saveWorldData(false); // 调用现有的保存函数，传入false表示非自动保存
+      const duration = Date.now() - startTime;
+      console.log('✅ 手动保存成功', {
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString(),
+        documentName,
+        worldId: currentWorldId
+      });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error('❌ 手动保存失败:', {
+        error: error instanceof Error ? error.message : error,
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString(),
+        documentName,
+        worldId: currentWorldId,
+        isOnline,
+        canvasObjectsCount: canvasObjects.length
+      });
+      
+      // 确保在错误时也重置保存状态
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+      console.log('🏁 手动保存流程结束', {
+        timestamp: new Date().toISOString(),
+        isSaving: false
+      });
+    }
+  };
 
   // 保存世界数据（保留原有逻辑，添加自动保存支持和重试机制）
   const saveWorldData = async (isAutoSave = false, retryCount = 0) => {
@@ -874,21 +922,59 @@ function CreateWorldPageContent() {
       // 使用WorldDataUtils保存世界数据（支持Supabase同步）
       try {
         console.log('🔄 调用WorldDataUtils保存方法...');
+        console.log('📋 准备保存的世界数据:', {
+          id: worldData.id,
+          name: worldData.name,
+          stickerCount: worldData.stickerCount,
+          wordCount: worldData.wordCount,
+          canvasObjectsLength: worldData.canvasObjects?.length || 0,
+          hasBackground: !!worldData.selectedBackground
+        });
+        
         if (currentWorldId) {
           // 更新现有世界
-          console.log('📝 更新现有世界:', currentWorldId);
-          await WorldDataUtils.updateWorld(worldData);
-          console.log('✅ 世界更新成功');
+          console.log('📝 开始更新现有世界:', currentWorldId);
+          console.log('⏰ 调用 WorldDataUtils.updateWorld 前的时间戳:', new Date().toISOString());
+          
+          try {
+            await WorldDataUtils.updateWorld(worldData);
+            console.log('⏰ WorldDataUtils.updateWorld 完成时间戳:', new Date().toISOString());
+            console.log('✅ 世界更新成功');
+          } catch (updateError) {
+            // 如果更新失败（世界不存在），则转为添加新世界
+            if ((updateError as Error).message.includes('未找到ID为')) {
+              console.log('⚠️ 世界不存在，转为添加新世界模式');
+              console.log('🔄 重置世界ID，准备创建新世界');
+              
+              // 生成新的世界ID
+              const newWorldId = Date.now().toString();
+              worldData.id = newWorldId;
+              setCurrentWorldId(newWorldId);
+              
+              console.log('➕ 开始添加新世界（从更新失败转换）');
+              console.log('⏰ 调用 WorldDataUtils.addWorld 前的时间戳:', new Date().toISOString());
+              await WorldDataUtils.addWorld(worldData);
+              console.log('⏰ WorldDataUtils.addWorld 完成时间戳:', new Date().toISOString());
+              console.log('✅ 世界添加成功（从更新失败转换）:', worldData.id);
+            } else {
+              // 其他错误，重新抛出
+              throw updateError;
+            }
+          }
         } else {
           // 添加新世界
-          console.log('➕ 添加新世界');
+          console.log('➕ 开始添加新世界');
+          console.log('⏰ 调用 WorldDataUtils.addWorld 前的时间戳:', new Date().toISOString());
           await WorldDataUtils.addWorld(worldData);
+          console.log('⏰ WorldDataUtils.addWorld 完成时间戳:', new Date().toISOString());
           console.log('✅ 世界添加成功:', worldData.id);
           
           // 设置当前世界ID为新创建的世界ID
           setCurrentWorldId(worldData.id);
           console.log('🆔 设置新的世界ID:', worldData.id);
         }
+        
+        console.log('🎯 WorldDataUtils 操作完成，开始后续处理...');
       } catch (error) {
         console.error('❌ 保存世界数据失败:', error);
         console.error('错误详情:', (error as Error).message, (error as Error).stack);
@@ -973,7 +1059,10 @@ function CreateWorldPageContent() {
     }
   };
 
-  // 监听数据变化，标记为未保存并触发实时保存
+  // 自动保存开关配置
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // 禁用自动保存
+
+  // 监听数据变化，标记为未保存（不触发自动保存）
   useEffect(() => {
     // 跳过初始加载时的保存
     if (canvasObjects.length === 0 && !selectedBackground && !documentName) {
@@ -981,18 +1070,18 @@ function CreateWorldPageContent() {
     }
     
     setHasUnsavedChanges(true);
-    setSaveStatus('saved'); // 重置保存状态，等待自动保存
+    setSaveStatus('saved'); // 重置保存状态，等待手动保存
     
-    console.log('🔄 检测到数据变化，准备自动保存...', {
+    console.log('🔄 检测到数据变化，标记为未保存...', {
       canvasObjectsCount: canvasObjects.length,
       selectedBackground: !!selectedBackground,
       documentName: documentName || '未命名'
     });
   }, [canvasObjects, selectedBackground, documentName]);
 
-  // 实时自动保存逻辑 - 优化为更快的响应时间
+  // 自动保存逻辑 - 通过开关控制是否启用
   useEffect(() => {
-    if (hasUnsavedChanges && !isAutoSavingRef.current) {
+    if (hasUnsavedChanges && !isAutoSavingRef.current && autoSaveEnabled) {
       // 清除之前的定时器
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
@@ -1011,15 +1100,31 @@ function CreateWorldPageContent() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [hasUnsavedChanges, canvasObjects, selectedBackground, documentName]);
+  }, [hasUnsavedChanges, canvasObjects, selectedBackground, documentName, autoSaveEnabled]);
 
-  // 处理对象变化 - 增强实时保存触发
+  // 处理对象变化 - 标记为未保存（不触发自动保存）
   const handleObjectChange = (id: string, newAttrs: Partial<CanvasObject>) => {
     console.log('🎯 对象属性变化:', { id, changes: Object.keys(newAttrs) });
     setCanvasObjects(prev => 
-      prev.map(obj => obj.id === id ? { ...obj, ...newAttrs } : obj)
+      prev.map(obj => {
+        if (obj.id === id) {
+          // 确保 stickerData 字段不会丢失
+          const updatedObj = { ...obj, ...newAttrs };
+          // 如果原对象有 stickerData 但新属性中没有，保留原有的 stickerData
+          if (obj.stickerData && !newAttrs.stickerData) {
+            updatedObj.stickerData = obj.stickerData;
+          }
+          console.log('🔄 对象更新完成:', { 
+            id, 
+            hasStickerData: !!updatedObj.stickerData,
+            stickerWord: updatedObj.stickerData?.word 
+          });
+          return updatedObj;
+        }
+        return obj;
+      })
     );
-    // 立即标记为有未保存的变化，触发实时保存
+    // 立即标记为有未保存的变化，等待手动保存
     setHasUnsavedChanges(true);
   };
 
@@ -1029,7 +1134,7 @@ function CreateWorldPageContent() {
       console.log('🗑️ 删除对象:', targetId);
       setCanvasObjects(prev => prev.filter(obj => obj.id !== targetId));
       setSelectedObjectId(null);
-      // 立即标记为有未保存的变化，触发实时保存
+      // 立即标记为有未保存的变化，等待手动保存
       setHasUnsavedChanges(true);
     }
   };
@@ -1605,6 +1710,9 @@ function CreateWorldPageContent() {
         <TopBar
           documentName={documentName}
           onDocumentNameChange={setDocumentName}
+          hasUnsavedChanges={hasUnsavedChanges}
+          onManualSave={handleManualSave}
+          isSaving={isSaving}
           autoSaveStatus={autoSaveStatus}
           lastSavedTime={lastSavedTime}
           isOnline={isOnline}

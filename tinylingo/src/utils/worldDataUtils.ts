@@ -98,37 +98,61 @@ export class WorldDataUtils {
    * 支持用户数据隔离和图片上传到Storage
    */
   static async addWorld(world: WorldData): Promise<void> {
+    console.log('🚀 WorldDataUtils.addWorld 开始执行...');
+    console.log('📋 接收到的世界数据:', {
+      id: world.id,
+      name: world.name,
+      stickerCount: world.stickerCount,
+      wordCount: world.wordCount
+    });
+    
     try {
       // 处理世界图片，上传到Supabase Storage
+      console.log('🖼️ 开始处理世界图片...');
       const processedWorld = await this.processWorldImages(world);
+      console.log('✅ 世界图片处理完成');
       
+      console.log('📂 开始加载现有世界数据...');
       const worlds = await this.loadWorldData();
+      console.log(`📊 当前已有 ${worlds.length} 个世界`);
       
       // 检查是否已存在相同ID的世界
       const existingIndex = worlds.findIndex(w => w.id === processedWorld.id);
       if (existingIndex !== -1) {
         // 如果存在，更新现有世界
         worlds[existingIndex] = { ...processedWorld, needsSync: true };
-        console.log('更新现有世界:', processedWorld.name);
+        console.log('🔄 更新现有世界:', processedWorld.name);
       } else {
         // 如果不存在，添加新世界
         const newWorld = { ...processedWorld, needsSync: true };
         worlds.push(newWorld);
-        console.log('添加新世界:', processedWorld.name);
+        console.log('➕ 添加新世界:', processedWorld.name);
       }
       
       // 保存到localStorage
+      console.log('💾 开始保存到localStorage...');
       await this.saveWorldData(worlds);
+      console.log('✅ 世界数据已保存到localStorage');
       
-      // 尝试同步到Supabase
+      // 尝试同步到Supabase - 不抛出错误，避免影响保存流程
       try {
-        await UserDataManager.syncWorldsToSupabase([processedWorld]);
-        console.log('世界数据已同步到Supabase');
+        console.log('🔄 开始同步世界数据到Supabase...');
+        const syncResult = await UserDataManager.syncWorldsToSupabase([processedWorld]);
+        console.log('📤 Supabase同步结果:', syncResult);
+        if (syncResult) {
+          console.log('✅ 世界数据已成功同步到Supabase');
+        } else {
+          console.warn('⚠️ 同步到Supabase返回false，但没有抛出异常');
+        }
       } catch (syncError) {
-        console.warn('同步到Supabase失败，数据已保存到本地:', syncError);
+        console.error('❌ 同步到Supabase失败，数据已保存到本地:', syncError);
+        // 不重新抛出错误，因为本地保存已成功
+        // 同步失败不应该影响用户的保存操作
       }
+      
+      console.log('🎯 WorldDataUtils.addWorld 执行完成');
     } catch (error) {
-      console.error('添加世界失败:', error);
+      console.error('❌ WorldDataUtils.addWorld 执行失败:', error);
       throw error;
     }
   }
@@ -138,29 +162,58 @@ export class WorldDataUtils {
    * 支持用户数据隔离和图片上传到Storage
    */
   static async updateWorld(updatedWorld: WorldData): Promise<void> {
+    console.log('🚀 WorldDataUtils.updateWorld 开始执行...');
+    console.log('📋 接收到的更新数据:', {
+      id: updatedWorld.id,
+      name: updatedWorld.name,
+      stickerCount: updatedWorld.stickerCount,
+      wordCount: updatedWorld.wordCount
+    });
+    
     try {
       // 处理世界图片，上传到Supabase Storage
+      console.log('🖼️ 开始处理世界图片...');
       const processedWorld = await this.processWorldImages(updatedWorld);
+      console.log('✅ 世界图片处理完成');
       
+      console.log('📂 开始加载现有世界数据...');
       const worlds = await this.loadWorldData();
+      console.log(`📊 当前已有 ${worlds.length} 个世界`);
+      
       const index = worlds.findIndex(w => w.id === processedWorld.id);
       
       if (index !== -1) {
+        console.log(`🔄 找到要更新的世界，索引: ${index}`);
         worlds[index] = { ...processedWorld, needsSync: true };
-        await this.saveWorldData(worlds);
-        console.log('更新世界:', processedWorld.name);
         
-        // 尝试同步到Supabase
+        console.log('💾 开始保存更新到localStorage...');
+        await this.saveWorldData(worlds);
+        console.log('✅ 世界数据已保存到localStorage');
+        
+        // 尝试同步到Supabase - 不抛出错误，避免影响保存流程
         try {
-          await UserDataManager.syncWorldsToSupabase([processedWorld]);
+          console.log('🔄 开始同步更新的世界数据到Supabase...');
+          const syncResult = await UserDataManager.syncWorldsToSupabase([processedWorld]);
+          console.log('📤 Supabase同步结果:', syncResult);
+          if (syncResult) {
+            console.log('✅ 更新的世界数据已成功同步到Supabase');
+          } else {
+            console.warn('⚠️ 同步更新的世界到Supabase返回false，但没有抛出异常');
+          }
         } catch (syncError) {
-          console.warn('同步到Supabase失败:', syncError);
+          console.error('❌ 同步更新的世界到Supabase失败，数据已保存到本地:', syncError);
+          // 不重新抛出错误，因为本地保存已成功
+          // 同步失败不应该影响用户的保存操作
         }
+        
+        console.log('🎯 WorldDataUtils.updateWorld 执行完成');
       } else {
-        throw new Error(`未找到ID为 ${processedWorld.id} 的世界`);
+        const errorMsg = `未找到ID为 ${processedWorld.id} 的世界`;
+        console.error('❌', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (error) {
-      console.error('更新世界失败:', error);
+      console.error('❌ WorldDataUtils.updateWorld 执行失败:', error);
       throw error;
     }
   }

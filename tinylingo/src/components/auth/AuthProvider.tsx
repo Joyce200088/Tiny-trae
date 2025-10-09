@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
-import { UserDataManager } from '@/lib/supabase/userClient';
+import { UserDataManager } from '@/lib/supabase/userClient_v2';
 
 /**
  * 认证上下文类型定义
@@ -38,6 +38,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+        
+        // 只有在用户认证后才初始化用户数据管理器
+        if (user) {
+          const initialized = await UserDataManager.initializeUser();
+          if (initialized) {
+            console.log('用户数据管理器已初始化');
+          } else {
+            console.warn('用户数据管理器初始化失败');
+          }
+        } else {
+          console.log('用户未认证，跳过用户数据管理器初始化');
+        }
       } catch (error) {
         console.error('获取用户状态失败:', error);
       } finally {
@@ -56,17 +68,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 当用户登录或注销时，重新初始化用户数据
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           try {
-            await UserDataManager.initializeUser();
-            
-            // 如果是登录事件且有用户信息，确保用户数据已保存到数据库
             if (event === 'SIGNED_IN' && session?.user) {
-              const user = session.user;
-              await UserDataManager.upsertUser({
-                username: user.user_metadata?.display_name || user.email?.split('@')[0] || '',
-                email: user.email || '',
-                avatar_url: user.user_metadata?.avatar_url,
-                preferences: {},
-              });
+              // 用户登录时初始化用户数据管理器
+              const initialized = await UserDataManager.initializeUser();
+              if (initialized) {
+                console.log('用户登录，数据管理器已初始化');
+                
+                // 确保用户数据已保存到数据库
+                const user = session.user;
+                await UserDataManager.upsertUser({
+                  username: user.user_metadata?.display_name || user.email?.split('@')[0] || '',
+                  email: user.email || '',
+                  avatar_url: user.user_metadata?.avatar_url,
+                  preferences: {},
+                });
+              }
+            } else if (event === 'SIGNED_OUT') {
+              // 用户登出时清理用户数据管理器
+              UserDataManager.cleanup();
+              console.log('用户登出，数据管理器已清理');
             }
           } catch (error) {
             console.error('用户数据初始化失败:', error);
@@ -196,13 +216,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      console.log('开始注销用户...');
+      
+      // 执行 Supabase 注销
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Supabase 注销失败:', error);
+        throw error;
+      }
+      
+      console.log('Supabase 注销成功');
+      
       // 清除临时用户数据
+      if (typeof window !== 'undefined') {
+        console.log('清除本地存储数据...');
+        localStorage.removeItem('currentUserId');
+        console.log('本地存储数据已清除');
+      }
+      
+      // 手动设置用户状态为 null，确保 UI 立即更新
+      setUser(null);
+      console.log('用户状态已重置');
+      
+    } catch (error) {
+      console.error('注销失败:', error);
+      // 即使注销失败，也要清除本地状态
       if (typeof window !== 'undefined') {
         localStorage.removeItem('currentUserId');
       }
-    } catch (error) {
-      console.error('注销失败:', error);
+      setUser(null);
+      throw error; // 重新抛出错误，让调用方知道注销失败
     }
   };
 
@@ -210,10 +254,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * 刷新用户数据
    * 强制重新获取用户信息，用于更新用户显示名称等
    */
+  /**
+   * 刷新用户数据
+   * 同时获取 Supabase Auth 用户和自定义用户表数据
+   */
   const refreshUser = async () => {
     try {
+      console.log('开始刷新用户数据...');
+      
+      // 获取 Supabase Auth 用户
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      
+      if (user) {
+        // 获取自定义用户表中的数据
+        const { data: customUserData, error } = await supabase
+          .from('users')
+          .select('username, email, avatar_url, preferences')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (!error && customUserData) {
+          // 合并自定义用户数据到 user_metadata
+          const updatedUser = {
+            ...user,
+            user_metadata: {
+              ...user.user_metadata,
+              display_name: customUserData.username || user.user_metadata?.display_name,
+              custom_email: customUserData.email,
+              avatar_url: customUserData.avatar_url,
+              preferences: customUserData.preferences
+            }
+          };
+          console.log('用户数据刷新成功，包含自定义数据');
+          setUser(updatedUser);
+        } else {
+          console.log('未找到自定义用户数据，使用 Auth 用户数据');
+          setUser(user);
+        }
+      } else {
+        console.log('未找到认证用户');
+        setUser(null);
+      }
     } catch (error) {
       console.error('刷新用户数据失败:', error);
     }

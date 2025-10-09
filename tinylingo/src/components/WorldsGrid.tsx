@@ -303,20 +303,8 @@ export default function WorldsGrid({
                             placeholder.style.display = 'flex';
                           }
                           
-                          // 使用toast通知显示用户友好的错误提示
-                          toast.error(`缩略图加载失败`, {
-                            description: `世界 "${world.name}" 的缩略图无法加载，来源: ${imageSource}`,
-                            action: {
-                              label: '查看详情',
-                              onClick: () => {
-                                toast.info('缩略图加载失败详情', {
-                                  description: `原因：图片文件可能已损坏或不存在\n来源：${imageSource}\n\n建议：\n1. 重新上传缩略图\n2. 检查网络连接\n3. 联系技术支持`,
-                                  duration: 8000
-                                });
-                              }
-                            },
-                            duration: 5000
-                          });
+                          // 静默处理缩略图加载失败，不显示弹窗提示
+                          // 只在控制台记录错误信息，避免干扰用户体验
                           
                           console.warn(`缩略图加载失败 - 世界: ${world.name}, 来源: ${imageSource}`);
                         }}
@@ -336,10 +324,8 @@ export default function WorldsGrid({
                           <div className="text-xs mt-1 text-blue-500 cursor-pointer" 
                                onClick={(e) => {
                                  e.stopPropagation();
-                                 toast.info('缩略图加载失败详情', {
-                                   description: `原因：图片文件可能已损坏或不存在\n来源：${imageSource}\n\n建议：\n1. 重新上传缩略图\n2. 检查网络连接\n3. 联系技术支持`,
-                                   duration: 8000
-                                 });
+                                 // 静默处理，不显示弹窗
+                                 console.log('用户点击查看缩略图加载失败详情');
                                }}>
                             点击查看详情
                           </div>

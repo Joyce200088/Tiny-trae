@@ -1,4 +1,6 @@
-
+5.更新日志单独维护在 CHANGELOG.md, 每次修改代码后要在 CHANGELOG.md 中添加相关记录，包括修改的文件、修改的内容、为什么要修改以及修改后的影响。如果修改没有被采纳，也要在CHANGELOG.md更新日志中添加相关记录，并标注为“未采纳”，并且把文件名前缀添加为“_no”。
+6.最新被采纳的版本保留在 src/ 目录中作为当前生效实现。被新版本取代后，再把老版本移入 archive/。未采纳的实验/分支统一放 _no_archive/。
+7.每次创建新的实验分支时，要在分支名前添加实验编号，如 E0_v1、E1_v1 等。
 # Project Rules: English Stickers Learning App
 ### 1. 框架和依赖版本
 - 前端框架：Next.js + React + TailwindCSS
@@ -6,7 +8,7 @@
 - 状态管理：React hooks + context，不使用 Redux/MobX
 - 数据存储：Supabase (PostgreSQL + Supabase Storage)
 - 图像/音频：贴纸图片、音频文件必须存储在 Supabase Storage 中，保证跨设备可见与持久化
-- 不得使用未经确认的第三方服务
+
 
 
 ### 2. 数据与存储规则

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Volume2, Send, Eye, EyeOff, Settings, X, Play, Pause, RotateCcw } from 'lucide-react';
 import { WorldData } from '@/types/world';
 import { WorldDataUtils } from '@/utils/worldDataUtils';
+import AuthGuard from '@/components/auth/AuthGuard_v1';
 
 // 完整的贴纸数据接口 - 符合项目规范
 interface StickerData {
@@ -1662,13 +1663,15 @@ function DictationPageContent() {
 // 主导出组件，使用Suspense边界包装
 export default function DictationPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-        <p className="text-gray-600">加载听写页面...</p>
-      </div>
-    </div>}>
-      <DictationPageContent />
-    </Suspense>
+    <AuthGuard>
+      <Suspense fallback={<div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载听写页面...</p>
+        </div>
+      </div>}>
+        <DictationPageContent />
+      </Suspense>
+    </AuthGuard>
   );
 }

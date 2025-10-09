@@ -1,4 +1,6 @@
 # TinyLingo 网页运行步骤
+# 抠图：在项目根目录执行
+.\tinylingo\scripts\quick-fix.ps1 -Force -Verbose
 
 ## 显示 Internal Server Error
 Remove-Item -Recurse -Force .next 

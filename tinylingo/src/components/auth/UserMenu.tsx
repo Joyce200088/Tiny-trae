@@ -25,15 +25,25 @@ export function UserMenu() {
 
   // 添加调试信息
   console.log('UserMenu - isAuthenticated:', isAuthenticated, 'user:', user, 'loading:', loading);
+  
+  // 检查localStorage中的临时用户ID
+  if (typeof window !== 'undefined') {
+    const tempUserId = localStorage.getItem('currentUserId');
+    console.log('UserMenu - localStorage currentUserId:', tempUserId);
+  }
 
   /**
-   * 处理注销
+   * 处理用户注销
    */
   const handleSignOut = async () => {
     try {
+      console.log('UserMenu - 开始注销流程');
       await signOut();
+      console.log('UserMenu - 注销成功');
     } catch (error) {
-      console.error('注销失败:', error);
+      console.error('UserMenu - 注销失败:', error);
+      // 可以在这里添加用户友好的错误提示
+      alert('注销失败，请稍后重试');
     }
   };
 
@@ -41,10 +51,14 @@ export function UserMenu() {
    * 获取用户显示名称
    */
   const getUserDisplayName = () => {
-    if (user?.user_metadata?.display_name) {
+    // 确保用户已登录才返回显示名称
+    if (!user || !isAuthenticated) {
+      return '';
+    }
+    if (user.user_metadata?.display_name) {
       return user.user_metadata.display_name;
     }
-    if (user?.email) {
+    if (user.email) {
       return user.email.split('@')[0];
     }
     return '用户';
@@ -54,6 +68,10 @@ export function UserMenu() {
    * 获取用户头像字母
    */
   const getUserInitial = () => {
+    // 确保用户已登录才返回头像字母
+    if (!user || !isAuthenticated) {
+      return '';
+    }
     const displayName = getUserDisplayName();
     return displayName.charAt(0).toUpperCase();
   };
@@ -79,7 +97,20 @@ export function UserMenu() {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.user_metadata?.display_name]);
+
+  // 添加定期刷新机制，确保用户数据同步
+  React.useEffect(() => {
+    if (isAuthenticated && user) {
+      // 减少刷新频率：每5分钟刷新一次用户数据，避免过于频繁的刷新
+      const interval = setInterval(() => {
+        console.log('定期刷新用户数据...');
+        handleRefreshUserData();
+      }, 300000); // 5分钟 = 300000毫秒
+      
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, user?.id]);
 
   if (loading) {
     return (
@@ -159,13 +190,24 @@ export function UserMenu() {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem
-          className="cursor-pointer text-red-600 focus:text-red-600"
-          onClick={handleSignOut}
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          注销
-        </DropdownMenuItem>
+        <DropdownMenuItem 
+                    onClick={() => {
+                      console.log('点击刷新用户数据按钮');
+                      handleRefreshUserData();
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    刷新用户数据
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    注销
+                  </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

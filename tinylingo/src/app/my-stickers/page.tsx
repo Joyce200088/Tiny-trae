@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download, Tag, Check, Plus, X, Volume2, Upload, Sparkles, Edit, Trash2, Search } from 'lucide-react';
+import { AuthGuard } from '@/components/auth/AuthGuard_v1';
 import StickerGenerator from '../../components/StickerGenerator';
 import LearningDashboard from '../../components/LearningDashboard';
 import StickerDetailModal from '../../components/StickerDetailModal';
@@ -1715,4 +1716,13 @@ function MyStickers() {
 }
 
 // 使用React.memo优化组件性能
-export default React.memo(MyStickers);
+const MyStickersWithAuth = React.memo(MyStickers);
+
+// 导出带认证守卫的组件
+export default function MyStickersPage() {
+  return (
+    <AuthGuard requireAuth={true}>
+      <MyStickersWithAuth />
+    </AuthGuard>
+  );
+}
